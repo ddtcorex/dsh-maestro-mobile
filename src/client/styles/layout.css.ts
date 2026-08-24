@@ -636,8 +636,8 @@ export const LAYOUT_CSS = `/* ---------- mobile-only layout ---------- */
        caps at 100dvh-24 (less the safe-area top) and the options area
        scrolls only then. */
     height: auto;
-    max-height: min(800px, calc(100vh - 24px - env(safe-area-inset-top, 0px)));
-    max-height: min(800px, calc(100dvh - 24px - env(safe-area-inset-top, 0px)));
+    max-height: min(800px, calc(100vh - 24px - env(safe-area-inset-top, 0px) - env(safe-area-inset-bottom, 0px)));
+    max-height: min(800px, calc(100dvh - 24px - env(safe-area-inset-top, 0px) - env(safe-area-inset-bottom, 0px)));
     flex-direction: column !important;
     border-radius: 14px !important;
     animation: dsh-maestro-mobile-sheet-in .22s var(--ds-ease-out, ease-in-out);
@@ -732,14 +732,27 @@ export const LAYOUT_CSS = `/* ---------- mobile-only layout ---------- */
     padding: 10px 8px;
     min-height: 0;
   }
-  /* Content: the options scroll area gets bottom breathing room so the last
-     row never sits flush against the sheet's rounded corner. */
+  /* Content: the options area must scroll on its own, independent of the
+     sheet (which is overflow:hidden and only caps its height). The content
+     wrapper is the flex-1 slot; making IT the scroll container lets the
+     options area grow beyond it and scroll instead of being clipped against
+     the sheet's rounded corner. Bottom breathing room + safe-area inset live
+     here so the last row never sits flush on the edge. */
   [aria-modal="true"]:has(> :first-child > :last-child > button):not(:has([role="navigation"])):not(:has([class*="ZuhsRW"])) > :last-child {
     flex: 1 1 auto;
     min-height: 0;
+    overflow-y: auto !important;
+    -webkit-overflow-scrolling: touch;
+    overscroll-behavior: contain;
+    scrollbar-width: thin;
+    padding: 0 12px calc(24px + env(safe-area-inset-bottom, 0px));
   }
+  /* The options area (native overflow-y:auto) is now a child of the content
+     scroll container; drop its native auto scroll (and the padding, which is
+     owned by the content container now) so there is a single scrollbar. */
   [aria-modal="true"]:has(> :first-child > :last-child > button):not(:has([role="navigation"])):not(:has([class*="ZuhsRW"])) > :last-child > :last-child {
-    padding: 0 12px 24px;
+    overflow: visible !important;
+    padding: 0;
   }
 
   /* Fix for dsh-better-sidebar (npm: dsh-better-sidebar) — right panel on mobile:

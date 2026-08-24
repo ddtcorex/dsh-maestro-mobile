@@ -359,6 +359,8 @@ export const COMPAT_CSS = `@media (max-width: 1023px) {
     gap: 6px !important;
     width: 100% !important;
     scrollbar-width: thin !important;
+    scrollbar-color: var(--dsw-alias-border-l2, rgba(0, 0, 0, .22)) transparent !important;
+    scroll-padding-right: 12px !important;
     -webkit-overflow-scrolling: touch !important;
   }
   /* Hairline scrollbar for the tab row: the default WebKit scrollbar reads
@@ -417,6 +419,8 @@ export const COMPAT_CSS = `@media (max-width: 1023px) {
     flex-direction: column !important;
     align-items: stretch !important;
     gap: 8px !important;
+    max-width: 100% !important;
+    min-width: 0 !important;
   }
   [aria-modal="true"] [class*="_section"] [class*="_row"]:not([class*="_rows"]):not([class*="_rowCard"]):not([class*="_rowHead"]):not([class*="_rowIdentity"]):not([class*="_rowActions"]) > :first-child {
     width: 100% !important;
@@ -425,6 +429,28 @@ export const COMPAT_CSS = `@media (max-width: 1023px) {
   [aria-modal="true"] [class*="_section"] [class*="_row"]:not([class*="_rows"]):not([class*="_rowCard"]):not([class*="_rowHead"]):not([class*="_rowIdentity"]):not([class*="_rowActions"]) > :last-child {
     width: 100% !important;
     max-width: none !important;
+  }
+  /* Setting rows: the text block (label + description) is a flex child whose
+     min-content width can overrun the sheet when a label/description is long
+     (General tab: _rowText right edge 410 > sheet 382). Give the text column
+     a min-width:0 + overflow-wrap so it wraps inside the sheet instead of
+     pushing the row past the rounded corner. */
+  [aria-modal="true"] [class*="_section"] [class*="_rowText"] {
+    width: 100% !important;
+    max-width: 100% !important;
+    min-width: 0 !important;
+    overflow-wrap: break-word;
+  }
+  /* Tap targets: the official controls are mouse-sized (36px selectors, 28px
+     row-action buttons). Bump the interactive controls to a comfortable
+     mobile hit area without enlarging the pill visually too much. */
+  [aria-modal="true"] [class*="_section"] [class*="_selector"] {
+    min-height: 40px !important;
+  }
+  [aria-modal="true"] [class*="_rowActions"] button {
+    min-height: 32px !important;
+    min-width: 36px !important;
+    padding: 4px 8px !important;
   }
   /* Appearance mode group: give the cube row a consistent bordered
      segmented look (the official borders differ per state). */
