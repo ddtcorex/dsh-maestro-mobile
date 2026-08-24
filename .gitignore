@@ -1,0 +1,18 @@
+node_modules/
+.client-build/
+*.log
+
+.learnings/
+.codegraph/
+docs/superpowers/
+
+# Playwright local test tools (do not commit)
+.local-tests/
+playwright.config.ts
+test/
+test-results/
+playwright-report/
+.dsh-vision-toolkit/
+
+# Local debug map (not uploaded, local only)
+docs/debug/settings-market-debug-map.md
