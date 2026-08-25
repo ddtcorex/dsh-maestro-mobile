@@ -1,7 +1,9 @@
 // CDP regression probe for dsh-maestro-mobile.
 // Inputs (environment): DSH_PROBE_URL (default http://127.0.0.1:3080/),
 // DSH_PROBE_SESSION_ID (required), DSH_PROBE_CHROME (default chromium),
-// DSH_PROBE_TIMEOUT_MS (default 30000), DSH_PROBE_REQUIRE_CHIP (0 or 1, default 0).
+// DSH_PROBE_TIMEOUT_MS (default 30000), DSH_PROBE_REQUIRE_CHIP (0 or 1, default 0),
+// DSH_PROBE_MARKET (0 or 1, default 0) - run the settings > marketplace
+// cats-row scenario (drawer width cascade must not crush .catsWrap to zero).
 // Exits 0 only when every required check passes; any FAIL, timeout, page error,
 // or strict integration absence exits 1. Never calls process.exit().
 import { spawn } from 'node:child_process';
@@ -41,6 +43,10 @@ function readConfig(env = process.env) {
   if (requireChipFlag !== '0' && requireChipFlag !== '1') {
     throw new Error('DSH_PROBE_REQUIRE_CHIP must be 0 or 1');
   }
+  const marketFlag = env.DSH_PROBE_MARKET || '0';
+  if (marketFlag !== '0' && marketFlag !== '1') {
+    throw new Error('DSH_PROBE_MARKET must be 0 or 1');
+  }
 
   return {
     url: parsedUrl.href,
@@ -48,6 +54,7 @@ function readConfig(env = process.env) {
     chromePath: env.DSH_PROBE_CHROME || 'chromium',
     timeoutMs,
     requireChip: requireChipFlag === '1',
+    marketScenario: marketFlag === '1',
   };
 }
 
@@ -168,11 +175,14 @@ async function clickSelector(client, selector) {
   const hit = await client.evaluate(`(() => {
     const element = document.elementFromPoint(${x}, ${y});
     const target = document.querySelector(${JSON.stringify(selector)});
-    return element !== null && target !== null && (element === target || target.contains(element));
+    return {
+      ok: element !== null && target !== null && (element === target || target.contains(element)),
+      blocker: element ? element.tagName + '.' + String(element.className || '').slice(0, 60) : 'none',
+    };
   })()`);
-  if (!hit) {
-    fail('geometry.element-from-point', `(${Math.round(x)}, ${Math.round(y)}) not over ${selector}`);
-    throw new ProbeFailure('geometry.element-from-point', `(${Math.round(x)}, ${Math.round(y)}) not over ${selector}`);
+  if (!hit.ok) {
+    fail('geometry.element-from-point', `(${Math.round(x)}, ${Math.round(y)}) not over ${selector} hit=${hit.blocker}`);
+    throw new ProbeFailure('geometry.element-from-point', `(${Math.round(x)}, ${Math.round(y)}) not over ${selector} hit=${hit.blocker}`);
   }
   await clickPoint(client, x, y);
   return { x, y, rect };
@@ -586,6 +596,148 @@ async function runGitgraphScenario(client, config, signal) {
   }
 }
 
+// Settings > Plugin Market scenario (DSH_PROBE_MARKET=1). Guards against the
+// drawer width cascade regressing into modal subtrees: the unguarded
+// `[class*="_root"]` fragment rule matched dshmarket's Menu anchor span
+// (`_root_<hash>`), gave it a full-row flex base inside .catsRow and crushed
+// .catsWrap (flex-basis:0%, min-width:0) to zero width, stacking the category
+// chips in an invisible column underneath the overlapping Filter button.
+async function runMarketScenario(client, config, signal) {
+  // Step 0: neutral start. The core/gitgraph scenarios close the drawer right
+  // before this one runs; its fade-out backdrop can still cover the toggle
+  // for ~300ms and would defeat the element-from-point guard in
+  // clickSelector. Wait for the backdrop to unmount first.
+  await waitFor('backdrop unmounted', config.timeoutMs, signal, async () => {
+    const present = await client.evaluate(`document.querySelector(${JSON.stringify(MOBILE_BACKDROP_SELECTOR)}) !== null`);
+    return !present || null;
+  });
+
+  // Step 1: open the drawer.
+  // After the breakpoint re-arm dance the sidebar can still be settling
+  // (the brand header may transiently sit over the toggle); poll until the
+  // toggle really owns its own center point, then click through the guarded
+  // helper.
+  await waitFor('toggle clickable', config.timeoutMs, signal, async () => {
+    const ok = await client.evaluate(`(() => {
+      const toggle = document.querySelector(${JSON.stringify(MOBILE_TOGGLE_SELECTOR)});
+      if (!toggle) return null;
+      const rect = toggle.getBoundingClientRect();
+      const hit = document.elementFromPoint(rect.left + rect.width / 2, rect.top + rect.height / 2);
+      return hit !== null && (hit === toggle || toggle.contains(hit)) ? true : null;
+    })()`);
+    return ok || null;
+  });
+  await clickSelector(client, MOBILE_TOGGLE_SELECTOR);
+  await waitFor('drawer expanded', config.timeoutMs, signal, async () => {
+    const state = await client.evaluate(
+      `(() => {
+        const frame = document.querySelector(${JSON.stringify(MOBILE_FRAME_SELECTOR)});
+        return frame && !frame.hasAttribute('data-sidebar-collapsed') ? true : null;
+      })()`,
+    );
+    return state || null;
+  });
+
+  // Step 2: open Settings from the drawer footer (exact-text button).
+  // The drawer slides in over .28s while data-sidebar-collapsed is already
+  // gone, so a single blind click can land on a moving target; retry against
+  // a freshly-measured rect until the settings sheet actually mounts.
+  await waitFor('settings dialog', config.timeoutMs, signal, async () => {
+    const pt = await client.evaluate(`(() => {
+      const hit = [...document.querySelectorAll('[data-mobile-nav="frame"] button')]
+        .find((el) => (el.textContent || '').trim() === 'Settings' && (el.offsetWidth || el.offsetHeight));
+      if (!hit) return null;
+      const rect = hit.getBoundingClientRect();
+      const x = Math.round(rect.left + rect.width / 2);
+      const y = Math.round(rect.top + rect.height / 2);
+      const at = document.elementFromPoint(x, y);
+      return at !== null && (at === hit || hit.contains(at)) ? { x, y } : null;
+    })()`);
+    if (!pt) return null;
+    await clickPoint(client, pt.x, pt.y);
+    const opened = await client.evaluate(`document.querySelector('[role="dialog"]') !== null`);
+    return opened || null;
+  });
+  // Step 3: open the marketplace section inside the settings sheet, with the
+  // same measure-verify-click-retry discipline as Step 2.
+  await waitFor('market root', config.timeoutMs, signal, async () => {
+    const pt = await client.evaluate(`(() => {
+      const hit = [...document.querySelectorAll('[role="dialog"] button')]
+        .find((el) => /market/i.test(el.textContent || '') && (el.offsetWidth || el.offsetHeight));
+      if (!hit) return null;
+      const rect = hit.getBoundingClientRect();
+      const x = Math.round(rect.left + rect.width / 2);
+      const y = Math.round(rect.top + rect.height / 2);
+      const at = document.elementFromPoint(x, y);
+      return at !== null && (at === hit || hit.contains(at)) ? { x, y } : null;
+    })()`);
+    if (!pt) return null;
+    await clickPoint(client, pt.x, pt.y);
+    const opened = await client.evaluate(`document.querySelector('[data-dsh-market-root]') !== null`);
+    return opened || null;
+  });
+  // Discover-tab content (search row + cats row) renders after catalog load.
+  await waitFor('cats row', config.timeoutMs, signal, async () => {
+    const state = await client.evaluate(`(() => {
+      const wrap = document.querySelector('[class*="_catsWrap"]');
+      if (!wrap) return null;
+      const chips = wrap.querySelectorAll('button').length;
+      return chips > 0 ? { chips } : null;
+    })()`);
+    return state || null;
+  });
+
+  // Step 4: geometry gate. The wrap must keep real width (not crushed to the
+  // zero-width stack) and no chip may intersect the Filter anchor rect.
+  const state = await client.evaluate(`(() => {
+    const row = document.querySelector('[class*="_catsRow"]');
+    const wrap = document.querySelector('[class*="_catsWrap"]');
+    if (!row || !wrap) return null;
+    const toRect = (el) => {
+      const r = el.getBoundingClientRect();
+      return { left: r.left, top: r.top, right: r.right, bottom: r.bottom, width: r.width };
+    };
+    const chips = [...wrap.querySelectorAll('button')].map(toRect);
+    const filterButton = [...document.querySelectorAll('[data-dsh-market-root] button')]
+      .find((b) => /filter/i.test(b.textContent || ''));
+    const filter = filterButton ? toRect(filterButton.closest('span') || filterButton) : null;
+    const intersects = (a, b) =>
+      a !== null && b !== null && !(a.right <= b.left || b.right <= a.left || a.bottom <= b.top || b.bottom <= a.top);
+    return {
+      wrapWidth: wrap.getBoundingClientRect().width,
+      rowHeight: row.getBoundingClientRect().height,
+      chips,
+      filter,
+      overlap: chips.some((chip) => intersects(chip, filter)),
+      marketRootWidth: document.querySelector('[data-dsh-market-root]')?.getBoundingClientRect().width ?? 0,
+    };
+  })()`);
+  if (state === null) {
+    fail('market.cats-row', 'reason=cats-row-not-measurable');
+    throw new ProbeFailure('market.cats-row', 'cats row not measurable');
+  }
+  assertCheck('market.cats-wrap-width', state.wrapWidth >= 150, `width=${Math.round(state.wrapWidth)} (zero/narrow means crushed by a width-forced sibling)`);
+  assertCheck('market.chips-no-overlap', !state.overlap, `chips=${state.chips.length} filter=${state.filter ? JSON.stringify(state.filter) : 'null'}`);
+  assertCheck('market.root-width', state.marketRootWidth >= 300, `width=${Math.round(state.marketRootWidth)}`);
+
+  // Cleanup: close the settings sheet so later scenarios start neutral. The
+  // host's close control is the ✕ inside the dialog nav; Escape also works.
+  await pressEscape(client);
+  try {
+    await waitFor('settings closed', config.timeoutMs, signal, async () => {
+      const present = await client.evaluate(`document.querySelector('[role="dialog"]') !== null`);
+      return !present || null;
+    });
+    pass('market.cleanup', 'sheet=closed');
+  } catch (error) {
+    if (error instanceof TimeoutError) {
+      console.error('cleanup: settings sheet did not close after Escape');
+    } else {
+      throw error;
+    }
+  }
+}
+
 async function main() {
   const abortController = new AbortController();
   const onSignal = (signalName) => abortController.abort(new Error(`received ${signalName}`));
@@ -628,7 +780,11 @@ async function main() {
         const response = await fetch(`http://127.0.0.1:${port}/json`);
         if (!response.ok) return null;
         const targets = await response.json();
-        return targets.length ? targets[0] : null;
+        // Pick the PAGE target explicitly: /json also lists extension
+        // background pages / service workers, and on some Chrome builds one of
+        // those sorts first — attaching to it makes every document evaluate
+        // run in the wrong context and the page-load gate time out.
+        return targets.find((candidate) => candidate.type === 'page') || null;
       } catch {
         return null;
       }
@@ -696,6 +852,13 @@ async function main() {
     // restored the narrow viewport with the drawer closed. The scenario closes
     // any popover it opens before returning.
     await runGitgraphScenario(client, config, signal);
+
+    // Optional marketplace gate (DSH_PROBE_MARKET=1): drives drawer >
+    // Settings > Plugin Market and asserts the cats-row geometry. Closes the
+    // settings sheet before returning.
+    if (config.marketScenario) {
+      await runMarketScenario(client, config, signal);
+    }
   } catch (error) {
     if (!(error instanceof ProbeFailure)) {
       fail('fatal', error instanceof Error ? error.message : String(error));
