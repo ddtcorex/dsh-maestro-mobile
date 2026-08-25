@@ -478,36 +478,17 @@ export const COMPAT_CSS = `@media (max-width: 1023px) {
   [aria-modal="true"] [class*="_section"] [class*="_rowText"] > * {
     min-width: 0 !important;
   }
-  /* Plugin-config cards in the Plugins settings tab (DSH core, v1ASoG):
-     the native layout stacks title+description beside a full-height bordered
-     chevron toggle, which looks oversized on ~350px. Keep the row compact and
-     turn that toggle into a small right-aligned icon button. */
-  [aria-modal="true"] [class*="v1ASoG_card"] {
-    align-items: center !important;
-  }
-  [aria-modal="true"] [class*="v1ASoG_header"] {
-    align-items: center !important;
-    justify-content: flex-start !important;
-    gap: 12px !important;
-  }
-  [aria-modal="true"] [class*="v1ASoG_header"] [class*="headText"] {
-    flex: 1 1 auto !important;
-    min-width: 0 !important;
-  }
-  [aria-modal="true"] [class*="v1ASoG_header"] > *:not([class*="headText"]) {
-    flex: 0 0 auto !important;
-    align-self: center !important;
-    width: 40px !important;
-    height: 40px !important;
-    min-height: 40px !important;
-    min-width: 40px !important;
-    padding: 0 !important;
-    border-radius: 10px !important;
-    display: inline-flex !important;
-    align-items: center !important;
-    justify-content: center !important;
-    overflow: hidden !important;
-  }
+  /* Plugin-config cards in the Plugins settings tab (DSH core): intentionally
+     NOT overridden. An earlier pass (62b6827, 2026-08-25) compacted these
+     cards because upstream stacked title+description beside a full-height
+     bordered chevron wrapper; current upstream already renders exactly that
+     compact shape natively (PluginCard.module.css: flex header, gap 12,
+     headText flex:1 min-width:0, chevron a bare 14px svg with flex:none).
+     The old direct-child branch (> *:not([class*="headText"])) caught the raw
+     SVG and inflated it to a 40x40 inline-flex box (~3x stretched glyph) —
+     and would clip any future direct child (e.g. the unsaved-edits badge). Do not
+     reintroduce per-hash overrides here; the hashes drift on every core
+     rebuild (the pinned hash was itself stale within weeks). */
   /* Agent-preset cards (TGQ48q) and Side-card feature cards (_2vuxea): they
      render taller than their content with it vertically centered (or an
      equal-height grid row), leaving dead space on phone. Pin content to the
