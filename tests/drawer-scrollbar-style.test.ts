@@ -10,12 +10,9 @@ test('the session tree root drops its reserved right gutter so rows reach the dr
     /\[data-mobile-nav="frame"\] > :first-child \[class\*="_regionArea"\] \[class\*="_root"\]\s*\{\s*padding-right:\s*0\s*!important;/s,
   )
   // The widened drawer must NOT also force the rows to width:100%: that, with the
-  // row's content-box padding, over-extends them past the drawer. Only the New
-  // Session create button is stretched.
-  assert.match(
-    layout,
-    /\[data-mobile-nav="frame"\] > :first-child \[class\*="_newSession"\]\s*\{\s*width:\s*100%\s*!important;/s,
-  )
+  // row's content-box padding, over-extends them past the drawer. The New
+  // Session button stays content-sized too (user feedback 2026-08-27) —
+  // asserted in new-session-width-style.test.ts.
   assert.doesNotMatch(
     layout,
     /:is\(\[class\*="_newSession"\],\[class\*="_sessionRow"\]\)\s*\{\s*width:\s*100%\s*!important;/s,

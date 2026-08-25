@@ -88,8 +88,14 @@ export const LAYOUT_CSS = `/* ---------- mobile-only layout ---------- */
   [data-mobile-nav="frame"] > :first-child :is([class*="_regionArea"],[class*="_listArea"],[class*="_treeBody"],[class*="_root"]):not([role="dialog"] *):not([aria-modal="true"] *) {
     width: 100% !important;
   }
+  /* The New Session button is intentionally NOT width-stretched: like the
+     brand header and the icon buttons it stays content-sized (icon + label
+     span), per user feedback 2026-08-27. Dropping the width:100% alone is
+     not enough — the parent is a flex column whose default cross-axis
+     alignment stretches it back to the full column, so pin it to the start
+     (the same device upstream uses for its collapsed rail state). */
   [data-mobile-nav="frame"] > :first-child [class*="_newSession"] {
-    width: 100% !important;
+    align-self: flex-start;
   }
 
   /* The workspace/session tree root carries a reserved right gutter
