@@ -128,7 +128,7 @@ export const LAYOUT_CSS = `/* ---------- mobile-only layout ---------- */
     width: 100% !important;
     box-sizing: border-box !important;
   }
-  [data-mobile-nav="frame"] [class*="_settingsArea"] button {
+  [data-mobile-nav="frame"] [class*="_settingsArea"] button:not([aria-modal="true"] *) {
     width: 100% !important;
     justify-content: center !important;
     margin-inline: 0 !important;
