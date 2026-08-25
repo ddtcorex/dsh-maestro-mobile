@@ -520,6 +520,37 @@ export const COMPAT_CSS = `@media (max-width: 1023px) {
   [aria-modal="true"] [class*="_2vuxea_grid"] {
     align-items: start !important;
   }
+  /* dsh-market settings content in the sheet: its header rows (title+version,
+     the "Discover community plugins" + Export-log row, the "All …1k)" filter
+     strip) are nowrap flex that outrun the ~376px sheet, clipping the version
+     badge / Export-log button / filter at the right edge. Let them wrap and
+     shrink so every control stays inside the sheet (mobile-only issue). */
+  [aria-modal="true"] [class*="eGUBIq_head"],
+  [aria-modal="true"] [class*="eGUBIq_titleRow"],
+  [aria-modal="true"] [class*="eGUBIq_sub"] {
+    flex-wrap: wrap !important;
+    row-gap: 8px !important;
+  }
+  [aria-modal="true"] [class*="eGUBIq_root"],
+  [aria-modal="true"] [class*="eGUBIq_head"],
+  [aria-modal="true"] [class*="eGUBIq_titleRow"],
+  [aria-modal="true"] [class*="eGUBIq_sub"] > * {
+    min-width: 0 !important;
+    max-width: 100% !important;
+  }
+  /* Long read-only values in the settings sheet (e.g. the dsh-maestro
+     Cloudflare credentials path) are a single nowrap line that clips at the
+     input edge on phone. Let them wrap so the value stays readable and inside
+     the sheet (mobile-only issue). */
+  [aria-modal="true"] [class*="_section"] input,
+  [aria-modal="true"] [class*="_section"] textarea,
+  [aria-modal="true"] [class*="_section"] [class*="mono"],
+  [aria-modal="true"] [class*="_section"] code {
+    max-width: 100% !important;
+    min-width: 0 !important;
+    overflow-wrap: anywhere !important;
+    word-break: break-word !important;
+  }
   /* Appearance mode group: give the cube row a consistent bordered
      segmented look (the official borders differ per state). */
   [aria-modal="true"] [class*="_cubeRow"] > * {
