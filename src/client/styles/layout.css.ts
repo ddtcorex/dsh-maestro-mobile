@@ -718,7 +718,11 @@ export const LAYOUT_CSS = `/* ---------- mobile-only layout ---------- */
     margin-left: 0 !important;
     margin-right: 0 !important;
   }
-  [aria-modal="true"]:has(> :first-child > :last-child > button):not(:has([role="navigation"])):not(:has([class*="ZuhsRW"])) [class*="_header"]:not([class*="_headerActions"]) > :last-child {
+  /* :last-child is scoped to real controls (button / [role=button] / a):
+     unguarded, this branch also caught the BARE chevron <svg> that ends the
+     DSH-core plugin-config card headers (headText + svg) and turned the glyph
+     into a grey 32x32 circle on every Plugins-settings card (2026-08-27). */
+  [aria-modal="true"]:has(> :first-child > :last-child > button):not(:has([role="navigation"])):not(:has([class*="ZuhsRW"])) [class*="_header"]:not([class*="_headerActions"]) > :last-child:is(button, [role="button"], a) {
     flex: none !important;
     width: 32px;
     height: 32px;
