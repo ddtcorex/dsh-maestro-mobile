@@ -71,8 +71,21 @@ export const LAYOUT_CSS = `/* ---------- mobile-only layout ---------- */
      -> treeBody) and to the rows / create button so the content stretches to
      fill the wider drawer. Do NOT blanket-width all buttons/sections: the
      brand header and the icon buttons (collapse, search, filter) must stay
-     content-sized. */
-  [data-mobile-nav="frame"] > :first-child :is([class*="_regionArea"],[class*="_listArea"],[class*="_treeBody"],[class*="_root"]) {
+     content-sized.
+     The dialog guards are load-bearing, not decoration: the settings sheet
+     portals into this same drawer subtree (see the transform:none note below),
+     and "_root" is a fragment of EVERY compiled CSS-module class whose local
+     name is "root" ('jR4zTa_root', market's 'eGUBIq_root', ui-primitives'
+     '_root_19372_1', ...). Unguarded, the rule force-fed width:100% to the
+     dshmarket Menu anchor span inside the flex .catsRow: its flex base became
+     the full row width, .catsWrap (flex-basis:0%, min-width:0) crushed to
+     zero, and the category chips stacked in a zero-width column underneath
+     the overlapping Filter button. Excluding modal subtrees keeps the stretch
+     on the drawer's own column while leaving every in-dialog "_root" element
+     to upstream layout (verified live 2026-08-27 at 390px: chips one line,
+     Filter right-aligned, market root / drawer columns / disclosure spans
+     unchanged). */
+  [data-mobile-nav="frame"] > :first-child :is([class*="_regionArea"],[class*="_listArea"],[class*="_treeBody"],[class*="_root"]):not([role="dialog"] *):not([aria-modal="true"] *) {
     width: 100% !important;
   }
   [data-mobile-nav="frame"] > :first-child [class*="_newSession"] {
