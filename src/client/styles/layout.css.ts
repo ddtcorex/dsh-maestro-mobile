@@ -741,6 +741,7 @@ export const LAYOUT_CSS = `/* ---------- mobile-only layout ---------- */
   [aria-modal="true"]:has(> :first-child > :last-child > button):not(:has([role="navigation"])):not(:has([class*="ZuhsRW"])) > :last-child {
     flex: 1 1 auto;
     min-height: 0;
+    box-sizing: border-box;
     overflow-y: auto !important;
     -webkit-overflow-scrolling: touch;
     overscroll-behavior: contain;
