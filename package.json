@@ -26,6 +26,7 @@
   ],
   "scripts": {
     "build": "tsc -p tsconfig.json && tsc -p tsconfig.client.json && node scripts/build-client.mjs",
+    "test": "pnpm run test:core",
     "verify": "tsc -p tsconfig.json --noEmit && tsc -p tsconfig.client.json --noEmit",
     "smoke:cdp": "node scripts/cdp-probe.mjs",
     "test:core": "node --test tests/reconciler-core.test.ts",
@@ -59,6 +60,5 @@
     "@types/react": "~18.3.1",
     "@types/react-dom": "~18.3.0",
     "typescript": "^6.0.3"
-  },
-  "packageManager": "pnpm@11.7.0"
+  }
 }
