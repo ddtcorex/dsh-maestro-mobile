@@ -1,5 +1,6 @@
 {
   "name": "@ddtcorex/dsh-maestro-mobile",
+  "private": false,
   "version": "1.0.0",
   "description": "Portrait and mobile adaptation for DeepSeek Harness Web UI — overlay drawer, full-width conversation, sheet-based dialogs, safe-area handling",
   "type": "module",
@@ -60,5 +61,6 @@
     "@types/react": "~18.3.1",
     "@types/react-dom": "~18.3.0",
     "typescript": "^6.0.3"
-  }
+  },
+  "packageManager": "pnpm@11.7.0"
 }
