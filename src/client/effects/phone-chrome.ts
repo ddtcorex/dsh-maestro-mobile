@@ -7,7 +7,6 @@ import { createPreviewFullscreenTask } from './preview-fullscreen.ts'
 import { createGitChipTask } from './git-chip-reparent.ts'
 import { createSettingsToolbarTask } from './settings-toolbar-reparent.ts'
 import { createOverlayTask, createRightPanelBackdropTask } from './overlay-backdrop-fab.ts'
-import { drawerCloseTiming } from './drawer-navigation.ts'
 
 // The custom client bundler cannot resolve `../` requires from src/client/effects,
 // so this mirrors the namespace id from src/client/locales.ts. Keep in sync.
@@ -263,6 +262,10 @@ export function installOverlayInteractions(ctx: ClientContext): void {
       const btn = document.querySelector<HTMLElement>('[data-dsh-toggle-cluster] button')
       if (btn !== null) btn.click()
     }
+    const closeDrawerAndPanel = (): void => {
+      toggleSidebar()
+      if (isRightPanelOpen()) closeRightPanel()
+    }
     const onKeyDown = (event: KeyboardEvent): void => {
       if (event.key !== 'Escape') return
       if (document.querySelector('[aria-modal="true"]') !== null) return
@@ -274,65 +277,115 @@ export function installOverlayInteractions(ctx: ClientContext): void {
     }
     // Capture phase: run before the shell or a plugin processes the click,
     // so takeover panels never render under the open drawer.
+    const drawerRoot = (): HTMLElement | null =>
+      document.querySelector<HTMLElement>('[data-mobile-nav="frame"] > :first-child')
+
     const shouldCloseOnTapInsideDrawer = (target: EventTarget | null): boolean => {
       if (document.querySelector('[aria-modal="true"]') !== null) return false
       if (!drawerOpen()) return false
       if (!(target instanceof Element)) return false
-      const drawer = document.querySelector<HTMLElement>('[data-mobile-nav="frame"] > :first-child')
+      const drawer = drawerRoot()
       if (drawer === null || !drawer.contains(target)) return false
       if (target.closest('[class*="sessionRow"] button') !== null) return false
       return target.closest(
         'button[data-dsh-taskboard-entry], button[data-dsh-ssh-entry], [class*="newSession"], [class*="sessionRow"], [class*="searchResultRow"], [class*="searchResultWorkspace"]',
       ) !== null
     }
-    const closeDrawerForNavigation = (): void => {
-      toggleSidebar()
-      if (isRightPanelOpen()) closeRightPanel()
+    // Touch path for session/search rows: never close the drawer from pointer
+    // events. Closing at pointerup (or deferring the close) races the browser's
+    // synthesized click; some iOS shells suppress that click entirely, so the
+    // row's onClick never runs. Instead arm the drawer to close on the *fact*
+    // of navigation: when the selected row's title changes, React has already
+    // opened the conversation, so the drawer can close safely.
+    // Ported from mexiaosqwq/dsh-web-mobile v2.2.0 (#32) while keeping
+    // dsh-better-sidebar right-panel handling.
+    let lastTouchNavAt = 0
+    let navSignatureAtArm = ''
+    let navObserver: MutationObserver | null = null
+    let navTimer: number | null = null
+
+    const selectedRowSignature = (): string | null => {
+      const selected = drawerRoot()?.querySelector<HTMLElement>('[role="treeitem"][aria-selected="true"]')
+      const title = selected?.querySelector<HTMLElement>('[class*="_title"]')
+      return title?.textContent?.trim() ?? null
     }
-    // iOS may run a frame queued from pointerup before it dispatches the
-    // synthesized click. Session rows therefore remain mounted through
-    // pointerup and close only after their click has propagated to React.
-    const isSessionRowTarget = (target: EventTarget | null): boolean =>
-      target instanceof Element && target.closest('[class*="sessionRow"]') !== null
-    let drawerCloseTimer: number | undefined
-    const closeDrawerAfterClick = (): void => {
-      if (drawerCloseTimer !== undefined) return
-      drawerCloseTimer = window.setTimeout(() => {
-        drawerCloseTimer = undefined
-        closeDrawerForNavigation()
-      }, 0)
+
+    const disarmNav = (): void => {
+      navObserver?.disconnect()
+      navObserver = null
+      if (navTimer !== null) window.clearTimeout(navTimer)
+      navTimer = null
+      navSignatureAtArm = ''
     }
-    const closeDrawerForEvent = (eventType: 'click' | 'pointerup', target: EventTarget | null): void => {
-      switch (drawerCloseTiming(eventType, isSessionRowTarget(target))) {
-        case 'ignore': return
-        case 'immediate': return closeDrawerForNavigation()
-        case 'after-click': return closeDrawerAfterClick()
-      }
+
+    const armNav = (): void => {
+      disarmNav()
+      navSignatureAtArm = selectedRowSignature() ?? ''
+      const root = drawerRoot()
+      if (root === null) return
+      navObserver = new MutationObserver(() => {
+        if (!drawerOpen()) {
+          disarmNav()
+          return
+        }
+        const signature = selectedRowSignature()
+        if (signature !== null && signature !== navSignatureAtArm) {
+          disarmNav()
+          closeDrawerAndPanel()
+        }
+      })
+      navObserver.observe(root, {
+        childList: true,
+        subtree: true,
+        attributes: true,
+        attributeFilter: ['aria-selected'],
+      })
+      navTimer = window.setTimeout(disarmNav, 2000)
     }
+
     const onDrawerClick = (event: MouseEvent): void => {
-      if (!shouldCloseOnTapInsideDrawer(event.target)) return
-      closeDrawerForEvent('click', event.target)
+      // A touch row-tap owns the close (pointerup or the navigation observer);
+      // let the row's click reach React without toggling the drawer twice.
+      if (performance.now() - lastTouchNavAt < 500) return
+      if (shouldCloseOnTapInsideDrawer(event.target)) closeDrawerAndPanel()
     }
-    // Touch path: navigating from a drawer row unmounts it before the
-    // browser synthesizes the tap click, so the click never reaches the
-    // document and the drawer would stay open. Close on pointerup instead
-    // (mouse keeps the click path; pointerType guards keep them exclusive).
+
     const onDrawerPointerUp = (event: PointerEvent): void => {
       if (event.pointerType !== 'touch' && event.pointerType !== 'pen') return
-      if (!shouldCloseOnTapInsideDrawer(event.target)) return
-      closeDrawerForEvent('pointerup', event.target)
+      const target = event.target
+      if (!(target instanceof Element)) return
+      if (!shouldCloseOnTapInsideDrawer(target)) return
+
+      const row = target.closest('[role="treeitem"]')
+      if (row !== null) {
+        lastTouchNavAt = performance.now()
+        if (row.getAttribute('aria-selected') === 'true') {
+          // Already-selected row will not navigate; closing immediately is safe.
+          closeDrawerAndPanel()
+        } else {
+          // Unselected row: let navigation land, then close via the observer.
+          armNav()
+        }
+        return
+      }
+
+      // Non-row nav targets (newSession / taskboard / ssh / search rows that
+      // are not treeitems): the pointerup close path is still correct.
+      closeDrawerAndPanel()
     }
+
     document.addEventListener('keydown', onKeyDown, true)
     document.addEventListener('click', onDrawerClick, true)
     document.addEventListener('pointerup', onDrawerPointerUp, true)
     return () => {
-      if (drawerCloseTimer !== undefined) window.clearTimeout(drawerCloseTimer)
+      disarmNav()
       document.removeEventListener('keydown', onKeyDown, true)
       document.removeEventListener('click', onDrawerClick, true)
       document.removeEventListener('pointerup', onDrawerPointerUp, true)
     }
   })
 }
+
 
 /**
  * Register the shared DOM reconciler tasks. Returns a disposer that

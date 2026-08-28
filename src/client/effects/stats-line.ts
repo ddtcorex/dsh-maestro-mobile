@@ -47,7 +47,7 @@ export function createStatsLineTask(): ReconcilerTask {
       if (root.matches('[data-testid="todo-panel"]')) continue
       if (root.querySelector('button') !== null) continue
       const text = root.textContent ?? ''
-      if (!/(turns|steps|\bLLM\b)/.test(text)) continue
+      if (!/(turns|steps|\bLLM\b|轮|步)/.test(text)) continue
       if (root.querySelector('textarea') !== null) continue
       root.setAttribute('data-mobile-nav', 'stats')
       moveTps(root)
