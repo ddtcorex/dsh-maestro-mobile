@@ -31,10 +31,10 @@ pnpm build          # tsc host + client && node scripts/build-client.mjs  -> lib
 
 ## Git workflow
 
-- `master` is the default branch; small fixes may commit directly to it. Larger batches use a feature branch (`feat/...`, `fix/...`) and a PR.
+- `master` is the default branch; do not commit directly to `master` — use `feat/<topic>` / `fix/<topic>` and a PR against `ddtcorex/dsh-maestro-mobile` (small doc fixes may use same PR flow).
 - Conventional commits, imperative mood: `fix(mobile): ...`, `feat(mobile): ...`.
 - One logical change = one commit. Never commit while `pnpm verify` is red.
-- Push `master` to the `ddtcorex/dsh-maestro-mobile` remote after the gates pass. Rebase feature branches when the base moves.
+- **Always request approval before merge or release:** never merge a PR/MR or publish a release (`git tag`/`pnpm publish`/`gh release`) without an explicit human `APPROVED` — request review (`gh pr ready` / `gh pr request-review` / ask in chat) and wait for `APPROVED`. Rebase feature branches when the base moves.
 
 ## Conventions
 
