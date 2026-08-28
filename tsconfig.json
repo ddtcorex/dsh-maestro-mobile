@@ -11,7 +11,8 @@
     "noEmitOnError": true,
     "rootDir": "src",
     "outDir": "lib",
-    "declarationDir": "lib/types"
+    "declarationDir": "lib/types",
+    "types": ["node"]
   },
   "include": ["src/index.ts"],
   "exclude": ["src/client", "lib", "node_modules"]

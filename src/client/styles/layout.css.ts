@@ -22,32 +22,42 @@ export const LAYOUT_CSS = `/* ---------- mobile-only layout ---------- */
 
   /* AppFrame: the drawer takes the sidebar column out of grid flow, so the
      remaining in-flow items (center, details) land in tracks 1..2: give the
-     center every pixel and keep the details track at zero. Its top safe-area
-     padding clears the status bar / notch for every in-flow surface. The
-     composer owns the bottom safe-area so drawer geometry stays independent
-     of the iPhone home indicator. */
+     center every pixel and keep the details track at zero. The top padding
+     clears the status bar / notch for every in-flow surface (session header,
+     messages, composer); the absolutely-positioned drawer is unaffected (its
+     containing block is the frame's padding box, i.e. still the frame top).
+     box-sizing MUST be border-box: the official frame is height:100% of a
+     100%-height body, and it is content-box by default, so the safe-area
+     padding is ADDED on top of the full viewport height. The frame then grows
+     to 100% + inset, the document itself becomes scrollable by exactly the
+     inset, and the sticky composer seat (bottom:0 of the scroll body) lands
+     below the visual viewport. Symptoms on a notched phone: the whole UI can
+     be swiped up, the composer lifts off the bottom leaving a blank strip,
+     and the newest message sits under the composer because the host's
+     at-bottom follow scrolls its own scroll body, not the document. With
+     border-box the padding is taken out of the 100% height instead, so the
+     frame is exactly one viewport tall and the document never scrolls. */
   [data-mobile-nav="frame"] {
+    box-sizing: border-box !important;
     position: relative !important;
     grid-template-columns: minmax(0, 1fr) 0 0 !important;
     padding-top: env(safe-area-inset-top, 0px) !important;
   }
 
-  /* The sidebar column (first grid child) becomes a left drawer. The drawer is
-     a fixed ~80vw box (not max-content): the sidebar content carries an inline
-     width (~280px) that would otherwise leave the drawer hugging its content
-     and copying the cramped desktop rail onto a phone. A wider drawer needs
-     the content to stretch into it, so a companion rule below forces the
-     content column (regionArea/root/listArea/treeBody) and its rows to 100%.
-     Closed state: translateX(-110%) — more than -100% of the drawer width —
-     guarantees the whole drawer (and its shadow, had it one) leaves the
-     viewport. A mere -100% leaves a sliver on screen; -105% (as used before)
-     left the drawer plus a long 32px-blur shadow gradient visible along the
-     left edge of the main UI. No box-shadow at all: the dimmed backdrop
-     already separates drawer from content. */
+  /* The sidebar column (first grid child) becomes a left drawer. The drawer
+     hugs the sidebar content exactly (the wide sidebar carries an inline
+     width, ~280px): a fixed 92vw box would leave a white strip where the
+     container background shows beside the content.
+     Closed state: translateX(-110%) — more than -100% of the max-content
+     width — guarantees the whole drawer (and its shadow, had it one) leaves
+     the viewport. A mere -100% leaves a sliver on screen; -105% (as used
+     before) left 14px of the drawer plus a long 32px-blur shadow gradient
+     visible along the left edge of the main UI. No box-shadow at all: the
+     dimmed backdrop already separates drawer from content. */
   [data-mobile-nav="frame"] > :first-child {
     position: absolute !important;
     inset: 0 auto 0 0 !important;
-    width: min(80vw, 360px);
+    width: max-content;
     max-width: 92vw;
     z-index: 40 !important;
     transform: translateX(-110%);
@@ -63,48 +73,6 @@ export const LAYOUT_CSS = `/* ---------- mobile-only layout ---------- */
        reads cleanly, and the settings dialog (width:100% of this box) stays
        pixel-flush with the drawer. */
     border-right: none !important;
-  }
-
-  /* The drawer is a fixed ~80vw box, but the sidebar content column is
-     max-content: on its own it hugs ~280px and leaves a blank strip beside it.
-     Cascade width:100% down the content column (regionArea -> root -> listArea
-     -> treeBody) and to the rows / create button so the content stretches to
-     fill the wider drawer. Do NOT blanket-width all buttons/sections: the
-     brand header and the icon buttons (collapse, search, filter) must stay
-     content-sized.
-     The dialog guards are load-bearing, not decoration: the settings sheet
-     portals into this same drawer subtree (see the transform:none note below),
-     and "_root" is a fragment of EVERY compiled CSS-module class whose local
-     name is "root" ('jR4zTa_root', market's 'eGUBIq_root', ui-primitives'
-     '_root_19372_1', ...). Unguarded, the rule force-fed width:100% to the
-     dshmarket Menu anchor span inside the flex .catsRow: its flex base became
-     the full row width, .catsWrap (flex-basis:0%, min-width:0) crushed to
-     zero, and the category chips stacked in a zero-width column underneath
-     the overlapping Filter button. Excluding modal subtrees keeps the stretch
-     on the drawer's own column while leaving every in-dialog "_root" element
-     to upstream layout (verified live 2026-08-27 at 390px: chips one line,
-     Filter right-aligned, market root / drawer columns / disclosure spans
-     unchanged). */
-  [data-mobile-nav="frame"] > :first-child :is([class*="_regionArea"],[class*="_listArea"],[class*="_treeBody"],[class*="_root"]):not([role="dialog"] *):not([aria-modal="true"] *) {
-    width: 100% !important;
-  }
-  /* The New Session button gets no width override at all: the dedicated
-     width:100% force was removed per user feedback 2026-08-27 (user-tested;
-     do not re-add, and do not add alignment overrides either). */
-
-  /* The workspace/session tree root carries a reserved right gutter
-     (padding-right:12px) for a stable scrollbar. With a wider drawer the
-     content column already stretches to 100%, but that gutter keeps the
-     session rows inside it ~4px short of the drawer content edge (and, when
-     the list is long enough to scroll, a classic scrollbar can ride over the
-     timestamps). Drop the session root's own right gutter so the rows reach
-     the content edge; scope to the regionArea so only the session tree's root
-     is touched (the header root jR4zTa_root is its parent, not a descendant).
-     Do NOT also force width:100% on the rows themselves — that, combined with
-     the row's content-box padding, would over-extend the rows past the drawer
-     (300 -> 312). */
-  [data-mobile-nav="frame"] > :first-child [class*="_regionArea"] [class*="_root"] {
-    padding-right: 0 !important;
   }
 
   /* Expanded state (frame without data-sidebar-collapsed) slides the drawer in.
@@ -228,6 +196,22 @@ export const LAYOUT_CSS = `/* ---------- mobile-only layout ---------- */
   [data-phase] td {
     max-width: none;
     min-width: 0;
+  }
+
+  /* Markdown images: the official rule often forces width:100%, which
+     upscales small square images to the full message column. Show small
+     images at their intrinsic size; large / very wide images still scale
+     down to fit the column (max-width:100% keeps horizontal panoramas
+     adaptive without overflowing). */
+  [data-phase] [class*="_scroll"]:not([class*="_scrollBody"]) img {
+    width: auto !important;
+    max-width: 100% !important;
+    height: auto !important;
+    /* Cap square / tall images so a big sticker does not dominate the
+       narrow column; landscape images stay governed by max-width only.
+       The plain px line is the fallback for engines without dvh. */
+    max-height: 220px !important;
+    max-height: min(40dvh, 220px) !important;
   }
 
   /* User bubbles: the official stack is capped at min(525px, 82%), which on a
@@ -399,20 +383,57 @@ export const LAYOUT_CSS = `/* ---------- mobile-only layout ---------- */
   /* The context meter in the trailing lane is another fixed-size icon
      control: its trigger is officially width:28px flex:none, but the root
      itself is shrinkable, so a squeezed root lets the trigger paint over
-     the pinned send button. Keep the whole meter at its natural size; it
-     has no aria-haspopup marker, so the model-selector rules do not apply. */
+     the pinned send button. Keep the whole meter at its natural size; its
+     trigger uses aria-haspopup="dialog", so the model-selector menu rules
+     (keyed on "menu") still do not apply. */
   [data-phase] [class*="_card"]:has(textarea) [class*="_row"]:has([class*="_trailing"]) > [class*="_trailing"] > [class*="_root"] {
     flex: none;
     min-width: 0;
   }
+  /* ContextMeter (JObwrW_ hash family) right-cluster pinning: keep the meter
+     at its official size (28x28 trigger, 14px ring -- enlarging the ring made
+     it steal attention) and glue it to the send button. A small negative
+     right margin trims the 6px lane gap to 2px against send. Anchor on the
+     unique aria-haspopup="dialog" trigger (no other composer control uses
+     it), not the hashed class, so an upstream hash bump cannot silently
+     unhook us. Knob: margin-right trim (-4px). */
+  [data-phase] [class*="_card"]:has(textarea) [class*="_row"]:has([class*="_trailing"]) > [class*="_trailing"] > [class*="_root"]:has(> [class*="_trigger"][aria-haspopup="dialog"]) {
+    margin-right: -4px;
+  }
+  /* The model pill joins the same right cluster: its margin-left:auto absorbs
+     ALL trailing slack, so the adaptive void sits between the tools lane and
+     the pill (visible on wide phones/tablets), while [pill][meter][send] stay
+     welded together at the right edge on every width. Descendant combinator
+     on purpose: the pill root sits behind a display:contents wrapper, so a
+     direct-child combinator silently misses (probe-verified). Within the
+     trailing lane aria-haspopup="menu" belongs to the model trigger alone. */
+  [data-phase] [class*="_card"]:has(textarea) [class*="_row"]:has([class*="_trailing"]) > [class*="_trailing"] [class*="_root"]:has(> [class*="_trigger"][aria-haspopup="menu"]) {
+    margin-left: auto;
+    margin-right: -4px;
+  }
+  /* Shrink only the trigger BOX (28 -> 24, padding zeroed) while the ring
+     ink stays at its official 14px: the dead inset per side drops from 7px
+     to 5px so the small ring no longer floats in its own button. 24x24 keeps
+     the WCAG 2.2 minimum target size. Ring size itself is intentionally
+     untouched -- enlarging it was rejected as attention-grabbing. */
+  [data-phase] [class*="_card"]:has(textarea) [class*="_row"]:has([class*="_trailing"]) > [class*="_trailing"] > [class*="_root"]:has(> [class*="_trigger"][aria-haspopup="dialog"]) > [class*="_trigger"] {
+    width: 24px;
+    height: 24px;
+    padding: 0;
+  }
   /* Pin the send button to the right edge of the trailing lane.
-     The lane is stretched (flex:1 1 auto) so leftover space would otherwise
-     pile up on its right and let the button drift as model/context labels
-     change size. margin-left:auto absorbs that free space, keeping the
-     button glued to the right edge at its official fixed 34x34 size. */
+     The model pill's margin-left:auto (rule above) is the primary slack
+     absorber that keeps [pill][meter][send] welded at the right edge; this
+     margin-left:auto only remains as the fallback for states where neither
+     the pill nor the meter renders. The :has override zeroes it whenever
+     either control is present, so two autos can never split the void and
+     float the pill mid-lane. */
   [data-phase] [class*="_card"]:has(textarea) [class*="_row"]:has([class*="_trailing"]) > [class*="_trailing"] > [class*="_primary"] {
     flex: none;
     margin-left: auto;
+  }
+  [data-phase] [class*="_card"]:has(textarea) [class*="_row"]:has([class*="_trailing"]) > [class*="_trailing"]:has([class*="_trigger"][aria-haspopup="menu"], > [class*="_root"] > [class*="_trigger"][aria-haspopup="dialog"]) > [class*="_primary"] {
+    margin-left: 0;
   }
 
   /* --- Session header on mobile ---
