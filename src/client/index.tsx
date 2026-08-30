@@ -9,6 +9,7 @@ import { installSubagentChipTouch } from './effects/subagent-chip-touch.ts'
 import { installAionuiCompat } from './effects/aionui-compat.ts'
 import { installLayoutBridge } from './effects/layout-bridge.ts'
 import { installViewportBridge } from './effects/viewport.ts'
+import { installSidebarSwipe } from './effects/sidebar-swipe.ts'
 import { NS, en, zh } from './i18n/locales.ts'
 import type { MobileNavKey } from './i18n/locales.ts'
 
@@ -151,6 +152,9 @@ export function apply(ctx: ClientContext): void {
 
   // Drawer close interactions: Escape and navigation taps inside the drawer.
   installOverlayInteractions(ctx)
+
+  // Sidebar drawer swipe gestures (edge swipe-in / content swipe-out with B-hybrid follow)
+  installSidebarSwipe(ctx)
 
   // DSH-native bridges (reuse AppFrame breakpoint + ThemePresenter)
   installLayoutBridge(ctx)

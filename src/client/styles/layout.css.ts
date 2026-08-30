@@ -5,11 +5,16 @@ export const LAYOUT_CSS = `/* ---------- mobile-only layout ---------- */
 
 @media (max-width: 1023px) {
   /* --- Phone chrome ---
-     The system status bar stays visible (no fullscreen). Two adjustments
+     The system status bar stays visible (no fullscreen). Three adjustments
      make it behave:
-     - touch-action: manipulation kills double-tap-to-zoom (and the 300ms
-       tap delay) while keeping pan and pinch zoom; the client also
-       suppresses legacy-iOS gesturestart as a fallback.
+     - touch-action: pan-y keeps vertical pan while forbidding horizontal pan
+       on the root — without it a left-edge horizontal drag is claimed as a
+       pan (pointercancel) before the swipe layer can classify it. Also kills
+       double-tap-to-zoom delay; pinch-zoom stays via manipulation alias but
+       the app-like pan-y is the gesture-layer contract.
+     - overscroll-behavior-x: none suppresses Chrome's edge history navigation
+       (48dp strip) that would navigate back on the same edge swipe that opens
+       the drawer.
      - With the client's viewport-fit=cover, env(safe-area-inset-top) is the
        status bar / notch height; the rules below push the app content below
        it so the status bar never covers anything. Off notched phones (or in
@@ -17,7 +22,8 @@ export const LAYOUT_CSS = `/* ---------- mobile-only layout ---------- */
        status bar) the inset is 0 and nothing shifts. */
   html,
   body {
-    touch-action: manipulation !important;
+    touch-action: pan-y !important;
+    overscroll-behavior-x: none !important;
   }
 
   /* AppFrame: the drawer takes the sidebar column out of grid flow, so the
@@ -88,6 +94,19 @@ export const LAYOUT_CSS = `/* ---------- mobile-only layout ---------- */
      viewport-anchored: it dims the full screen and the sheet sits at left:8. */
   [data-mobile-nav="frame"]:not([data-sidebar-collapsed]) > :first-child {
     transform: none !important;
+  }
+
+  /* Drawer swipe gestures: touch-action pan-y lets horizontal pointermove reach the
+     gesture layer without browser pan/pointercancel; start-hit is geometry-only
+     (45% viewport) with no hotspot element. */
+  [data-mobile-nav="frame"] > :first-child {
+    touch-action: pan-y !important;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    [data-mobile-nav="frame"] > :first-child {
+      transition: none !important;
+    }
   }
 
   /* Settings is the final drawer action. Give it the same phone gutters as
