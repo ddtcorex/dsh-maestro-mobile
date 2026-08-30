@@ -59,7 +59,7 @@ export const SETTINGS_SHEET_CSS = `
     flex: none !important;
     display: flex !important;
     flex-direction: column !important;
-    gap: 8px !important;
+    gap: 6px !important;
     padding: 0 16px 0 16px !important;
     box-sizing: border-box !important;
     overflow: hidden !important;
@@ -90,7 +90,7 @@ export const SETTINGS_SHEET_CSS = `
     -webkit-overflow-scrolling: touch !important;
     overscroll-behavior-x: contain !important;
     touch-action: pan-x !important;
-    padding-bottom: 8px !important;
+    padding-bottom: 6px !important;
     margin-bottom: 0 !important;
     border-bottom: 1px solid var(--dsw-alias-border-l1, rgba(0,0,0,.08)) !important;
   }
@@ -145,7 +145,7 @@ export const SETTINGS_SHEET_CSS = `
     height: auto !important;
     min-height: 0 !important;
     width: 100% !important;
-    padding: 6px 16px 8px !important;
+    padding: 4px 16px 4px !important;
     display: flex !important;
     align-items: center !important;
     justify-content: flex-end !important;
@@ -197,7 +197,7 @@ export const SETTINGS_SHEET_CSS = `
     min-height: 0 !important;
     overflow-y: auto !important;
     -webkit-overflow-scrolling: touch !important;
-    padding: 16px 16px calc(16px + env(safe-area-inset-bottom, 0px)) !important;
+    padding: 8px 16px calc(12px + env(safe-area-inset-bottom, 0px)) !important;
   }
   /* Bento: sections fill sheet on mobile */
   [class*="_panel"]:has([class*="_navList"]) [class*="_section"] {
