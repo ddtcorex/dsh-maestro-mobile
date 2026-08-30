@@ -53,12 +53,15 @@ export const SETTINGS_SHEET_CSS = `
   /* Nav: vertical rail → horizontal pill tabs — guard prefix overlap */
   [class*="_panel"]:has([class*="_navList"]) [class*="_nav"]:not([class*="_navTitle"]):not([class*="_navList"]):not([class*="_navCell"]):not([class*="_navLabel"]):not([class*="_navIcon"]) {
     width: 100% !important;
+    max-width: 100% !important;
+    min-width: 0 !important;
     flex: none !important;
     display: flex !important;
     flex-direction: column !important;
     gap: 8px !important;
     padding: 0 16px 0 !important;
     box-sizing: border-box !important;
+    overflow: hidden !important;
   }
   [class*="_panel"]:has([class*="_navList"]) [class*="_navTitle"] {
     padding: 0 4px 2px !important;
@@ -71,10 +74,16 @@ export const SETTINGS_SHEET_CSS = `
     flex-direction: row !important;
     flex-wrap: nowrap !important;
     gap: 6px !important;
+    width: 100% !important;
+    max-width: 100% !important;
+    min-width: 0 !important;
+    box-sizing: border-box !important;
     overflow-x: auto !important;
     overflow-y: hidden !important;
     scrollbar-width: none !important;
     -webkit-overflow-scrolling: touch !important;
+    overscroll-behavior-x: contain !important;
+    touch-action: pan-x !important;
     padding-bottom: 8px !important;
     margin-bottom: 0 !important;
     border-bottom: 1px solid var(--dsw-alias-border-l1, rgba(0,0,0,.08)) !important;
@@ -128,12 +137,21 @@ export const SETTINGS_SHEET_CSS = `
     flex: none !important;
     height: 44px !important;
     min-height: 44px !important;
+    width: 100% !important;
     padding: 8px 12px 8px 16px !important;
     display: flex !important;
     align-items: center !important;
     justify-content: space-between !important;
+    gap: 8px !important;
     border-bottom: 1px solid var(--dsw-alias-border-l1, rgba(0,0,0,.08)) !important;
     box-sizing: border-box !important;
+  }
+  [class*="_panel"]:has([class*="_navList"]) [class*="_header"] [class*="_actions"] {
+    margin-left: auto !important;
+    display: flex !important;
+    align-items: center !important;
+    gap: 8px !important;
+    min-width: 0 !important;
   }
   [class*="_panel"]:has([class*="_navList"]) [class*="_close"] {
     width: 36px !important;
