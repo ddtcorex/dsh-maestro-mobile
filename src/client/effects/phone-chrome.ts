@@ -6,7 +6,7 @@ import { createStatsLineTask } from './stats-line.ts'
 import { createPreviewFullscreenTask } from './preview-fullscreen.ts'
 import { createGitChipTask } from './git-chip-reparent.ts'
 import { createSettingsToolbarTask } from './settings-toolbar-reparent.ts'
-import { createOverlayTask, createRightPanelBackdropTask } from './overlay-backdrop-fab.ts'
+import { createRightPanelBackdropTask } from './overlay-backdrop-fab.ts'
 
 // The custom client bundler cannot resolve `../` requires from src/client/effects,
 // so this mirrors the namespace id from src/client/locales.ts. Keep in sync.
@@ -403,7 +403,8 @@ export function registerReconcileTasks(ctx: ClientContext): () => void {
     addReconcilerTask(createPreviewCloseTask()),
     addReconcilerTask(createSheetRiseTask()),
     addReconcilerTask(createStatsLineTask()),
-    addReconcilerTask(createOverlayTask(t, () => ctx.layout.toggleSidebar())),
+    // Legacy overlay task migrated to shell.overlay slot (ShellOverlay.tsx) — DSH-native
+    // Keep right-panel backdrop as reconciler task (panel-host is outside shell.overlay)
     addReconcilerTask(createRightPanelBackdropTask(t)),
   ]
   return () => {

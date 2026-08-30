@@ -1,11 +1,14 @@
 import type { ClientContext } from '@deepseek-ai/dsh-client-runtime/client'
 import { MobileNavToggle } from './components/MobileNavToggle.tsx'
 import { MobileDrawerFooter } from './components/MobileDrawerFooter.tsx'
+import { ShellOverlay } from './components/ShellOverlay.tsx'
 import { MOBILE_CSS } from './styles/index.ts'
 
 import { installFrameController, installOverlayInteractions, installPhoneChrome, installReconciler, registerReconcileTasks } from './effects/phone-chrome.ts'
 import { installSubagentChipTouch } from './effects/subagent-chip-touch.ts'
 import { installAionuiCompat } from './effects/aionui-compat.ts'
+import { installLayoutBridge } from './effects/layout-bridge.ts'
+import { installViewportBridge } from './effects/viewport.ts'
 import { NS, en, zh } from './i18n/locales.ts'
 import type { MobileNavKey } from './i18n/locales.ts'
 
@@ -149,6 +152,10 @@ export function apply(ctx: ClientContext): void {
   // Drawer close interactions: Escape and navigation taps inside the drawer.
   installOverlayInteractions(ctx)
 
+  // DSH-native bridges (reuse AppFrame breakpoint + ThemePresenter)
+  installLayoutBridge(ctx)
+  installViewportBridge(ctx)
+
   // Lineage-count chip: reliable open/close on touch pointers (upstream is
   // hover-timer driven and has no onClick on the count variant).
   installSubagentChipTouch(ctx)
@@ -156,6 +163,19 @@ export function apply(ctx: ClientContext): void {
   installPhoneChrome(ctx)
 
   installAionuiCompat(ctx)
+
+  // DSH-native overlay: backdrop + FAB via AppFrame's overlayLayer (z20)
+  // Replaces manual frame.appendChild in overlay-backdrop-fab.ts — keeps
+  // the legacy task as compat until the next major, but the slot is the
+  // source of truth for backdrop/FAB now.
+  ctx.slots.inject('shell.overlay', () => ctx.slots.register({
+    name: 'shell.overlay',
+    id: 'mobile-shell-overlay',
+    locale: NS,
+    inject: () => ({
+      toggleSidebar: () => ctx.layout.toggleSidebar(),
+    }),
+  }, ShellOverlay))
 
   ctx.slots.inject('conversation.session.header.actions', () => ctx.slots.register({
     name: 'conversation.session.header.actions',

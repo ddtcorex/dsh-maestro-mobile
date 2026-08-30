@@ -59,7 +59,7 @@ export const LAYOUT_CSS = `/* ---------- mobile-only layout ---------- */
     inset: 0 auto 0 0 !important;
     width: max-content;
     max-width: 92vw;
-    z-index: 40 !important;
+    z-index: 150 !important; /* above shell.overlay (z100) so backdrop (z30 inside) stays below drawer and session rows remain tappable */
     transform: translateX(-110%);
     transition: transform .28s var(--ds-ease-in-out, ease-in-out);
     background: var(--dsw-alias-bg-base, #ffffff);
