@@ -4,6 +4,39 @@ All notable changes to this project are documented in this file. Format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); this project uses
 [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.2.0] - 2026-08-31
+
+Ported `mexiaosqwq/dsh-web-mobile` `v2.3.0` sidebar gestures + streaming perf; plus ask-question and stats bar mobile fixes.
+
+### Added
+
+- **Sidebar swipe gestures** (`gesture-guard.ts` + `sidebar-swipe.ts`, B-hybrid follow): `45%` viewport start zone, `8px` axis lock, `60ms` velocity window (`0.45 px/ms`), bidirectional `translateX` follow with early commit (open) and `280ms` late commit (close), `touch-action: pan-y` + `overscroll-behavior-x: none` (suppress Chrome edge history nav), horizontal scroller yield, `prefers-reduced-motion` reduce, synthetic click consume guard (`300ms` window + `pointerdown` clear + `isStrokeLocked` yield).
+- **Drawer backdrop fade** (`overlay-backdrop-fab.ts`): fade-out `200ms` handoff so dimming eases with drawer slide, quick close→reopen cancels pending removal.
+- **Streaming perf**: `stats-line.ts` anchor fast-path `O(1)` when `[data-mobile-nav="stats"]` still alive, drawer `[role="tree"]` `content-visibility: auto` + `contain-intrinsic-size` for off-screen rows.
+
+### Fixed
+
+- **Overlay interactions** (`phone-chrome.ts`): drawer `click`/`pointerup` now yield to `isStrokeLocked()` / `consumeIfGestured()` — fixes double-toggle and backdrop requiring two taps after a swipe.
+- **Ask question Submit cutoff** (`composer.css.ts`): `QuestionComposer` footer wrapped (`pager order1`, `footerActions order2 ml-auto`, `feedback order3 flex 1 1 100%`), `frame`/`card` capped to `100%` with `12px` side padding — fixes cutoff on `390px` phones.
+- **Composer status bar scroll** (`composer.css.ts`): `[data-mobile-nav="stats"]` now `flex nowrap + overflow-x auto + -webkit-overflow-scrolling touch` with hidden scrollbar and `12px` gap — long `turns/steps/TPS` scroll horizontally.
+- **Stats bar padding balance** (`composer.css.ts`): symmetric `4px 12px 6px` padding — left no longer inherits host `24px` title inset.
+
+### Notes
+
+- Verified: `pnpm verify` clean, `pnpm build` `lib/client.js 27 modules`, `tests 6/6`.
+
+## [1.1.1] - 2026-08-30
+
+### Fixed
+
+- **Drawer footer Bento** (`layout.css.ts` + `base.css.ts`): `footArea` card (`bg-layer-2`, `border-l1`, `r14`, `p10`) with `footerActions` column and `settingsArea` primary ghost (`h42`, `border-l2`, `bg-elevated`, shadow) — balances drawer bottom.
+- **Stop generating tooltip on mobile** (`composer.css.ts`): `[role="tooltip"] {display:none}` under `max-width:1023px` — tooltip no longer lingers mid-screen after tap on `InputBar` send on touch devices. Kept `dsh-market` menus (`role menu`) unaffected.
+- Noted: Lexical `contenteditable` composer shrink left as upstream DSH bug — plugin keeps no-op there per user preference.
+
+### Notes
+
+- Verified: `pnpm verify` clean, `pnpm build` `lib/client.js 25 modules`, `tests 6/6`.
+
 ## [1.1.0] - 2026-08-28
 
 Ported improvements from `mexiaosqwq/dsh-web-mobile` `v2.2.0` (commit `4d2f884`) while keeping `dsh-better-sidebar` support.
@@ -62,5 +95,7 @@ complete no-op so desktop layout is untouched.
 - Verified with `pnpm verify` + `pnpm test:core` + `pnpm build` (`test -f lib/index.js`);
   phone ~390px / tablet 768–1023px / desktop ≥1024px geometries checked on live DSH Web.
 
+[1.2.0]: https://github.com/ddtcorex/dsh-maestro-mobile/releases/tag/v1.2.0
+[1.1.1]: https://github.com/ddtcorex/dsh-maestro-mobile/releases/tag/v1.1.1
 [1.1.0]: https://github.com/ddtcorex/dsh-maestro-mobile/releases/tag/v1.1.0
 [1.0.0]: https://github.com/ddtcorex/dsh-maestro-mobile/releases/tag/v1.0.0

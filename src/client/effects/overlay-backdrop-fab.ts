@@ -1,13 +1,14 @@
-/**
- * Fix for dsh-better-sidebar (npm: dsh-better-sidebar): mobile overrides for
- * the right workbench panel that would otherwise cover chat at 100vw with no
- * backdrop. This module provides the left-drawer backdrop/FAB and the
- * right-panel backdrop task. JS is required because the panel host has
- * pointer-events:none and the panel open state is driven by hashed classes.
- */
 import type { TranslateNS } from '@deepseek-ai/dsh-client-ui-slots'
 import type { ReconcilerTask } from '../core/reconciler-core.ts'
 import { getFrame } from './phone-chrome.ts'
+
+export function fadeOverlayOut(): void {
+  fadeHook?.()
+}
+
+let fadeHook: (() => void) | null = null
+
+const BACKDROP_FADE_MS = 200
 
 export function createOverlayTask(
   t: TranslateNS<'mobileNav'>,
@@ -15,28 +16,53 @@ export function createOverlayTask(
 ): ReconcilerTask {
   let backdrop: HTMLDivElement | null = null
   let fab: HTMLButtonElement | null = null
+  let backdropRemoveTimer: number | null = null
+  let faded = false
   const drawerOpen = (): boolean => {
     const frame = getFrame()
     return frame !== null && !frame.hasAttribute('data-sidebar-collapsed')
   }
   const heroPhase = (): boolean =>
     document.querySelector('[data-phase="active"]') === null
+  fadeHook = (): void => {
+    if (backdrop === null) return
+    faded = true
+    backdrop.style.pointerEvents = 'none'
+    backdrop.style.opacity = '0'
+  }
   return {
     name: 'overlay-backdrop-fab',
     scopes: ['*', 'data-sidebar-collapsed', 'data-phase'],
     ensure: () => {
       const frame = getFrame()
       if (frame === null) return
-      if (drawerOpen() && backdrop === null) {
-        backdrop = document.createElement('div')
-        backdrop.dataset.mobileNav = 'backdrop'
-        backdrop.setAttribute('role', 'button')
-        backdrop.setAttribute('aria-label', t('backdrop'))
-        backdrop.addEventListener('click', toggleSidebar)
-        frame.appendChild(backdrop)
-      } else if (!drawerOpen() && backdrop !== null) {
-        backdrop.remove()
-        backdrop = null
+      if (drawerOpen()) {
+        if (backdrop === null) {
+          backdrop = document.createElement('div')
+          backdrop.dataset.mobileNav = 'backdrop'
+          backdrop.setAttribute('role', 'button')
+          backdrop.setAttribute('aria-label', t('backdrop'))
+          backdrop.addEventListener('click', toggleSidebar)
+          frame.appendChild(backdrop)
+          faded = false
+        } else if (faded && backdropRemoveTimer !== null) {
+          window.clearTimeout(backdropRemoveTimer)
+          backdropRemoveTimer = null
+          faded = false
+          backdrop.style.removeProperty('pointer-events')
+          backdrop.style.removeProperty('opacity')
+        }
+      } else if (backdrop !== null) {
+        backdrop.style.pointerEvents = 'none'
+        backdrop.style.opacity = '0'
+        faded = true
+        if (backdropRemoveTimer === null) {
+          backdropRemoveTimer = window.setTimeout(() => {
+            backdropRemoveTimer = null
+            backdrop?.remove()
+            backdrop = null
+          }, BACKDROP_FADE_MS + 60)
+        }
       }
       if (heroPhase() && !drawerOpen() && fab === null) {
         fab = document.createElement('button')
@@ -56,6 +82,11 @@ export function createOverlayTask(
       }
     },
     dispose: () => {
+      if (backdropRemoveTimer !== null) {
+        window.clearTimeout(backdropRemoveTimer)
+        backdropRemoveTimer = null
+      }
+      fadeHook = null
       backdrop?.remove()
       backdrop = null
       fab?.remove()
@@ -64,18 +95,11 @@ export function createOverlayTask(
   }
 }
 
-/**
- * Fix for dsh-better-sidebar — right-panel backdrop task on mobile.
- * Creates a tappable dimmed layer inside [data-dsh-panel-host] (z-index 39)
- * below the panel (z 40) so chat is not silently hidden behind the 92vw
- * drawer. Host has pointer-events:none, so backdrop must re-enable it.
- */
 export function createRightPanelBackdropTask(t: TranslateNS<'mobileNav'>): ReconcilerTask {
   let backdrop: HTMLDivElement | null = null
   const isRightPanelOpen = (): boolean => {
     const panel = document.querySelector('[data-dsh-panel]')
     if (panel === null) return false
-    // Fix for dsh-better-sidebar: hash is nArs4W_panelHidden — use substring so rebuilds don't break detection
     const hidden = panel.className.includes('panelHidden')
     return !hidden && !panel.hasAttribute('hidden') && getComputedStyle(panel).visibility !== 'hidden' && panel.getBoundingClientRect().width > 0
   }
@@ -85,7 +109,6 @@ export function createRightPanelBackdropTask(t: TranslateNS<'mobileNav'>): Recon
     else {
       const panel = document.querySelector<HTMLElement>('[data-dsh-panel]')
       if (panel !== null) {
-        // Fix for dsh-better-sidebar: add the hashed hidden class via the existing hidden marker — use className string to avoid hash dependency
         const hiddenClass = [...panel.classList].find((c) => c.includes('panelHidden')) ?? 'nArs4W_panelHidden'
         panel.classList.add(hiddenClass)
       }
@@ -103,7 +126,6 @@ export function createRightPanelBackdropTask(t: TranslateNS<'mobileNav'>): Recon
         backdrop.setAttribute('role', 'button')
         backdrop.setAttribute('aria-label', t('backdrop'))
         backdrop.addEventListener('click', closeRightPanel)
-        // Insert before the panel so it sits below panel (z-index) but above center
         const panel = document.querySelector('[data-dsh-panel]')
         if (panel !== null && panel.parentElement === host) host.insertBefore(backdrop, panel)
         else host.appendChild(backdrop)

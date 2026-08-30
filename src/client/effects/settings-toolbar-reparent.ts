@@ -6,6 +6,17 @@ export function createSettingsToolbarTask(): ReconcilerTask {
     name: 'settings-toolbar-reparent',
     scopes: ['*'],
     ensure: () => {
+      // On mobile (<1024) Settings is a bottom sheet with stacked nav (pill tabs)
+      // + content column — the desktop reparent (header → nav) would break that
+      // layout, so skip entirely on narrow viewports and restore if needed.
+      if (window.matchMedia('(max-width: 1023px)').matches) {
+        if (origin !== null) {
+          const h = document.querySelector('[aria-modal="true"] [class*="_header"]:not([class*="_headerActions"])')
+          if (h !== null && origin.parent.isConnected) origin.parent.insertBefore(h, origin.next)
+          origin = null
+        }
+        return
+      }
       const dialog = document.querySelector('[aria-modal="true"]')
       if (dialog === null) return
       const nav = dialog.querySelector(':scope > [class*="_nav"]')

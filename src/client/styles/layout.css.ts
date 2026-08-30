@@ -5,11 +5,16 @@ export const LAYOUT_CSS = `/* ---------- mobile-only layout ---------- */
 
 @media (max-width: 1023px) {
   /* --- Phone chrome ---
-     The system status bar stays visible (no fullscreen). Two adjustments
+     The system status bar stays visible (no fullscreen). Three adjustments
      make it behave:
-     - touch-action: manipulation kills double-tap-to-zoom (and the 300ms
-       tap delay) while keeping pan and pinch zoom; the client also
-       suppresses legacy-iOS gesturestart as a fallback.
+     - touch-action: pan-y keeps vertical pan while forbidding horizontal pan
+       on the root — without it a left-edge horizontal drag is claimed as a
+       pan (pointercancel) before the swipe layer can classify it. Also kills
+       double-tap-to-zoom delay; pinch-zoom stays via manipulation alias but
+       the app-like pan-y is the gesture-layer contract.
+     - overscroll-behavior-x: none suppresses Chrome's edge history navigation
+       (48dp strip) that would navigate back on the same edge swipe that opens
+       the drawer.
      - With the client's viewport-fit=cover, env(safe-area-inset-top) is the
        status bar / notch height; the rules below push the app content below
        it so the status bar never covers anything. Off notched phones (or in
@@ -17,7 +22,8 @@ export const LAYOUT_CSS = `/* ---------- mobile-only layout ---------- */
        status bar) the inset is 0 and nothing shifts. */
   html,
   body {
-    touch-action: manipulation !important;
+    touch-action: pan-y !important;
+    overscroll-behavior-x: none !important;
   }
 
   /* AppFrame: the drawer takes the sidebar column out of grid flow, so the
@@ -59,7 +65,7 @@ export const LAYOUT_CSS = `/* ---------- mobile-only layout ---------- */
     inset: 0 auto 0 0 !important;
     width: max-content;
     max-width: 92vw;
-    z-index: 40 !important;
+    z-index: 150 !important; /* above shell.overlay (z100) so backdrop (z30 inside) stays below drawer and session rows remain tappable */
     transform: translateX(-110%);
     transition: transform .28s var(--ds-ease-in-out, ease-in-out);
     background: var(--dsw-alias-bg-base, #ffffff);
@@ -69,6 +75,8 @@ export const LAYOUT_CSS = `/* ---------- mobile-only layout ---------- */
        reach it). The drawer background paints the status-bar strip, which
        the client's theme-color meta matches, so the strip reads seamless. */
     padding-top: env(safe-area-inset-top, 0px) !important;
+    padding-bottom: env(safe-area-inset-bottom, 0px) !important;
+    box-sizing: border-box !important;
     /* Kill the official sidebarCol right border: with the backdrop the edge
        reads cleanly, and the settings dialog (width:100% of this box) stays
        pixel-flush with the drawer. */
@@ -86,6 +94,19 @@ export const LAYOUT_CSS = `/* ---------- mobile-only layout ---------- */
      viewport-anchored: it dims the full screen and the sheet sits at left:8. */
   [data-mobile-nav="frame"]:not([data-sidebar-collapsed]) > :first-child {
     transform: none !important;
+  }
+
+  /* Drawer swipe gestures: touch-action pan-y lets horizontal pointermove reach the
+     gesture layer without browser pan/pointercancel; start-hit is geometry-only
+     (45% viewport) with no hotspot element. */
+  [data-mobile-nav="frame"] > :first-child {
+    touch-action: pan-y !important;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    [data-mobile-nav="frame"] > :first-child {
+      transition: none !important;
+    }
   }
 
   /* Settings is the final drawer action. Give it the same phone gutters as
@@ -109,12 +130,34 @@ export const LAYOUT_CSS = `/* ---------- mobile-only layout ---------- */
     width: 100% !important;
     box-sizing: border-box !important;
   }
+  /* Settings primary inside Bento card — one notch bolder: elevated fill,
+     l2 border + subtle shadow + 600 weight + 16px icon so it reads primary
+     against the 36px secondary pills (13/500). */
   [data-mobile-nav="frame"] [class*="_settingsArea"] button:not([aria-modal="true"] *) {
     width: 100% !important;
     justify-content: flex-start !important;
+    align-items: center !important;
     margin-inline: 0 !important;
-    padding-inline: 12px !important;
+    padding-inline: 14px !important;
     text-align: left !important;
+    height: 42px !important;
+    min-height: 42px !important;
+    border: 1px solid var(--dsw-alias-border-l2, rgba(0,0,0,.14)) !important;
+    background: var(--dsw-alias-button-elevated-fill, #ffffff) !important;
+    border-radius: 12px !important;
+    box-sizing: border-box !important;
+    gap: 8px !important;
+    font-size: 14px !important;
+    line-height: 20px !important;
+    font-weight: 600 !important;
+    box-shadow: 0 1px 6px rgba(0,0,0,.06) !important;
+  }
+  [data-mobile-nav="frame"] [class*="_settingsArea"] button:not([aria-modal="true"] *):hover {
+    background: var(--dsw-alias-button-floating-hover, rgba(0,0,0,.06)) !important;
+  }
+  [data-mobile-nav="frame"] [class*="_settingsArea"] button:not([aria-modal="true"] *) svg {
+    width: 16px !important;
+    height: 16px !important;
   }
   /* Maestro in footer.action must match Settings trigger on mobile — same 42h left-align */
   [data-mobile-nav="frame"] [data-maestro-trigger] {
@@ -126,6 +169,24 @@ export const LAYOUT_CSS = `/* ---------- mobile-only layout ---------- */
     height: 42px !important;
     border-radius: 12px !important;
     gap: 8px !important;
+  }
+
+  /* Bento Foot Card (B): footArea becomes a card grouping Files|Session log pills + Settings.
+     The card sits inside the already-inset drawer (12px gutters), so no extra outer margin.
+     Tokens: bg-layer-2, border-l1, r14, label/interactive tokens. */
+  [data-mobile-nav="frame"] [class*="_footArea"] {
+    background: var(--dsw-alias-bg-layer-2, #f5f5f5) !important;
+    border: 1px solid var(--dsw-alias-border-l1, rgba(0,0,0,.08)) !important;
+    border-radius: 14px !important;
+    padding: 10px !important;
+    box-sizing: border-box !important;
+    flex-direction: column !important;
+  }
+  [data-mobile-nav="frame"] [class*="_footArea"] [class*="_footerActions"] {
+    display: flex !important;
+    flex-direction: column !important;
+    gap: 8px !important;
+    width: 100% !important;
   }
 
   /* Drag handles are useless on touch and would float over the drawer. */
@@ -646,136 +707,10 @@ export const LAYOUT_CSS = `/* ---------- mobile-only layout ---------- */
     max-width: none;
     max-height: min(420px, calc(100dvh - 120px));
   }
-  /* --- Settings dialog on mobile ---
-     Desktop: 800px two-column flex (188px nav + content). Mobile: a
-     near-full-width sheet — nav tabs wrap into rows on top, option rows
-     stay horizontal (title+description left, control right). Structural
-     selectors are scoped to the unique aria-modal dialog; every
-     settings-specific rule is gated with
-     :has(> :first-child > :last-child > button) — the settings nav tab
-     list holds <button> tabs, so the transient export dialog (the same
-     primitives Modal, header(title+close)+description+body) keeps its
-     official centered card layout. Requires :has() support
-     (Chromium 105+, 2022).
-
-     The directory picker (dsh-client-ui-directory-picker-browse) must be
-     excluded too: its footer bar holds <button> children AND its breadcrumb
-     trail (role="navigation") — which the role gate relies on to exclude
-     it — is REPLACED by the path input in edit mode (pencil button), so
-     without the ZuhsRW exclusion clicking the pencil would suddenly match
-     this sheet rule: the dialog jumps to the top of the screen, the header
-     (with the path input) is hidden by the > :first-child > :first-child
-     display:none rule below, and the user can no longer type a path
-     (issue #12, 2026-08-16). The picker family keeps the official layout
-     on mobile in every mode. */
-  [aria-modal="true"]:has(> :first-child > :last-child > button):not(:has([role="navigation"])):not(:has([class*="ZuhsRW"])) {
-    position: absolute !important;
-    left: 8px !important;
-    /* Fixed top (no translateY): a transform on the panel combined with the
-       panel overflowing the max-content drawer shifts the fixed overlay's
-       coordinate frame, dragging the whole sidebar content off-screen. The
-       safe-area inset keeps the sheet below the status bar / notch. */
-    top: calc(env(safe-area-inset-top, 0px) + 12px) !important;
-    width: calc(100vw - 16px);
-    max-width: calc(100vw - 16px);
-    /* Height follows the content (no dead space under a short page); it
-       caps at 100dvh-24 (less the safe-area top) and the options area
-       scrolls only then. */
-    height: auto;
-    max-height: min(800px, calc(100vh - 24px - env(safe-area-inset-top, 0px) - env(safe-area-inset-bottom, 0px)));
-    max-height: min(800px, calc(100dvh - 24px - env(safe-area-inset-top, 0px) - env(safe-area-inset-bottom, 0px)));
-    flex-direction: column !important;
-    border-radius: 14px !important;
-    animation: dsh-maestro-mobile-sheet-in .22s var(--ds-ease-out, ease-in-out);
-  }
-  /* The settings sheet's dimmed mask fades in with the panel (the mask is
-     the first child of the overlay that directly contains the sheet). */
-  :has(> [aria-modal="true"]:has(> :first-child > :last-child > button):not(:has([role="navigation"])):not(:has([class*="ZuhsRW"]))) > :first-child {
-    animation: dsh-maestro-mobile-fade .18s var(--ds-ease-out, ease-in-out);
-  }
-  @media (prefers-reduced-motion: reduce) {
-    [aria-modal="true"]:has(> :first-child > :last-child > button):not(:has([role="navigation"])):not(:has([class*="ZuhsRW"])),
-    :has(> [aria-modal="true"]:has(> :first-child > :last-child > button):not(:has([role="navigation"])):not(:has([class*="ZuhsRW"]))) > :first-child {
-      animation: none !important;
-    }
-  }
-  /* The export dialog (not the settings sheet) must never overflow the
-     viewport: the official centered card can be wider than 390px. */
-  [aria-modal="true"]:not(:has(> :first-child > :last-child > button)) {
-    max-width: calc(100vw - 32px);
-  }
-  /* Nav bar: hide the "Settings" caption (redundant on a full-width sheet)
-     and wrap the tab list so every tab is visible — a horizontal scroll cut
-     the last tab ("Plugins") off with no affordance to scroll. */
-  [aria-modal="true"]:has(> :first-child > :last-child > button):not(:has([role="navigation"])):not(:has([class*="ZuhsRW"])) > :first-child {
-    width: 100%;
-    flex-direction: row !important;
-    align-items: center;
-    gap: 6px;
-    padding: 10px 12px 8px;
-  }
-  [aria-modal="true"]:has(> :first-child > :last-child > button):not(:has([role="navigation"])):not(:has([class*="ZuhsRW"])) > :first-child > :first-child {
-    display: none !important;
-  }
-  /* The tab list scrolls in the space left by the toolbar: the toolbar
-     (config file + close) is reparented INTO this nav row by a client
-     reconciler task (settings-toolbar-reparent), so the tab list must be
-     anchored by its class, NOT by :last-child (the reparented toolbar
-     becomes the nav's new last child). */
-  [aria-modal="true"]:has(> :first-child > :last-child > button):not(:has([role="navigation"])):not(:has([class*="ZuhsRW"])) > :first-child [class*="_navList"] {
-    flex: 1 1 auto;
-    min-width: 0;
-    flex-direction: row !important;
-    flex-wrap: wrap;
-    gap: 6px;
-    overflow: visible;
-  }
-  /* Content toolbar (Open configuration file + close): grouped flush to
-     the right edge, and reparented INTO the nav row on mobile so it shares
-     one line with the tabs (user feedback 2026-08-16 — the toolbar's own
-     row left a full-width dead gap under the tabs). Anchored by class: the
-     header leaves the content subtree, so :first-child/:last-child anchors
-     would now hit the options area. Children carry official auto-margins
-     that would defeat flex-end, so neutralize them. The close button gets
-     a round tappable base so it reads as its own control, not part of the
-     outline button. */
-  /* :has(> :last-child:is(button...)) keeps both rules on headers that END in
-     an interactive control: class hashes are case-sensitive, so the lowercase
-     v1ASoG_header of DSH-core plugin-config cards matched [class*="_header"]
-     and lost its native 14px 16px padding / inherited flex-end + gap 8,
-     while the visually identical dshmarket _setHeader (capital H) kept them.
-     Card headers end in a bare svg and are excluded. */
-  [aria-modal="true"]:has(> :first-child > :last-child > button):not(:has([role="navigation"])):not(:has([class*="ZuhsRW"])) [class*="_header"]:not([class*="_headerActions"]):has(> :last-child:is(button, [role="button"], a)) {
-    flex: 0 0 auto;
-    justify-content: flex-end;
-    align-items: center;
-    gap: 8px;
-    padding: 0 0 0 4px;
-    min-height: 40px;
-  }
-  [aria-modal="true"]:has(> :first-child > :last-child > button):not(:has([role="navigation"])):not(:has([class*="ZuhsRW"])) [class*="_header"]:not([class*="_headerActions"]):has(> :last-child:is(button, [role="button"], a)) > * {
-    margin-left: 0 !important;
-    margin-right: 0 !important;
-  }
-  /* :last-child is scoped to real controls (button / [role=button] / a):
-     unguarded, this branch also caught the BARE chevron <svg> that ends the
-     DSH-core plugin-config card headers (headText + svg) and turned the glyph
-     into a grey 32x32 circle on every Plugins-settings card (2026-08-27). */
-  [aria-modal="true"]:has(> :first-child > :last-child > button):not(:has([role="navigation"])):not(:has([class*="ZuhsRW"])) [class*="_header"]:not([class*="_headerActions"]) > :last-child:is(button, [role="button"], a) {
-    flex: none !important;
-    width: 32px;
-    height: 32px;
-    min-width: 32px !important;
-    border-radius: 50% !important;
-    display: inline-flex !important;
-    align-items: center;
-    justify-content: center;
-    background: var(--dsw-alias-interactive-bg-hover, rgba(0, 0, 0, .06)) !important;
-  }
-  /* Appearance mode cards: the official cube row renders three tall
-     vertical cards (~268px) that eat half the sheet. Turn them into a
-     compact horizontal trio (icon + label inline, equal widths).
-     Relies on the official cube-row class name of this version. */
+  /* --- Settings sheet moved to settings-sheet.css.ts (DSH-native bottom sheet) ---
+     Legacy aria-modal sheet rules removed — see src/client/styles/settings-sheet.css.ts
+     for panel:has(navList) bottom-sheet, pill tabs scroll, header h44 close 36, safe-area.
+     Keep cubeRow compact (Appearance) for any modal on mobile. */
   [aria-modal="true"] [class*="_cubeRow"] {
     gap: 6px;
   }
@@ -787,29 +722,6 @@ export const LAYOUT_CSS = `/* ---------- mobile-only layout ---------- */
     gap: 6px;
     padding: 10px 8px;
     min-height: 0;
-  }
-  /* Content: the options area must scroll on its own, independent of the
-     sheet (which is overflow:hidden and only caps its height). The content
-     wrapper is the flex-1 slot; making IT the scroll container lets the
-     options area grow beyond it and scroll instead of being clipped against
-     the sheet's rounded corner. Bottom breathing room + safe-area inset live
-     here so the last row never sits flush on the edge. */
-  [aria-modal="true"]:has(> :first-child > :last-child > button):not(:has([role="navigation"])):not(:has([class*="ZuhsRW"])) > :last-child {
-    flex: 1 1 auto;
-    min-height: 0;
-    box-sizing: border-box;
-    overflow-y: auto !important;
-    -webkit-overflow-scrolling: touch;
-    overscroll-behavior: contain;
-    scrollbar-width: thin;
-    padding: 0 12px calc(24px + env(safe-area-inset-bottom, 0px));
-  }
-  /* The options area (native overflow-y:auto) is now a child of the content
-     scroll container; drop its native auto scroll (and the padding, which is
-     owned by the content container now) so there is a single scrollbar. */
-  [aria-modal="true"]:has(> :first-child > :last-child > button):not(:has([role="navigation"])):not(:has([class*="ZuhsRW"])) > :last-child > :last-child {
-    overflow: visible !important;
-    padding: 0;
   }
 
   /* Fix for dsh-better-sidebar (npm: dsh-better-sidebar) — right panel on mobile:

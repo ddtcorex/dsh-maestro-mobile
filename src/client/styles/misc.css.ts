@@ -92,6 +92,14 @@ export const MISC_CSS = `@media (max-width: 1023px) {
   [data-question-key] [class*="_customTextarea"] {
     font-size: 16px !important;
   }
+
+  /* ---------- drawer session tree: skip off-screen rendering ----------
+     content-visibility: auto lets engine skip layout/paint of off-screen rows
+     when drawer closed (early-commit) and of off-screen rows in long history. */
+  [data-mobile-nav="frame"] > :first-child [role="tree"] {
+    content-visibility: auto;
+    contain-intrinsic-size: auto 600px;
+  }
 }
 
 /* ---------- tablet / wide mobile: keep sheets from becoming full-width ----------

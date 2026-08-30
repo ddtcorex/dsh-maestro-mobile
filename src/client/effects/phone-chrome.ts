@@ -6,7 +6,8 @@ import { createStatsLineTask } from './stats-line.ts'
 import { createPreviewFullscreenTask } from './preview-fullscreen.ts'
 import { createGitChipTask } from './git-chip-reparent.ts'
 import { createSettingsToolbarTask } from './settings-toolbar-reparent.ts'
-import { createOverlayTask, createRightPanelBackdropTask } from './overlay-backdrop-fab.ts'
+import { createRightPanelBackdropTask } from './overlay-backdrop-fab.ts'
+import { consumeIfGestured, isStrokeLocked } from './gesture-guard.ts'
 
 // The custom client bundler cannot resolve `../` requires from src/client/effects,
 // so this mirrors the namespace id from src/client/locales.ts. Keep in sync.
@@ -344,6 +345,7 @@ export function installOverlayInteractions(ctx: ClientContext): void {
     }
 
     const onDrawerClick = (event: MouseEvent): void => {
+      if (isStrokeLocked() || consumeIfGestured(event)) return
       // A touch row-tap owns the close (pointerup or the navigation observer);
       // let the row's click reach React without toggling the drawer twice.
       if (performance.now() - lastTouchNavAt < 500) return
@@ -351,6 +353,7 @@ export function installOverlayInteractions(ctx: ClientContext): void {
     }
 
     const onDrawerPointerUp = (event: PointerEvent): void => {
+      if (isStrokeLocked() || consumeIfGestured(event)) return
       if (event.pointerType !== 'touch' && event.pointerType !== 'pen') return
       const target = event.target
       if (!(target instanceof Element)) return
@@ -403,7 +406,8 @@ export function registerReconcileTasks(ctx: ClientContext): () => void {
     addReconcilerTask(createPreviewCloseTask()),
     addReconcilerTask(createSheetRiseTask()),
     addReconcilerTask(createStatsLineTask()),
-    addReconcilerTask(createOverlayTask(t, () => ctx.layout.toggleSidebar())),
+    // Legacy overlay task migrated to shell.overlay slot (ShellOverlay.tsx) — DSH-native
+    // Keep right-panel backdrop as reconciler task (panel-host is outside shell.overlay)
     addReconcilerTask(createRightPanelBackdropTask(t)),
   ]
   return () => {
