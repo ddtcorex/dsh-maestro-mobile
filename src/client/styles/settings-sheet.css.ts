@@ -139,25 +139,39 @@ export const SETTINGS_SHEET_CSS = `
     display: flex !important;
     flex-direction: column !important;
   }
+  /* Header holds "Open configuration file" action; keep it compact tight under tabs — not a 44px bar */
   [class*="_panel"]:has([class*="_navList"]) [class*="_header"] {
     flex: none !important;
-    height: 44px !important;
-    min-height: 44px !important;
+    height: auto !important;
+    min-height: 0 !important;
     width: 100% !important;
-    padding: 8px 12px 8px 16px !important;
+    padding: 6px 16px 8px !important;
     display: flex !important;
     align-items: center !important;
-    justify-content: space-between !important;
+    justify-content: flex-end !important;
     gap: 8px !important;
-    border-bottom: 1px solid var(--dsw-alias-border-l1, rgba(0,0,0,.08)) !important;
+    border: none !important;
+    border-bottom: none !important;
     box-sizing: border-box !important;
   }
+  [class*="_panel"]:has([class*="_navList"]) [class*="_header"]:empty {
+    display: none !important;
+    padding: 0 !important;
+    min-height: 0 !important;
+  }
   [class*="_panel"]:has([class*="_navList"]) [class*="_header"] [class*="_actions"] {
-    margin-left: auto !important;
+    margin-left: 0 !important;
     display: flex !important;
     align-items: center !important;
     gap: 8px !important;
     min-width: 0 !important;
+    margin-right: auto !important;
+  }
+  /* Collapse the empty 44px gap entirely when header has no visible actions (only the now-absolute close) */
+  [class*="_panel"]:has([class*="_navList"]) [class*="_header"]:has(> [class*="_actions"]:empty) {
+    display: none !important;
+    padding: 0 !important;
+    min-height: 0 !important;
   }
   [class*="_panel"]:has([class*="_navList"]) [class*="_close"] {
     position: absolute !important;
