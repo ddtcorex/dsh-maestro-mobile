@@ -179,7 +179,6 @@ export const LAYOUT_CSS = `/* ---------- mobile-only layout ---------- */
     border: 1px solid var(--dsw-alias-border-l1, rgba(0,0,0,.08)) !important;
     border-radius: 14px !important;
     padding: 10px !important;
-    gap: 8px !important;
     box-sizing: border-box !important;
     flex-direction: column !important;
   }

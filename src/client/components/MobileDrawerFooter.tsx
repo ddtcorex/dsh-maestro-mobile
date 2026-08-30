@@ -24,8 +24,6 @@ export interface MobileDrawerFooterProps extends PropsRuntime<'sidebar.footer.ac
 export function MobileDrawerFooter({ useSessions, downloadSessionLog, toggleSidebar, t }: MobileDrawerFooterProps) {
   const sessionId = useSessions((state) => state.current)
   const openExplorer = (): void => {
-    // Yield the preview sheet first (compat.css gives preview precedence
-    // over explorer), then open the explorer and close the drawer.
     getFrame()?.removeAttribute('data-aionui-preview-open')
     getFrame()?.setAttribute('data-aionui-explorer-open', '')
     toggleSidebar()
@@ -38,6 +36,7 @@ export function MobileDrawerFooter({ useSessions, downloadSessionLog, toggleSide
         aria-label={t('files')}
         title={t('files')}
         onClick={openExplorer}
+        style={{ display: 'inline-flex', alignItems: 'center', gap: 6, height: 32, padding: '0 10px', borderRadius: 999, border: '1px solid var(--dsw-alias-border-l1)', background: 'var(--dsw-alias-bg-layer-1)', color: 'var(--dsw-alias-label-primary)', font: 'var(--dsw-font-xs-13)', cursor: 'pointer' } as any}
       >
         <IconPanelLeftOutline16 size={14} />
         <span>{t('files')}</span>
@@ -51,6 +50,7 @@ export function MobileDrawerFooter({ useSessions, downloadSessionLog, toggleSide
         onClick={() => {
           if (sessionId !== undefined) downloadSessionLog(sessionId)
         }}
+        style={{ display: 'inline-flex', alignItems: 'center', gap: 6, height: 32, padding: '0 10px', borderRadius: 999, border: '1px solid var(--dsw-alias-border-l1)', background: 'var(--dsw-alias-bg-layer-1)', color: 'var(--dsw-alias-label-primary)', font: 'var(--dsw-font-xs-13)', cursor: 'pointer', opacity: sessionId === undefined ? 0.5 : 1 } as any}
       >
         <IconDownloadOutline16 size={14} />
         <span>{t('sessionLog')}</span>
