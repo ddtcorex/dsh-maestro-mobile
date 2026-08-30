@@ -30,12 +30,15 @@ export const BASE_CSS = `
   outline-offset: 1px;
 }
 
-/* Drawer footer actions: the relocated Session log download plus the Files
-   action that opens the dsh-web-ui explorer sheet. */
+/* Drawer footer actions — Bento Foot Card (B): two equal pills on the
+   top row of the footArea card, Settings as full-width ghost below. The card
+   itself is styled in layout.css (footArea). */
 [data-mobile-nav="drawer-actions"] {
-  display: inline-flex;
+  display: flex;
   align-items: center;
   gap: 8px;
+  width: 100%;
+  box-sizing: border-box;
 }
 [data-mobile-nav="session-log"],
 [data-mobile-nav="explorer"] {
@@ -43,15 +46,18 @@ export const BASE_CSS = `
   align-items: center;
   justify-content: center;
   gap: 6px;
-  height: 34px;
-  padding: 0 12px;
+  flex: 1 1 0;
+  min-width: 0;
+  height: 36px;
+  padding: 0 10px;
   border: 1px solid var(--dsw-alias-border-l1, rgba(0, 0, 0, .12));
   border-radius: 12px;
-  background: transparent;
+  background: var(--dsw-alias-bg-base, #ffffff);
   color: var(--dsw-alias-label-primary, inherit);
   font-family: inherit;
   font-size: 13px;
   line-height: 20px;
+  font-weight: 500;
   cursor: pointer;
   -webkit-tap-highlight-color: transparent;
 }
@@ -59,8 +65,14 @@ export const BASE_CSS = `
 [data-mobile-nav="explorer"]:hover {
   background: var(--dsw-alias-interactive-bg-hover, rgba(0, 0, 0, .06));
 }
+[data-mobile-nav="session-log"]:focus-visible,
+[data-mobile-nav="explorer"]:focus-visible {
+  outline: 2px solid var(--dsw-alias-state-business-primary, #4f6ef7);
+  outline-offset: 1px;
+}
 [data-mobile-nav="session-log"]:disabled {
   color: var(--dsw-alias-label-dimmed, rgba(0, 0, 0, .35));
+  border-color: var(--dsw-alias-border-l1, rgba(0, 0, 0, .08));
   cursor: default;
 }
 

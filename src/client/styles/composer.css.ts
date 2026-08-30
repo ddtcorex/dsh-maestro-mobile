@@ -22,6 +22,10 @@ export const COMPOSER_CSS = `
   [data-question-key] [class*="_customTextarea"] {
     font-size: 16px !important;
   }
+  /* Hide tooltips on touch — "Stop generating" lingers mid-screen after tap on mobile */
+  [role="tooltip"] {
+    display: none !important;
+  }
   /* Model dropdown centered, max 320px — DSH Menu tokens */
   [data-phase] [class*="_card"]:has(textarea) [class*="_root"]:has(> [class*="_trigger"]) > [class*="_menu"] {
     left: 50% !important;

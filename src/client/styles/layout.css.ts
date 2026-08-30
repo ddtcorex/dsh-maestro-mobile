@@ -69,6 +69,8 @@ export const LAYOUT_CSS = `/* ---------- mobile-only layout ---------- */
        reach it). The drawer background paints the status-bar strip, which
        the client's theme-color meta matches, so the strip reads seamless. */
     padding-top: env(safe-area-inset-top, 0px) !important;
+    padding-bottom: env(safe-area-inset-bottom, 0px) !important;
+    box-sizing: border-box !important;
     /* Kill the official sidebarCol right border: with the backdrop the edge
        reads cleanly, and the settings dialog (width:100% of this box) stays
        pixel-flush with the drawer. */
@@ -109,12 +111,34 @@ export const LAYOUT_CSS = `/* ---------- mobile-only layout ---------- */
     width: 100% !important;
     box-sizing: border-box !important;
   }
+  /* Settings primary inside Bento card — one notch bolder: elevated fill,
+     l2 border + subtle shadow + 600 weight + 16px icon so it reads primary
+     against the 36px secondary pills (13/500). */
   [data-mobile-nav="frame"] [class*="_settingsArea"] button:not([aria-modal="true"] *) {
     width: 100% !important;
     justify-content: flex-start !important;
+    align-items: center !important;
     margin-inline: 0 !important;
-    padding-inline: 12px !important;
+    padding-inline: 14px !important;
     text-align: left !important;
+    height: 42px !important;
+    min-height: 42px !important;
+    border: 1px solid var(--dsw-alias-border-l2, rgba(0,0,0,.14)) !important;
+    background: var(--dsw-alias-button-elevated-fill, #ffffff) !important;
+    border-radius: 12px !important;
+    box-sizing: border-box !important;
+    gap: 8px !important;
+    font-size: 14px !important;
+    line-height: 20px !important;
+    font-weight: 600 !important;
+    box-shadow: 0 1px 6px rgba(0,0,0,.06) !important;
+  }
+  [data-mobile-nav="frame"] [class*="_settingsArea"] button:not([aria-modal="true"] *):hover {
+    background: var(--dsw-alias-button-floating-hover, rgba(0,0,0,.06)) !important;
+  }
+  [data-mobile-nav="frame"] [class*="_settingsArea"] button:not([aria-modal="true"] *) svg {
+    width: 16px !important;
+    height: 16px !important;
   }
   /* Maestro in footer.action must match Settings trigger on mobile — same 42h left-align */
   [data-mobile-nav="frame"] [data-maestro-trigger] {
@@ -126,6 +150,25 @@ export const LAYOUT_CSS = `/* ---------- mobile-only layout ---------- */
     height: 42px !important;
     border-radius: 12px !important;
     gap: 8px !important;
+  }
+
+  /* Bento Foot Card (B): footArea becomes a card grouping Files|Session log pills + Settings.
+     The card sits inside the already-inset drawer (12px gutters), so no extra outer margin.
+     Tokens: bg-layer-2, border-l1, r14, label/interactive tokens. */
+  [data-mobile-nav="frame"] [class*="_footArea"] {
+    background: var(--dsw-alias-bg-layer-2, #f5f5f5) !important;
+    border: 1px solid var(--dsw-alias-border-l1, rgba(0,0,0,.08)) !important;
+    border-radius: 14px !important;
+    padding: 10px !important;
+    gap: 8px !important;
+    box-sizing: border-box !important;
+    flex-direction: column !important;
+  }
+  [data-mobile-nav="frame"] [class*="_footArea"] [class*="_footerActions"] {
+    display: flex !important;
+    flex-direction: column !important;
+    gap: 8px !important;
+    width: 100% !important;
   }
 
   /* Drag handles are useless on touch and would float over the drawer. */
