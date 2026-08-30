@@ -1,0 +1,187 @@
+// settings-sheet — DSH-native Settings modal → bottom sheet on mobile
+// Reuses DSH SettingsRoot tokens: --dsw-alias-bg-layer-2, --dsw-alias-bg-mask-1, --dsw-mask-blur,
+// --dsw-shadow-lv3, --dsw-alias-border-l1/l2/inverted, --dsw-alias-label-primary, --ds-ease-out
+// See design-system/pages/settings.md
+// Scope is SettingsRoot only: panel:has(nav) isolates Settings from other dialogs.
+
+export const SETTINGS_SHEET_CSS = `
+@media (max-width: 1023px) {
+  /* Overlay anchor: only when it hosts the Settings panel (panel:has(nav)) */
+  [class*="_overlay"]:has([class*="_panel"]:has([class*="_nav"])) {
+    align-items: flex-end !important;
+    justify-content: center !important;
+    padding: 0 !important;
+  }
+  [class*="_overlay"]:has([class*="_panel"]:has([class*="_nav"])) [class*="_mask"] {
+    background: var(--dsw-alias-bg-mask-1, rgba(0,0,0,.24)) !important;
+    backdrop-filter: var(--dsw-mask-blur, blur(2px)) !important;
+    animation: dsh-maestro-mobile-fade .18s var(--ds-ease-out, ease-in-out) !important;
+  }
+
+  /* Panel: sheet — r24 top only, layer-2, lv3, handle 36x4, safe-area */
+  [class*="_panel"]:has([class*="_nav"]) {
+    width: 100% !important;
+    max-width: 100% !important;
+    height: auto !important;
+    max-height: min(92dvh, 720px) !important;
+    min-height: min(52dvh, 420px) !important;
+    flex-direction: column !important;
+    border-radius: 24px 24px 0 0 !important;
+    background: var(--dsw-alias-bg-layer-2, #fff) !important;
+    border: 1px solid var(--dsw-alias-border-inverted, rgba(0,0,0,.08)) !important;
+    border-bottom: none !important;
+    box-shadow: var(--dsw-shadow-lv3, 0 8px 32px rgba(0,0,0,.18)) !important;
+    padding-top: 10px !important;
+    animation: dsh-maestro-mobile-sheet-in .22s var(--ds-ease-out, ease-in-out) !important;
+    --dsh-scrollbar-thumb: var(--dsw-alias-scrollbar-bg-l2) !important;
+    --dsh-scrollbar-thumb-hover: var(--dsw-alias-scrollbar-hover-l2) !important;
+  }
+  /* Drag handle — matches BottomSheet 36x4 centered */
+  [class*="_panel"]:has([class*="_nav"])::before {
+    content: '' !important;
+    align-self: center !important;
+    width: 36px !important;
+    height: 4px !important;
+    margin: 2px 0 10px !important;
+    border-radius: 999px !important;
+    background: var(--dsw-alias-border-l2, rgba(0,0,0,.22)) !important;
+    flex: none !important;
+    display: block !important;
+  }
+
+  /* Nav: vertical rail → horizontal pill tabs */
+  [class*="_panel"]:has([class*="_nav"]) [class*="_nav"] {
+    width: 100% !important;
+    flex: none !important;
+    flex-direction: column !important;
+    gap: 8px !important;
+    padding: 0 16px 0 !important;
+    box-sizing: border-box !important;
+  }
+  [class*="_panel"]:has([class*="_nav"]) [class*="_navTitle"] {
+    padding: 0 4px 2px !important;
+    font-size: 16px !important;
+    line-height: 24px !important;
+    font-weight: 500 !important;
+  }
+  [class*="_panel"]:has([class*="_nav"]) [class*="_navList"] {
+    flex-direction: row !important;
+    flex-wrap: nowrap !important;
+    gap: 6px !important;
+    overflow-x: auto !important;
+    overflow-y: hidden !important;
+    scrollbar-width: none !important;
+    -webkit-overflow-scrolling: touch !important;
+    padding-bottom: 8px !important;
+    margin-bottom: 0 !important;
+    border-bottom: 1px solid var(--dsw-alias-border-l1, rgba(0,0,0,.08)) !important;
+  }
+  [class*="_panel"]:has([class*="_nav"]) [class*="_navList"]::-webkit-scrollbar {
+    display: none !important;
+    width: 0 !important;
+    height: 0 !important;
+  }
+  [class*="_panel"]:has([class*="_nav"]) [class*="_navCell"] {
+    flex: none !important;
+    height: 36px !important;
+    min-width: fit-content !important;
+    padding: 0 14px !important;
+    border-radius: 999px !important;
+    border: 1px solid var(--dsw-alias-border-l1, rgba(0,0,0,.12)) !important;
+    background: transparent !important;
+    font-size: 13px !important;
+    line-height: 20px !important;
+    gap: 6px !important;
+    cursor: pointer !important;
+    -webkit-tap-highlight-color: transparent !important;
+    white-space: nowrap !important;
+  }
+  [class*="_panel"]:has([class*="_nav"]) [class*="_navCell"]:hover {
+    background: var(--dsw-alias-interactive-bg-hover, rgba(0,0,0,.06)) !important;
+  }
+  [class*="_panel"]:has([class*="_nav"]) [class*="_navCell"].active,
+  [class*="_panel"]:has([class*="_nav"]) [class*="_navCell"][class*="active"] {
+    background: var(--dsw-specific-sidebar-nav-item-active, #EBEEF2) !important;
+    border-color: var(--dsw-specific-sidebar-nav-item-active, #EBEEF2) !important;
+    color: var(--dsw-alias-label-primary, #111) !important;
+  }
+  [class*="_panel"]:has([class*="_nav"]) [class*="_navCell"]:focus-visible {
+    outline: 2px solid var(--dsw-alias-state-business-primary, #4f6ef7) !important;
+    outline-offset: 1px !important;
+  }
+
+  /* Content column: header + scrollable options */
+  [class*="_panel"]:has([class*="_nav"]) [class*="_content"] {
+    flex: 1 !important;
+    min-height: 0 !important;
+    min-width: 0 !important;
+    display: flex !important;
+    flex-direction: column !important;
+  }
+  [class*="_panel"]:has([class*="_nav"]) [class*="_header"] {
+    flex: none !important;
+    height: 44px !important;
+    min-height: 44px !important;
+    padding: 8px 12px 8px 16px !important;
+    align-items: center !important;
+    border-bottom: 1px solid var(--dsw-alias-border-l1, rgba(0,0,0,.08)) !important;
+    box-sizing: border-box !important;
+  }
+  [class*="_panel"]:has([class*="_nav"]) [class*="_close"] {
+    width: 36px !important;
+    height: 36px !important;
+    border-radius: 999px !important;
+    flex: none !important;
+    cursor: pointer !important;
+    -webkit-tap-highlight-color: transparent !important;
+  }
+  [class*="_panel"]:has([class*="_nav"]) [class*="_close"]:hover {
+    background: var(--dsw-alias-interactive-bg-hover, rgba(0,0,0,.06)) !important;
+  }
+  [class*="_panel"]:has([class*="_nav"]) [class*="_close"]:focus-visible {
+    outline: 2px solid var(--dsw-alias-state-business-primary, #4f6ef7) !important;
+    outline-offset: 1px !important;
+  }
+  [class*="_panel"]:has([class*="_nav"]) [class*="_options"] {
+    flex: 1 !important;
+    min-height: 0 !important;
+    overflow-y: auto !important;
+    -webkit-overflow-scrolling: touch !important;
+    padding: 16px 16px calc(16px + env(safe-area-inset-bottom, 0px)) !important;
+  }
+  /* Bento: sections fill sheet on mobile */
+  [class*="_panel"]:has([class*="_nav"]) [class*="_section"] {
+    width: 100% !important;
+    max-width: none !important;
+  }
+}
+
+/* Tablet 768-1023: centered constrained sheet, r24 all corners */
+@media (min-width: 768px) and (max-width: 1023px) {
+  [class*="_overlay"]:has([class*="_panel"]:has([class*="_nav"])) {
+    align-items: center !important;
+    padding: 24px 16px calc(16px + env(safe-area-inset-bottom, 0px)) !important;
+  }
+  [class*="_panel"]:has([class*="_nav"]) {
+    width: min(calc(100vw - 32px), 720px) !important;
+    max-width: min(calc(100vw - 32px), 720px) !important;
+    max-height: min(82dvh, 640px) !important;
+    border-radius: 24px !important;
+    border: 1px solid var(--dsw-alias-border-inverted, rgba(0,0,0,.08)) !important;
+    margin: 0 auto !important;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  [class*="_overlay"]:has([class*="_panel"]:has([class*="_nav"])) [class*="_mask"],
+  [class*="_panel"]:has([class*="_nav"]) {
+    animation: none !important;
+  }
+}
+
+@media (min-width: 1024px) {
+  [class*="_panel"]:has([class*="_nav"])::before {
+    display: none !important;
+  }
+}
+`

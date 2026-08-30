@@ -47,26 +47,6 @@ export const EXPLORER_SHEET_CSS = `
     scrollbar-width: thin !important;
     scrollbar-color: var(--dsw-alias-label-tertiary, rgba(0,0,0,.3)) transparent !important;
   }
-  /* Settings sheet (legacy Modal) — ensure r24 + layer-2 + shadow consistent with BottomSheet */
-  [aria-modal="true"]:has(> :first-child > :last-child > button):not(:has([role="navigation"])):not(:has([class*="ZuhsRW"])) {
-    background: var(--dsw-alias-bg-layer-2, #fff) !important;
-    border: 1px solid var(--dsw-alias-border-inverted, rgba(0,0,0,.08)) !important;
-    box-shadow: var(--dsw-shadow-lv3, 0 8px 32px rgba(0,0,0,.18)) !important;
-    /* handle affordance like BottomSheet */
-    position: relative !important;
-  }
-  [aria-modal="true"]:has(> :first-child > :last-child > button):not(:has([role="navigation"])):not(:has([class*="ZuhsRW"]))::before {
-    content: '';
-    position: absolute;
-    top: 8px;
-    left: 50%;
-    transform: translateX(-50%);
-    width: 36px;
-    height: 4px;
-    border-radius: 999px;
-    background: var(--dsw-alias-border-l2, rgba(0,0,0,.22));
-    pointer-events: none;
-  }
 }
 @media (prefers-reduced-motion: reduce) {
   [data-aionui-explorer-col],
