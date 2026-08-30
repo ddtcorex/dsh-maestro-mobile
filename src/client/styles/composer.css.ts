@@ -70,7 +70,8 @@ export const COMPOSER_CSS = `
     gap: 12px !important;
     white-space: nowrap !important;
     align-items: center !important;
-    padding-bottom: 2px !important;
+    padding: 4px 12px 6px !important;
+    box-sizing: border-box !important;
   }
   [data-mobile-nav="stats"]::-webkit-scrollbar {
     display: none !important;
