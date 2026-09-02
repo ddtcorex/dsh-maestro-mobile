@@ -4,6 +4,18 @@ All notable changes to this project are documented in this file. Format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); this project uses
 [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.3.1] - 2026-09-02
+
+### Fixed
+
+- **Hero preset menu cutoff** — prevent hero preset menu top cutoff on long lists (#13).
+- **ConnectionIndicator stretch** — keep ConnectionIndicator out of settings trigger stretch (#12).
+
+### Changed
+
+- Release 1.3.0 included: secondary border for drawer actions, remove footArea gap, rebuild client bundle for 0.1.2-alpha.2, CI pin bump.
+
+
 ## [1.2.0] - 2026-08-31
 
 Ported `mexiaosqwq/dsh-web-mobile` `v2.3.0` sidebar gestures + streaming perf; plus ask-question and stats bar mobile fixes.
