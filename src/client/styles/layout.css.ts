@@ -168,17 +168,24 @@ export const LAYOUT_CSS = `/* ---------- mobile-only layout ---------- */
   }
   /* ConnectionIndicator beside Settings — the trigger row officially lays
      trigger + chip inline (flex row, gap 8), which cannot fit the ~300px
-     drawer. When the chip renders, stack the row: Settings keeps its
-     full-width primary row, the chip becomes its own full-width strip below
-     (36px, warn/success palette preserved, left-aligned icon + label). */
-  [data-mobile-nav="frame"] [class*="_settingsArea"] [class*="_triggerRow"]:has(> button[data-phase]) {
-    flex-direction: column !important;
-    align-items: stretch !important;
-    gap: 6px !important;
-    width: 100% !important;
-    margin: 2px 0 0 !important;
+     drawer. When the chip renders, lift it to the TOP of the Bento foot
+     card (Connecting…/Disconnected/Connected first, Files/Session log pills
+     second, Settings last) instead of squeezing it beside/under the trigger:
+     dissolve the settingsArea/triggerRow wrappers with display:contents so
+     chip, pills and trigger become sibling flex items of the foot column,
+     then order chip first (-1), trigger last (1). The chip keeps its own
+     warn/success palette (its width:100% styling must NOT leak into the
+     primary trigger — see the [data-phase] guard on the trigger rules). */
+  [data-mobile-nav="frame"] [class*="_footArea"]:has([class*="_triggerRow"] > button[data-phase]) {
+    gap: 8px !important;
   }
-  [data-mobile-nav="frame"] [class*="_settingsArea"] button[data-phase] {
+  [data-mobile-nav="frame"] [class*="_footArea"]:has([class*="_triggerRow"] > button[data-phase]) [class*="_settingsArea"],
+  [data-mobile-nav="frame"] [class*="_footArea"]:has([class*="_triggerRow"] > button[data-phase]) [class*="_triggerRow"] {
+    display: contents !important;
+  }
+  [data-mobile-nav="frame"] [class*="_footArea"]:has([class*="_triggerRow"] > button[data-phase]) [class*="_settingsArea"] button[data-phase] {
+    order: -1 !important;
+    flex: 0 0 auto !important;
     width: 100% !important;
     height: 36px !important;
     min-height: 36px !important;
@@ -193,6 +200,10 @@ export const LAYOUT_CSS = `/* ---------- mobile-only layout ---------- */
     line-height: 20px !important;
     font-weight: 500 !important;
     text-align: left !important;
+  }
+  [data-mobile-nav="frame"] [class*="_footArea"]:has([class*="_triggerRow"] > button[data-phase]) [class*="_settingsArea"] button:not([data-phase]) {
+    order: 1 !important;
+    flex: 0 0 auto !important;
   }
   /* Maestro in footer.action must match Settings trigger on mobile — same 42h left-align */
   [data-mobile-nav="frame"] [data-maestro-trigger] {

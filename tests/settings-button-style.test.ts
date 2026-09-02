@@ -23,19 +23,29 @@ test('the drawer settings control fills its mobile gutter and centers its label'
 
 // The ConnectionIndicator chip (Connecting… / Disconnected / Connected) sits in
 // the same triggerRow as the Settings button, carrying data-phase on its own
-// button. The row must stack — Settings keeps its full-width primary row, the
-// chip becomes its own full-width strip below — instead of overflowing the
-// ~300px drawer (pre-fix the width:100% !important force hit the chip, which
-// is flex:none, so the row scrolled 402px vs 238px and the trigger crushed to
-// 30px).
-test('the ConnectionIndicator next to Settings stacks below the trigger instead of overflowing the row', () => {
+// button. It must be lifted to the TOP of the Bento foot card (above the
+// Files/Session log pills and above the Settings trigger): the wrappers are
+// dissolved with display:contents so chip + pills + trigger become sibling
+// flex items of the foot column, then chip orders first (-1) and trigger last
+// (1). Doing nothing leaves the inline row (~300px drawer) overflowing —
+// pre-fix the width:100% !important force hit the chip (flex:none) so the row
+// scrolled 402px vs 238px and the Settings trigger crushed to 30px.
+test('the ConnectionIndicator is lifted to the top of the foot card instead of overflowing the trigger row', () => {
   assert.match(
     layout,
-    /\[data-mobile-nav="frame"\] \[class\*="_settingsArea"\] \[class\*="_triggerRow"\]:has\(> button\[data-phase\]\)\s*\{[^}]*flex-direction:\s*column\s*!important;[^}]*align-items:\s*stretch\s*!important;[^}]*gap:\s*6px\s*!important;[^}]*width:\s*100%\s*!important;[^}]*margin:\s*2px\s*0\s*0\s*!important;/s,
+    /\[data-mobile-nav="frame"\] \[class\*="_footArea"\]:has\(\[class\*="_triggerRow"\] > button\[data-phase\]\)\s*\{\s*gap:\s*8px\s*!important;\s*\}/s,
   )
   assert.match(
     layout,
-    /\[data-mobile-nav="frame"\] \[class\*="_settingsArea"\] button\[data-phase\]\s*\{[^}]*width:\s*100%\s*!important;[^}]*height:\s*36px\s*!important;[^}]*min-height:\s*36px\s*!important;[^}]*justify-content:\s*flex-start\s*!important;[^}]*border-radius:\s*10px\s*!important;/s,
+    /\[data-mobile-nav="frame"\] \[class\*="_footArea"\]:has\(\[class\*="_triggerRow"\] > button\[data-phase\]\) \[class\*="_settingsArea"\],\s*\[data-mobile-nav="frame"\] \[class\*="_footArea"\]:has\(\[class\*="_triggerRow"\] > button\[data-phase\]\) \[class\*="_triggerRow"\]\s*\{\s*display:\s*contents\s*!important;\s*\}/s,
+  )
+  assert.match(
+    layout,
+    /\[data-mobile-nav="frame"\] \[class\*="_footArea"\]:has\(\[class\*="_triggerRow"\] > button\[data-phase\]\) \[class\*="_settingsArea"\] button\[data-phase\]\s*\{[^}]*order:\s*-1\s*!important;[^}]*flex:\s*0\s*0\s*auto\s*!important;[^}]*width:\s*100%\s*!important;[^}]*height:\s*36px\s*!important;[^}]*min-height:\s*36px\s*!important;[^}]*justify-content:\s*flex-start\s*!important;[^}]*border-radius:\s*10px\s*!important;/s,
+  )
+  assert.match(
+    layout,
+    /\[data-mobile-nav="frame"\] \[class\*="_footArea"\]:has\(\[class\*="_triggerRow"\] > button\[data-phase\]\) \[class\*="_settingsArea"\] button:not\(\[data-phase\]\)\s*\{\s*order:\s*1\s*!important;\s*flex:\s*0\s*0\s*auto\s*!important;\s*\}/s,
   )
   // Belt and braces: no leftover rule stretches every settings-area button
   // (the pre-fix leak that also hit the chip).
