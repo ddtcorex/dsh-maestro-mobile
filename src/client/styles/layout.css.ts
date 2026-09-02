@@ -132,8 +132,15 @@ export const LAYOUT_CSS = `/* ---------- mobile-only layout ---------- */
   }
   /* Settings primary inside Bento card — one notch bolder: elevated fill,
      l2 border + subtle shadow + 600 weight + 16px icon so it reads primary
-     against the 36px secondary pills (13/500). */
-  [data-mobile-nav="frame"] [class*="_settingsArea"] button:not([aria-modal="true"] *) {
+     against the 36px secondary pills (13/500).
+     The trigger is the ONLY settings-area button without data-phase: the
+     ConnectionIndicator chip (Connecting…/Disconnected/Connected) carries
+     data-phase="connecting|disconnected|recovered" (official ConnectionIndicator
+     output) and must keep its own compact warning/success palette, NOT this
+     stretch. Without the :not([data-phase]) guard the width:100% force hit the
+     chip too (flex:none, so it could not shrink): the triggerRow overflowed
+     (scrollW 402 vs clientW 238) and the Settings trigger crushed to 30px. */
+  [data-mobile-nav="frame"] [class*="_settingsArea"] button:not([data-phase]):not([aria-modal="true"] *) {
     width: 100% !important;
     justify-content: flex-start !important;
     align-items: center !important;
@@ -152,12 +159,51 @@ export const LAYOUT_CSS = `/* ---------- mobile-only layout ---------- */
     font-weight: 600 !important;
     box-shadow: 0 1px 6px rgba(0,0,0,.06) !important;
   }
-  [data-mobile-nav="frame"] [class*="_settingsArea"] button:not([aria-modal="true"] *):hover {
+  [data-mobile-nav="frame"] [class*="_settingsArea"] button:not([data-phase]):not([aria-modal="true"] *):hover {
     background: var(--dsw-alias-button-floating-hover, rgba(0,0,0,.06)) !important;
   }
-  [data-mobile-nav="frame"] [class*="_settingsArea"] button:not([aria-modal="true"] *) svg {
+  [data-mobile-nav="frame"] [class*="_settingsArea"] button:not([data-phase]):not([aria-modal="true"] *) svg {
     width: 16px !important;
     height: 16px !important;
+  }
+  /* ConnectionIndicator beside Settings — the trigger row officially lays
+     trigger + chip inline (flex row, gap 8), which cannot fit the ~300px
+     drawer. When the chip renders, lift it to the TOP of the Bento foot
+     card (Connecting…/Disconnected/Connected first, Files/Session log pills
+     second, Settings last) instead of squeezing it beside/under the trigger:
+     dissolve the settingsArea/triggerRow wrappers with display:contents so
+     chip, pills and trigger become sibling flex items of the foot column,
+     then order chip first (-1), trigger last (1). The chip keeps its own
+     warn/success palette (its width:100% styling must NOT leak into the
+     primary trigger — see the [data-phase] guard on the trigger rules). */
+  [data-mobile-nav="frame"] [class*="_footArea"]:has([class*="_triggerRow"] > button[data-phase]) {
+    gap: 8px !important;
+  }
+  [data-mobile-nav="frame"] [class*="_footArea"]:has([class*="_triggerRow"] > button[data-phase]) [class*="_settingsArea"],
+  [data-mobile-nav="frame"] [class*="_footArea"]:has([class*="_triggerRow"] > button[data-phase]) [class*="_triggerRow"] {
+    display: contents !important;
+  }
+  [data-mobile-nav="frame"] [class*="_footArea"]:has([class*="_triggerRow"] > button[data-phase]) [class*="_settingsArea"] button[data-phase] {
+    order: -1 !important;
+    flex: 0 0 auto !important;
+    width: 100% !important;
+    height: 36px !important;
+    min-height: 36px !important;
+    justify-content: flex-start !important;
+    align-items: center !important;
+    padding-inline: 14px !important;
+    margin-inline: 0 !important;
+    border-radius: 10px !important;
+    box-sizing: border-box !important;
+    gap: 6px !important;
+    font-size: 13px !important;
+    line-height: 20px !important;
+    font-weight: 500 !important;
+    text-align: left !important;
+  }
+  [data-mobile-nav="frame"] [class*="_footArea"]:has([class*="_triggerRow"] > button[data-phase]) [class*="_settingsArea"] button:not([data-phase]) {
+    order: 1 !important;
+    flex: 0 0 auto !important;
   }
   /* Maestro in footer.action must match Settings trigger on mobile — same 42h left-align */
   [data-mobile-nav="frame"] [data-maestro-trigger] {
