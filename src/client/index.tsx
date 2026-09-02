@@ -10,6 +10,7 @@ import { installAionuiCompat } from './effects/aionui-compat.ts'
 import { installLayoutBridge } from './effects/layout-bridge.ts'
 import { installViewportBridge } from './effects/viewport.ts'
 import { installSidebarSwipe } from './effects/sidebar-swipe.ts'
+import { installHeroPresetMenuFix } from './effects/preset-menu-fix.ts'
 import { NS, en, zh } from './i18n/locales.ts'
 import type { MobileNavKey } from './i18n/locales.ts'
 
@@ -167,6 +168,12 @@ export function apply(ctx: ClientContext): void {
   installPhoneChrome(ctx)
 
   installAionuiCompat(ctx)
+
+  // New-session hero preset list on mobile: long lists previously clipped the
+  // top presets above the viewport due to the host Menu's inverted clamp
+  // (100vh-measured height vs innerHeight). Post-correct fixed portal menus
+  // on narrow viewports and cap height to dvh.
+  installHeroPresetMenuFix(ctx)
 
   // DSH-native overlay: backdrop + FAB via AppFrame's overlayLayer (z20)
   // Replaces manual frame.appendChild in overlay-backdrop-fab.ts — keeps

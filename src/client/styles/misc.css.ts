@@ -93,6 +93,20 @@ export const MISC_CSS = `@media (max-width: 1023px) {
     font-size: 16px !important;
   }
 
+  /* ---------- new-session hero preset menu: prevent top cutoff on long lists ----------
+     Host Menu (ui-primitives/Menu.tsx) measures lh from calc(100vh - 24px) but
+     clamps with innerHeight (dynamic viewport) using
+     Math.min(Math.max(y,12),vh-lh-12). When 100vh > innerHeight (mobile Safari
+     with address bar, notch) lh exceeds vh and the clamp inverts to a negative
+     top, so the first presets render above the viewport. dvh tracks the dynamic
+     viewport, so the measured lh matches the clamp's vh; keep the 100vh
+     fallback for engines without dvh and include safe-area insets. */
+  body > div[role="menu"] {
+    max-height: calc(100vh - 24px) !important;
+    max-height: calc(100dvh - 24px) !important;
+    max-height: calc(100dvh - 24px - env(safe-area-inset-top, 0px) - env(safe-area-inset-bottom, 0px)) !important;
+  }
+
   /* ---------- drawer session tree: skip off-screen rendering ----------
      content-visibility: auto lets engine skip layout/paint of off-screen rows
      when drawer closed (early-commit) and of off-screen rows in long history. */
