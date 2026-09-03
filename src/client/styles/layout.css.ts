@@ -134,12 +134,14 @@ export const LAYOUT_CSS = `/* ---------- mobile-only layout ---------- */
      l2 border + subtle shadow + 600 weight + 16px icon so it reads primary
      against the 36px secondary pills (13/500).
      The trigger is the ONLY settings-area button without data-phase: the
-     ConnectionIndicator chip (Connecting…/Disconnected/Connected) carries
-     data-phase="connecting|disconnected|recovered" (official ConnectionIndicator
-     output) and must keep its own compact warning/success palette, NOT this
-     stretch. Without the :not([data-phase]) guard the width:100% force hit the
-     chip too (flex:none, so it could not shrink): the triggerRow overflowed
-     (scrollW 402 vs clientW 238) and the Settings trigger crushed to 30px. */
+     ConnectionIndicator chip (Connecting…/Disconnected) is a
+     button[data-phase], while the recovered Connected confirmation is a
+     div[role="status"] with NO data-phase (official ConnectionIndicator
+     output) — both must keep their own compact warning/success palette,
+     NOT this stretch. Without the :not([data-phase]) guard the width:100%
+     force hit the chip too (flex:none, so it could not shrink): the
+     triggerRow overflowed (scrollW 402 vs clientW 238) and the Settings
+     trigger crushed to 30px. */
   [data-mobile-nav="frame"] [class*="_settingsArea"] button:not([data-phase]):not([aria-modal="true"] *) {
     width: 100% !important;
     justify-content: flex-start !important;
@@ -175,15 +177,18 @@ export const LAYOUT_CSS = `/* ---------- mobile-only layout ---------- */
      chip, pills and trigger become sibling flex items of the foot column,
      then order chip first (-1), trigger last (1). The chip keeps its own
      warn/success palette (its width:100% styling must NOT leak into the
-     primary trigger — see the [data-phase] guard on the trigger rules). */
-  [data-mobile-nav="frame"] [class*="_footArea"]:has([class*="_triggerRow"] > button[data-phase]) {
+     primary trigger — see the [data-phase] guard on the trigger rules).
+     The chip matcher covers BOTH official shapes: button[data-phase] for
+     Connecting/Disconnected and div[role="status"] for the recovered
+     Connected confirmation, which carries no data-phase. */
+  [data-mobile-nav="frame"] [class*="_footArea"]:has([class*="_triggerRow"] > :is(button[data-phase], div[role="status"])) {
     gap: 8px !important;
   }
-  [data-mobile-nav="frame"] [class*="_footArea"]:has([class*="_triggerRow"] > button[data-phase]) [class*="_settingsArea"],
-  [data-mobile-nav="frame"] [class*="_footArea"]:has([class*="_triggerRow"] > button[data-phase]) [class*="_triggerRow"] {
+  [data-mobile-nav="frame"] [class*="_footArea"]:has([class*="_triggerRow"] > :is(button[data-phase], div[role="status"])) [class*="_settingsArea"],
+  [data-mobile-nav="frame"] [class*="_footArea"]:has([class*="_triggerRow"] > :is(button[data-phase], div[role="status"])) [class*="_triggerRow"] {
     display: contents !important;
   }
-  [data-mobile-nav="frame"] [class*="_footArea"]:has([class*="_triggerRow"] > button[data-phase]) [class*="_settingsArea"] button[data-phase] {
+  [data-mobile-nav="frame"] [class*="_footArea"]:has([class*="_triggerRow"] > :is(button[data-phase], div[role="status"])) [class*="_settingsArea"] :is(button[data-phase], div[role="status"]) {
     order: -1 !important;
     flex: 0 0 auto !important;
     width: 100% !important;
@@ -201,7 +206,7 @@ export const LAYOUT_CSS = `/* ---------- mobile-only layout ---------- */
     font-weight: 500 !important;
     text-align: left !important;
   }
-  [data-mobile-nav="frame"] [class*="_footArea"]:has([class*="_triggerRow"] > button[data-phase]) [class*="_settingsArea"] button:not([data-phase]) {
+  [data-mobile-nav="frame"] [class*="_footArea"]:has([class*="_triggerRow"] > :is(button[data-phase], div[role="status"])) [class*="_settingsArea"] button:not([data-phase]) {
     order: 1 !important;
     flex: 0 0 auto !important;
   }
