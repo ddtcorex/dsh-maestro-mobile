@@ -4,6 +4,12 @@ All notable changes to this project are documented in this file. Format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); this project uses
 [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.3.2] - 2026-09-04
+
+### Fixed
+
+- **Recovered Connected chip** — lift the recovered Connected confirmation like Connecting/Disconnected in the drawer foot (#15). Upstream renders it as div[role=status] with no data-phase, so the #12 rules missed it and it squeezed beside the Settings trigger.
+
 ## [1.3.1] - 2026-09-02
 
 ### Fixed
