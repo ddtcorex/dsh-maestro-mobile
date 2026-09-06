@@ -7,7 +7,7 @@ export function createGitChipTask(): ReconcilerTask {
     ensure: () => {
       const chip = document.querySelector('[data-slot="conversation.input.dock"] [data-gitgraph-chip-anchor]')
       if (chip === null) return
-      const card = document.querySelector('textarea')?.closest('[class*="_card"]')
+      const card = document.querySelector('[data-composer-input]')?.closest('[class*="_card"]')
       if (card == null) return
       if (chip.parentElement !== card) card.insertBefore(chip, card.firstChild)
     },

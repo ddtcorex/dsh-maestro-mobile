@@ -3,40 +3,6 @@
 // media query.
 
 export const MISC_CSS = `@media (max-width: 1023px) {
-  /* ---------- hero composer on mobile ----------
-     The official hero card carries a 2-line textarea plus a tall tool row,
-     which reads oversized on a phone. Tighten the empty-state rhythm: keep
-     the official centered hero, shrink the textarea line box, slim the card
-     padding and the tool row, and close the gap under the headline. */
-
-  [data-phase="hero"] [class*="_card"]:has(textarea) {
-    padding-top: 6px !important;
-    gap: 8px !important;
-  }
-  /* The official composer autosizes the textarea and writes an inline
-     height (2 lines on the hero empty state) on the textarea's scroll/grow
-     wrappers. :placeholder-shown lets us collapse the EMPTY state to one
-     line with !important; as soon as the user types, the pseudo-class no
-     longer matches and the autosizer's inline height takes over again — so
-     multi-line growth keeps working. */
-  [data-phase="hero"] textarea:placeholder-shown {
-    height: 28px !important;
-  }
-  [data-phase="hero"] [class*="_card"]:has(textarea:placeholder-shown) > [class*="_scroll"],
-  [data-phase="hero"] [class*="_card"]:has(textarea:placeholder-shown) [class*="_grow"] {
-    height: 28px !important;
-  }
-  [data-phase="hero"] [class*="_card"]:has(textarea) > [class*="_row"] {
-    padding-top: 2px !important;
-  }
-  [data-phase="hero"] [class*="_headline"] {
-    line-height: 1.15 !important;
-    margin-bottom: 0 !important;
-  }
-  [data-phase="hero"] [class*="_stack"] {
-    gap: 0 !important;
-  }
-
   /* ---------- composer dock: swap git branch chip with the todo card ----------
      The git-graph branch chip (conversation.input.dock, order 100) floats
      alone at the bottom-left above the input card, with a dead zone to its
