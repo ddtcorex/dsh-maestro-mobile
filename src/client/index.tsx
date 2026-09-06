@@ -11,6 +11,7 @@ import { installLayoutBridge } from './effects/layout-bridge.ts'
 import { installViewportBridge } from './effects/viewport.ts'
 import { installSidebarSwipe } from './effects/sidebar-swipe.ts'
 import { installHeroPresetMenuFix } from './effects/preset-menu-fix.ts'
+import { installComposerKeyboardTouch } from './effects/composer-keyboard-touch.ts'
 import { NS, en, zh } from './i18n/locales.ts'
 import type { MobileNavKey } from './i18n/locales.ts'
 
@@ -174,6 +175,11 @@ export function apply(ctx: ClientContext): void {
   // (100vh-measured height vs innerHeight). Post-correct fixed portal menus
   // on narrow viewports and cap height to dvh.
   installHeroPresetMenuFix(ctx)
+
+  // Composer toolbar soft-keyboard guard: upstream keepFocus forces focus on
+  // the contenteditable for every toolbar mousedown, which pops the soft
+  // keyboard on each phone tap of Commands / Add attachment / Stop / Send.
+  installComposerKeyboardTouch(ctx)
 
   // DSH-native overlay: backdrop + FAB via AppFrame's overlayLayer (z20)
   // Replaces manual frame.appendChild in overlay-backdrop-fab.ts — keeps
