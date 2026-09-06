@@ -4,8 +4,7 @@
 export const BASE_CSS = `
 /* ---------- base control styles (rendered at any width, hidden where unused) ---------- */
 
-[data-mobile-nav="toggle"],
-[data-mobile-nav="files"] {
+[data-mobile-nav="toggle"] {
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -20,12 +19,10 @@ export const BASE_CSS = `
   cursor: pointer;
   -webkit-tap-highlight-color: transparent;
 }
-[data-mobile-nav="toggle"]:hover,
-[data-mobile-nav="files"]:hover {
+[data-mobile-nav="toggle"]:hover {
   background: var(--dsw-alias-interactive-bg-hover, rgba(0, 0, 0, .06));
 }
-[data-mobile-nav="toggle"]:focus-visible,
-[data-mobile-nav="files"]:focus-visible {
+[data-mobile-nav="toggle"]:focus-visible {
   outline: 2px solid var(--dsw-alias-state-business-primary, #4f6ef7);
   outline-offset: 1px;
 }
@@ -40,8 +37,7 @@ export const BASE_CSS = `
   width: 100%;
   box-sizing: border-box;
 }
-[data-mobile-nav="session-log"],
-[data-mobile-nav="explorer"] {
+[data-mobile-nav="session-log"] {
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -61,12 +57,10 @@ export const BASE_CSS = `
   cursor: pointer;
   -webkit-tap-highlight-color: transparent;
 }
-[data-mobile-nav="session-log"]:hover:not(:disabled),
-[data-mobile-nav="explorer"]:hover {
+[data-mobile-nav="session-log"]:hover:not(:disabled) {
   background: var(--dsw-alias-interactive-bg-hover, rgba(0, 0, 0, .06));
 }
-[data-mobile-nav="session-log"]:focus-visible,
-[data-mobile-nav="explorer"]:focus-visible {
+[data-mobile-nav="session-log"]:focus-visible {
   outline: 2px solid var(--dsw-alias-state-business-primary, #4f6ef7);
   outline-offset: 1px;
 }
