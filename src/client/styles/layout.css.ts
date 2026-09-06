@@ -440,14 +440,6 @@ export const LAYOUT_CSS = `/* ---------- mobile-only layout ---------- */
     top: 12px !important;
     z-index: 2 !important;
   }
-  /* Files remains in flow and is ordered as the rightmost plugin action. */
-  [data-mobile-nav="files"] {
-    position: static !important;
-    left: auto !important;
-    right: auto !important;
-    top: auto !important;
-    z-index: auto !important;
-  }
   [data-mobile-nav="frame"] [data-phase] header [class*="_headerActions"] {
     display: flex !important;
     align-items: center;
@@ -518,11 +510,6 @@ export const LAYOUT_CSS = `/* ---------- mobile-only layout ---------- */
      stays. */
   [data-mobile-nav="frame"] [data-phase] header [class*="_crumbs"] [class*="_separator"] {
     display: none !important;
-  }
-  [data-mobile-nav="frame"] [data-phase] header [data-mobile-nav="files"] {
-    order: 3;
-    flex: 0 0 28px;
-    width: 28px;
   }
   /* Session log download: gone from the header row on mobile (the utilities
      seat holds only the session-log-export capsule). */

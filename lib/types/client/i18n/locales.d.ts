@@ -6,7 +6,6 @@ export declare const zh: {
     readonly close: "Close directory";
     readonly backdrop: "Click to close directory";
     readonly sessionLog: "Session log";
-    readonly files: "Files";
     readonly previewFullscreen: "Fullscreen preview";
     readonly previewExitFullscreen: "Exit fullscreen";
 };

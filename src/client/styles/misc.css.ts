@@ -127,12 +127,10 @@ export const MISC_CSS = `@media (max-width: 1023px) {
 
 @media (min-width: 1024px) {
   [data-mobile-nav="toggle"],
-  [data-mobile-nav="files"],
   [data-mobile-nav="fab"],
   [data-mobile-nav="backdrop"],
   [data-mobile-nav="right-backdrop"],
   [data-mobile-nav="session-log"],
-  [data-mobile-nav="explorer"],
   [data-mobile-nav="drawer-actions"] {
     display: none !important;
   }
