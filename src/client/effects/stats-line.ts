@@ -69,7 +69,7 @@ export function createStatsLineTask(): ReconcilerTask {
       if (root.querySelector('button') !== null) continue
       const text = root.textContent ?? ''
       if (!/(turns|steps|\bLLM\b|轮|步)/.test(text)) continue
-      if (root.querySelector('textarea') !== null) continue
+      if (root.querySelector('[data-composer-input]') !== null) continue
       root.setAttribute('data-mobile-nav', 'stats')
       moveTps(root)
       return

@@ -356,196 +356,57 @@ export const LAYOUT_CSS = `/* ---------- mobile-only layout ---------- */
   [data-phase="active"] [data-composer-seat] {
     padding-bottom: max(12px, env(safe-area-inset-bottom, 0px)) !important;
   }
-  [data-phase] [class*="_card"]:has(textarea) [class*="_row"]:has([class*="_trailing"]) {
-    box-sizing: border-box;
-    container-type: inline-size;
-    container-name: dsh-mobile-composer;
-    flex-wrap: nowrap;
-    gap: 6px;
-    padding-left: 6px;
-    padding-right: 6px;
-    /* The dropdown menu is absolutely positioned inside this row; any
-       overflow: hidden here would clip it. Inner lanes keep their own
-       overflow clipping, so the row itself can stay visible. */
-    overflow: visible;
-  }
-  [data-phase] [class*="_card"]:has(textarea) [class*="_row"]:has([class*="_trailing"]) > :first-child {
-    flex: 0 1 auto;
-    min-width: 0;
-    gap: 6px;
-    /* The permission dropdown (Menu, side: top) pops upward from inside the
-       tools lane; overflow hidden here would crop it, same as the row. Text
-       ellipsis is handled by the trigger label itself. */
-    overflow: visible;
-  }
-  [data-phase] [class*="_card"]:has(textarea) [class*="_row"]:has([class*="_trailing"]) > [class*="_trailing"] {
-    flex: 1 1 auto;
-    min-width: 0;
-    gap: 6px;
-    /* Must not clip the model dropdown; the model trigger clips its own label. */
-    overflow: visible;
-  }
-  /* PermissionSelect / plan controls share the tools lane. Let the
-     permission label use the remaining tools width, while the lower-priority
-     plan slot keeps an icon-sized target instead of stealing model width. */
-  [data-phase] [class*="_card"]:has(textarea) [class*="_row"]:has([class*="_trailing"]) > :first-child > :nth-child(2) {
-    flex: 0 1 auto;
-    min-width: 0;
-    max-width: none;
-    gap: 4px;
-    /* The permission Menu list (side: top) pops upward out of this lane;
-       overflow hidden crops it. The trigger label clips its own text. */
-    overflow: visible;
-  }
-  [data-phase] [class*="_card"]:has(textarea) [class*="_row"]:has([class*="_trailing"]) > :first-child > :nth-child(2) > [class*="_trigger"] {
-    flex: 1 1 auto;
-    min-width: 28px;
-    max-width: 100%;
-    display: flex !important;
-    overflow: hidden;
-  }
-  [data-phase] [class*="_card"]:has(textarea) [class*="_row"]:has([class*="_trailing"]) > :first-child > :nth-child(2) > [class*="_trigger"] > [class*="_triggerLabel"] {
-    flex: 1 1 auto;
-    min-width: 0;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap !important;
-  }
-  /* Slot wrappers such as the live plan chip are not trigger elements. Do
-     not force them into an icon-sized box: their child button would overflow
-     that wrapper and paint over PermissionSelect. Keep the wrapper intrinsic;
-     the model lane below is the one that sacrifices width. */
-  [data-phase] [class*="_card"]:has(textarea) [class*="_row"]:has([class*="_trailing"]) > :first-child > :nth-child(2) > :not([class*="_trigger"]) {
-    flex: 0 1 auto;
-    min-width: 34px;
-    max-width: max-content;
-    overflow: visible;
-  }
-  [data-phase] [class*="_card"]:has(textarea) [class*="_row"]:has([class*="_trailing"]) > :first-child > :nth-child(2) > [class*="_wrap"] > [class*="_chip"] {
-    max-width: 100%;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap !important;
-  }
-  @container dsh-mobile-composer (max-width: 359px) {
-    [data-phase] [class*="_card"]:has(textarea) [class*="_row"]:has([class*="_trailing"]) > :first-child > :nth-child(2) > [class*="_trigger"] > [class*="_triggerLabel"] {
-      display: none !important;
-    }
-  }
-  /* Model selector: flexible and shrinkable, but never clipped.
-     The root must be overflow:visible so the dropdown menu can render.
-     The trigger itself clips the label text. */
-  [data-phase] [class*="_card"]:has(textarea) [class*="_root"]:has(> [class*="_trigger"][aria-haspopup="menu"]) {
-    flex: 0 1 auto;
-    min-width: 0;
-    overflow: visible;
-  }
-  @container dsh-mobile-composer (max-width: 359px) {
-    [data-phase] [class*="_card"]:has(textarea) [class*="_root"]:has(> [class*="_trigger"][aria-haspopup="menu"]) {
-      flex-basis: auto;
-    }
-  }
-  [data-phase] [class*="_card"]:has(textarea) [class*="_root"]:has(> [class*="_trigger"][aria-haspopup="menu"]) > [class*="_trigger"] {
-    display: flex !important;
-    width: 100%;
-    max-width: 100%;
-    min-width: 0;
-    overflow: hidden;
-  }
-  [data-phase] [class*="_card"]:has(textarea) [class*="_root"]:has(> [class*="_trigger"][aria-haspopup="menu"]) > [class*="_trigger"] > [class*="_triggerLabel"] {
-    flex: 1 1 auto;
-    min-width: 0;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap !important;
-  }
-  [data-phase] [class*="_card"]:has(textarea) [class*="_root"]:has(> [class*="_trigger"]):not(:has(> [class*="_trigger"][aria-haspopup="menu"])) {
-    flex: 0 0 auto;
-  }
 
-  /* Model switcher menu: center the dropdown on the now-shrinkable trigger,
-     but never let it exceed the viewport on narrow phones. */
-  [data-phase] [class*="_card"]:has(textarea) [class*="_root"]:has(> [class*="_trigger"]) > [class*="_menu"] {
-    left: 50% !important;
-    right: auto !important;
-    transform: translateX(-50%) !important;
-    max-width: min(320px, calc(100vw - 16px));
-    box-sizing: border-box;
+  /* --- Composer model selector: long names must not drop the toolbar to 2 lines ---
+     The host ModelSelect trigger (class *_trigger) carries a long model label
+     (e.g. "KiraAI - Hy3 Super Extended Reasoning Model"). The label already
+     ellipsizes (nowrap + ellipsis), but the host makes the composer row
+     flex-wrap and the trailing group flex:0 0 auto with the trigger given no
+     min-width:0, so the row cannot shrink the model name and the whole
+     trailing lane (model + send) wraps to a second line on narrow phones
+     (verified live: rowH 42 -> 82px for a long name). Keep the toolbar on a
+     single line and let the model name ellipsize in place: pin the row to
+     nowrap, make the trailing lane shrinkable, and force the trigger + label
+     to collapse. Scoped to the composer seat; the fixed hit targets (send
+     circle, context, permission) keep flex:none so only the model label
+     yields. */
+  [data-composer-seat] [class*="_row"] {
+    flex-wrap: nowrap !important;
+    padding-left: 4px !important;
+    padding-right: 4px !important;
   }
-
-  /* --- Fix composer row overflow at narrow widths (320px-360px) ---
-     Force every direct child of the tools and trailing lanes to shrink,
-     so they can fit within the available space without causing horizontal
-     overflow. The fixed-size icon buttons are exempt: officially both are
-     flex:none at a fixed size (plus 28x28, send 34x34) and must stay put,
-     not participate in adaptation. */
-  [data-phase] [class*="_card"]:has(textarea) [class*="_row"]:has([class*="_trailing"]) > :first-child > :not([class*="_add"]) {
-    flex-shrink: 1;
-    min-width: 0;
+  [data-composer-seat] [class*="_trailing"] {
+    flex: 0 1 auto !important;
+    min-width: 0 !important;
+    gap: 6px !important;
   }
-  [data-phase] [class*="_card"]:has(textarea) [class*="_row"]:has([class*="_trailing"]) > [class*="_trailing"] > :not([class*="_primary"]) {
-    flex-shrink: 1;
-    min-width: 0;
+  /* Scope to triggers that carry a label (model + permission selects). The
+     context-meter gauge trigger is a fixed 28px circle with no label and must
+     keep its flex:none, so it must not be pulled into this shrink rule. */
+  [data-composer-seat] [class*="_trigger"]:has([class*="_triggerLabel"]) {
+    min-width: 0 !important;
+    flex: 0 1 auto !important;
   }
-  /* Pin the plus button at the left edge of the tools lane: official
-     flex:none 28x28, never squeezed by narrower viewports. */
-  [data-phase] [class*="_card"]:has(textarea) [class*="_row"]:has([class*="_trailing"]) > :first-child > [class*="_add"] {
-    flex: none;
+  [data-composer-seat] [class*="_triggerLabel"] {
+    min-width: 0 !important;
+    overflow: hidden !important;
+    text-overflow: ellipsis !important;
+    white-space: nowrap !important;
   }
-  /* The context meter in the trailing lane is another fixed-size icon
-     control: its trigger is officially width:28px flex:none, but the root
-     itself is shrinkable, so a squeezed root lets the trigger paint over
-     the pinned send button. Keep the whole meter at its natural size; its
-     trigger uses aria-haspopup="dialog", so the model-selector menu rules
-     (keyed on "menu") still do not apply. */
-  [data-phase] [class*="_card"]:has(textarea) [class*="_row"]:has([class*="_trailing"]) > [class*="_trailing"] > [class*="_root"] {
-    flex: none;
-    min-width: 0;
+  /* Effort value (e.g. "High") sits beside the model name inside the model
+     trigger. The host gives it flex:0 0 auto but no white-space, so a long
+     model name that caps the trigger lets the effort text wrap to a second
+     line and grows the toolbar. Pin it to one line; the model label is the
+     only part that should ellipsize. */
+  [data-composer-seat] [class*="_triggerEffort"] {
+    white-space: nowrap !important;
+    flex: 0 0 auto !important;
   }
-  /* ContextMeter (JObwrW_ hash family) right-cluster pinning: keep the meter
-     at its official size (28x28 trigger, 14px ring -- enlarging the ring made
-     it steal attention) and glue it to the send button. A small negative
-     right margin trims the 6px lane gap to 2px against send. Anchor on the
-     unique aria-haspopup="dialog" trigger (no other composer control uses
-     it), not the hashed class, so an upstream hash bump cannot silently
-     unhook us. Knob: margin-right trim (-4px). */
-  [data-phase] [class*="_card"]:has(textarea) [class*="_row"]:has([class*="_trailing"]) > [class*="_trailing"] > [class*="_root"]:has(> [class*="_trigger"][aria-haspopup="dialog"]) {
-    margin-right: -4px;
+  [data-composer-seat] [class*="_tools"] {
+    gap: 6px !important;
   }
-  /* The model pill joins the same right cluster: its margin-left:auto absorbs
-     ALL trailing slack, so the adaptive void sits between the tools lane and
-     the pill (visible on wide phones/tablets), while [pill][meter][send] stay
-     welded together at the right edge on every width. Descendant combinator
-     on purpose: the pill root sits behind a display:contents wrapper, so a
-     direct-child combinator silently misses (probe-verified). Within the
-     trailing lane aria-haspopup="menu" belongs to the model trigger alone. */
-  [data-phase] [class*="_card"]:has(textarea) [class*="_row"]:has([class*="_trailing"]) > [class*="_trailing"] [class*="_root"]:has(> [class*="_trigger"][aria-haspopup="menu"]) {
-    margin-left: auto;
-    margin-right: -4px;
-  }
-  /* Shrink only the trigger BOX (28 -> 24, padding zeroed) while the ring
-     ink stays at its official 14px: the dead inset per side drops from 7px
-     to 5px so the small ring no longer floats in its own button. 24x24 keeps
-     the WCAG 2.2 minimum target size. Ring size itself is intentionally
-     untouched -- enlarging it was rejected as attention-grabbing. */
-  [data-phase] [class*="_card"]:has(textarea) [class*="_row"]:has([class*="_trailing"]) > [class*="_trailing"] > [class*="_root"]:has(> [class*="_trigger"][aria-haspopup="dialog"]) > [class*="_trigger"] {
-    width: 24px;
-    height: 24px;
-    padding: 0;
-  }
-  /* Pin the send button to the right edge of the trailing lane.
-     The model pill's margin-left:auto (rule above) is the primary slack
-     absorber that keeps [pill][meter][send] welded at the right edge; this
-     margin-left:auto only remains as the fallback for states where neither
-     the pill nor the meter renders. The :has override zeroes it whenever
-     either control is present, so two autos can never split the void and
-     float the pill mid-lane. */
-  [data-phase] [class*="_card"]:has(textarea) [class*="_row"]:has([class*="_trailing"]) > [class*="_trailing"] > [class*="_primary"] {
-    flex: none;
-    margin-left: auto;
-  }
-  [data-phase] [class*="_card"]:has(textarea) [class*="_row"]:has([class*="_trailing"]) > [class*="_trailing"]:has([class*="_trigger"][aria-haspopup="menu"], > [class*="_root"] > [class*="_trigger"][aria-haspopup="dialog"]) > [class*="_primary"] {
-    margin-left: 0;
+  [data-composer-seat] [class*="_modes"] {
+    gap: 4px !important;
   }
 
   /* --- Session header on mobile ---
