@@ -30,7 +30,7 @@
     "test": "pnpm run test:core",
     "verify": "tsc -p tsconfig.json --noEmit && tsc -p tsconfig.client.json --noEmit",
     "smoke:cdp": "node scripts/cdp-probe.mjs",
-    "test:core": "node --test tests/reconciler-core.test.ts",
+    "test:core": "node --test tests/reconciler-core.test.ts tests/composer-keyboard-touch.test.ts",
     "prepack": "npm run build"
   },
   "dsh": {
