@@ -16,3 +16,7 @@ playwright-report/
 
 # Local debug map (not uploaded, local only)
 docs/debug/settings-market-debug-map.md
+
+# Re-include coordination files ignored by the global core.excludesFile
+!AGENTS.md
+!CLAUDE.md
