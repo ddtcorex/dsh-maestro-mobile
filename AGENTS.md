@@ -12,7 +12,7 @@ Names by boundary: npm package = `@ddtcorex/dsh-maestro-mobile`; Cordis patch ro
   - `sidebar.footer.action` → `MobileDrawerFooter`: Files + session-log actions
 - `src/client/effects/` — DOM effects grouped by domain. `reconciler-core.ts` is a DOM-free engine (task registry, dirty-key routing, coalesced rAF flushing, per-task error isolation). `phone-chrome.ts` is the thin browser adapter: one `MutationObserver` on `document.documentElement` maps mutations to dirty keys and drives `installMobileEffect`.
 - `src/client/styles/` — CSS as TypeScript string modules. `index.ts` concatenates `base → layout → compat → misc` in that order into one `<style>` tag. Mobile rules target `(max-width: 1023px)`; desktop rules hide mobile controls and must preserve the uninstalled layout.
-- `lib/` — committed build output (host ESM + inlined client bundle + d.ts). Generated; do not hand-edit.
+- `lib/` — gitignored build output (host ESM + inlined client bundle + d.ts). Generated; do not hand-edit, never commit.
 - `scripts/` — custom client bundler (`build-client.mjs`) and optional CDP smoke probe.
 - `tests/` — `node:test` unit tests.
 
@@ -27,7 +27,7 @@ pnpm test:core      # node --test tests/reconciler-core.test.ts
 pnpm build          # tsc host + client && node scripts/build-client.mjs  -> lib/
 ```
 
-`pnpm build` is the required gate after any source change; `lib/` is committed, so a change is incomplete until the build refreshes it. `pnpm verify` + `pnpm test:core` are the fast local checks.
+`pnpm build` is the required gate after any source change; `lib/` is gitignored, so rebuild locally after pull and before restart — a change is incomplete until the build refreshes it. `pnpm verify` + `pnpm test:core` are the fast local checks.
 
 ## Git workflow
 
