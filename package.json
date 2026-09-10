@@ -27,7 +27,7 @@
   ],
   "scripts": {
     "build": "tsc -p tsconfig.json && tsc -p tsconfig.client.json && node scripts/build-client.mjs",
-    "test": "pnpm run test:core",
+    "test": "node --test tests/*.test.ts",
     "verify": "tsc -p tsconfig.json --noEmit && tsc -p tsconfig.client.json --noEmit",
     "smoke:cdp": "node scripts/cdp-probe.mjs",
     "test:core": "node --test tests/reconciler-core.test.ts tests/composer-keyboard-touch.test.ts",
