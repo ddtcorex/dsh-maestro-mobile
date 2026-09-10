@@ -1,6 +1,7 @@
 import type { ClientContext } from '@deepseek-ai/dsh-client-runtime/client'
 import { MobileNavToggle } from './components/MobileNavToggle.tsx'
 import { MobileDrawerFooter } from './components/MobileDrawerFooter.tsx'
+import { MobileComposerAttach } from './components/MobileComposerAttach.tsx'
 import { ShellOverlay } from './components/ShellOverlay.tsx'
 import { MOBILE_CSS } from './styles/index.ts'
 
@@ -223,6 +224,19 @@ export function apply(ctx: ClientContext): void {
       downloadSessionLog: (sessionId: string) => ctx.sessionLogDownload.download(sessionId),
     }),
   }, MobileDrawerFooter))
+
+  // One-tap attachment entry in the composer tool row, beside the permission
+  // selector. Upstream declares `conversation.input.left` ("compact controls at
+  // the left of the composer tool row") and renders the seat, but ships no
+  // contributor — so on a phone the file picker sits two taps deep behind the
+  // "+" menu. The component forwards to upstream's own hidden
+  // input[type=file], so intake stays upstream's.
+  ctx.slots.inject('conversation.input.left', () => ctx.slots.register({
+    name: 'conversation.input.left',
+    id: 'mobile-composer-attach',
+    order: 0,
+    locale: NS,
+  }, MobileComposerAttach))
 }
 
 // Type-only augmentation imports: pull the layout / conversation / sidebar /
