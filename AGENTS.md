@@ -11,7 +11,7 @@ Names by boundary: npm package = `@ddtcorex/dsh-maestro-mobile`; Cordis patch ro
   - `conversation.session.header.actions` → `MobileNavToggle`: drawer toggle + Files button
   - `sidebar.footer.action` → `MobileDrawerFooter`: Files + session-log actions
 - `src/client/effects/` — DOM effects grouped by domain. `reconciler-core.ts` is a DOM-free engine (task registry, dirty-key routing, coalesced rAF flushing, per-task error isolation). `phone-chrome.ts` is the thin browser adapter: one `MutationObserver` on `document.documentElement` maps mutations to dirty keys and drives `installMobileEffect`.
-- `src/client/styles/` — CSS as TypeScript string modules. `index.ts` concatenates `base → layout → compat → misc` in that order into one `<style>` tag. Mobile rules target `(max-width: 1023px)`; desktop rules hide mobile controls and must preserve the uninstalled layout.
+- `src/client/styles/` — CSS as TypeScript string modules. `index.ts` concatenates `tokens → base → layout → sheet → explorer-sheet → composer → settings-sheet → misc` in that order into one `<style>` tag. Mobile rules target `(max-width: 1023px)`; desktop rules hide mobile controls and must preserve the uninstalled layout.
 - `lib/` — gitignored build output (host ESM + inlined client bundle + d.ts). Generated; do not hand-edit, never commit.
 - `scripts/` — custom client bundler (`build-client.mjs`) and optional CDP smoke probe.
 - `tests/` — `node:test` unit tests.
@@ -23,11 +23,12 @@ Run from the repository root:
 ```sh
 pnpm install        # pnpm@11.7.0, lockfile v9
 pnpm verify         # type-check host + client (tsc --noEmit)
-pnpm test:core      # node --test tests/reconciler-core.test.ts
+pnpm test           # node --test tests/*.test.ts  (full suite: unit + CSS contract)
+pnpm test:core      # node --test tests/reconciler-core.test.ts tests/composer-keyboard-touch.test.ts
 pnpm build          # tsc host + client && node scripts/build-client.mjs  -> lib/
 ```
 
-`pnpm build` is the required gate after any source change; `lib/` is gitignored, so rebuild locally after pull and before restart — a change is incomplete until the build refreshes it. `pnpm verify` + `pnpm test:core` are the fast local checks.
+`pnpm build` is the required gate after any source change; `lib/` is gitignored, so rebuild locally after pull and before restart — a change is incomplete until the build refreshes it. `pnpm verify` + `pnpm test` are the local checks; `pnpm test:core` is the fast subset.
 
 ## Git workflow
 
@@ -44,7 +45,7 @@ pnpm build          # tsc host + client && node scripts/build-client.mjs  -> lib
 - Treat DOM markers as the cross-module state contract: `data-mobile-nav="frame"`, `data-sidebar-collapsed`, `data-aionui-explorer-open`, `data-aionui-preview-open`, `data-mobile-preview-full`.
 - Use idempotent `ensure()` / reparent logic when injecting nodes into React-owned DOM; clean up moved nodes and listeners on disposal.
 - Client runtime effects are synchronous DOM work. TypeScript style: single quotes, no semicolons, explicit exported return types, installer names `install<Domain>`.
-- Keep CSS in `src/client/styles/`, not in component files. Preserve the `base → layout → compat → misc` concatenation order and complete section boundaries.
+- Keep CSS in `src/client/styles/`, not in component files. Preserve the `tokens → base → layout → sheet → explorer-sheet → composer → settings-sheet → misc` concatenation order and complete section boundaries.
 - Preserve mobile-only behavior and modal precedence: capture-phase drawer handlers must yield to `[aria-modal="true"]` dialogs and ignore session-row action buttons. `transform: none` is required for the open drawer so fixed descendants keep the correct containing block.
 - Never edit `lib/` directly; rebuild and include generated artifacts after any source/config change.
 

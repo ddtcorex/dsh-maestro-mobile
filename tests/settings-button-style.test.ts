@@ -33,19 +33,19 @@ test('the drawer settings control fills its mobile gutter and centers its label'
 test('the ConnectionIndicator is lifted to the top of the foot card instead of overflowing the trigger row', () => {
   assert.match(
     layout,
-    /\[data-mobile-nav="frame"\] \[class\*="_footArea"\]:has\(\[class\*="_triggerRow"\] > button\[data-phase\]\)\s*\{\s*gap:\s*8px\s*!important;\s*\}/s,
+    /\[data-mobile-nav="frame"\] \[class\*="_footArea"\]:has\(\[class\*="_triggerRow"\] > :is\(button\[data-phase\], div\[role="status"\]\)\)\s*\{\s*gap:\s*8px\s*!important;\s*\}/s,
   )
   assert.match(
     layout,
-    /\[data-mobile-nav="frame"\] \[class\*="_footArea"\]:has\(\[class\*="_triggerRow"\] > button\[data-phase\]\) \[class\*="_settingsArea"\],\s*\[data-mobile-nav="frame"\] \[class\*="_footArea"\]:has\(\[class\*="_triggerRow"\] > button\[data-phase\]\) \[class\*="_triggerRow"\]\s*\{\s*display:\s*contents\s*!important;\s*\}/s,
+    /\[data-mobile-nav="frame"\] \[class\*="_footArea"\]:has\(\[class\*="_triggerRow"\] > :is\(button\[data-phase\], div\[role="status"\]\)\) \[class\*="_settingsArea"\],\s*\[data-mobile-nav="frame"\] \[class\*="_footArea"\]:has\(\[class\*="_triggerRow"\] > :is\(button\[data-phase\], div\[role="status"\]\)\) \[class\*="_triggerRow"\]\s*\{\s*display:\s*contents\s*!important;\s*\}/s,
   )
   assert.match(
     layout,
-    /\[data-mobile-nav="frame"\] \[class\*="_footArea"\]:has\(\[class\*="_triggerRow"\] > button\[data-phase\]\) \[class\*="_settingsArea"\] button\[data-phase\]\s*\{[^}]*order:\s*-1\s*!important;[^}]*flex:\s*0\s*0\s*auto\s*!important;[^}]*width:\s*100%\s*!important;[^}]*height:\s*36px\s*!important;[^}]*min-height:\s*36px\s*!important;[^}]*justify-content:\s*flex-start\s*!important;[^}]*border-radius:\s*10px\s*!important;/s,
+    /\[data-mobile-nav="frame"\] \[class\*="_footArea"\]:has\(\[class\*="_triggerRow"\] > :is\(button\[data-phase\], div\[role="status"\]\)\) \[class\*="_settingsArea"\] :is\(button\[data-phase\], div\[role="status"\]\)\s*\{[^}]*order:\s*-1\s*!important;[^}]*flex:\s*0\s*0\s*auto\s*!important;[^}]*width:\s*100%\s*!important;[^}]*height:\s*36px\s*!important;[^}]*min-height:\s*36px\s*!important;[^}]*justify-content:\s*flex-start\s*!important;[^}]*border-radius:\s*10px\s*!important;/s,
   )
   assert.match(
     layout,
-    /\[data-mobile-nav="frame"\] \[class\*="_footArea"\]:has\(\[class\*="_triggerRow"\] > button\[data-phase\]\) \[class\*="_settingsArea"\] button:not\(\[data-phase\]\)\s*\{\s*order:\s*1\s*!important;\s*flex:\s*0\s*0\s*auto\s*!important;\s*\}/s,
+    /\[data-mobile-nav="frame"\] \[class\*="_footArea"\]:has\(\[class\*="_triggerRow"\] > :is\(button\[data-phase\], div\[role="status"\]\)\) \[class\*="_settingsArea"\] button:not\(\[data-phase\]\)\s*\{\s*order:\s*1\s*!important;\s*flex:\s*0\s*0\s*auto\s*!important;\s*\}/s,
   )
   // Belt and braces: no leftover rule stretches every settings-area button
   // (the pre-fix leak that also hit the chip).
