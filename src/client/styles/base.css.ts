@@ -110,21 +110,6 @@ export const BASE_CSS = `
   animation: dsh-maestro-mobile-fade .2s var(--ds-ease-in-out, ease-in-out);
   -webkit-tap-highlight-color: transparent;
 }
-/* Fix for dsh-better-sidebar (npm: dsh-better-sidebar) — right-panel backdrop on mobile:
-   sits inside [data-dsh-panel-host] at z-index 39 — just below the panel (40)
-   and toggle cluster (45), but above the center column (host itself is at 25).
-   Gives the drawer a tappable dimmed layer so chat is not silently hidden
-   behind it. Host has pointer-events:none, so this must re-enable hit-testing. */
-[data-mobile-nav="right-backdrop"] {
-  position: absolute;
-  inset: 0;
-  z-index: 39;
-  background: rgba(0, 0, 0, .45);
-  cursor: pointer;
-  pointer-events: auto !important;
-  animation: dsh-maestro-mobile-fade .2s var(--ds-ease-in-out, ease-in-out);
-  -webkit-tap-highlight-color: transparent;
-}
 @keyframes dsh-maestro-mobile-fade {
   from { opacity: 0; }
   to { opacity: 1; }

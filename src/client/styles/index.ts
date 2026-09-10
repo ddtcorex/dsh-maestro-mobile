@@ -11,7 +11,9 @@ import { TOKENS_CSS } from './tokens.css.ts'
  * All mobile styles, concatenated in DSH-native order:
  * tokens → base → layout → sheet → explorer-sheet → composer → settings-sheet → misc
  * Legacy compat.css.ts deleted — essential aionui visibility migrated to explorer-sheet.css.ts,
- * remaining compat polish (market/better-sidebar/taskboard) removed for core DSH mobile support.
+ * remaining compat polish (market/taskboard) removed for core DSH mobile support.
+ * dsh-better-sidebar compat removed 2026-09-10: the mobile plugin targets the DSH-native
+ * sidebar (AppFrame column) only, and carries no [data-dsh-panel*] rules or tasks.
  * Overlay fix: drawer z150 above shell.overlay so session rows remain tappable.
  */
 export const MOBILE_CSS = [TOKENS_CSS, BASE_CSS, LAYOUT_CSS, SHEET_CSS, EXPLORER_SHEET_CSS, COMPOSER_CSS, SETTINGS_SHEET_CSS, MISC_CSS].join('\n')

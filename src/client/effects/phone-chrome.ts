@@ -6,7 +6,6 @@ import { createStatsLineTask } from './stats-line.ts'
 import { createPreviewFullscreenTask } from './preview-fullscreen.ts'
 import { createGitChipTask } from './git-chip-reparent.ts'
 import { createSettingsToolbarTask } from './settings-toolbar-reparent.ts'
-import { createRightPanelBackdropTask } from './overlay-backdrop-fab.ts'
 import { consumeIfGestured, isStrokeLocked } from './gesture-guard.ts'
 
 // The custom client bundler cannot resolve `../` requires from src/client/effects,
@@ -254,15 +253,11 @@ export function installPhoneChrome(ctx: ClientContext): void {
  * Drawer close interactions that are plain event listeners, not DOM
  * reconciliation:
  * - Escape closes the drawer (yielding to any open modal dialog, which owns
- *   its own Escape handling). Fix for dsh-better-sidebar: Escape also closes
- *   the right workbench panel before the left drawer, so the panel does not
- *   remain covering chat when the user expects a dismiss.
+ *   its own Escape handling).
  * - Tapping a navigation target inside the drawer (session row, task board /
  *   ssh takeover entries, search results) closes the drawer so the content
  *   it opened gets the whole screen. Session-row action buttons (kebab) are
- *   excluded — they open a menu that must survive the tap. Fix for
- *   dsh-better-sidebar: also close the right panel on navigation taps so
- *   chat is fully visible after navigation.
+ *   excluded — they open a menu that must survive the tap.
  */
 export function installOverlayInteractions(ctx: ClientContext): void {
   installMobileEffect(ctx, 'dsh-maestro-mobile: drawer close (Escape + navigate)', () => {
@@ -271,28 +266,12 @@ export function installOverlayInteractions(ctx: ClientContext): void {
       const frame = getFrame()
       return frame !== null && !frame.hasAttribute('data-sidebar-collapsed')
     }
-    // Fix for dsh-better-sidebar: detect right workbench panel open state on mobile
-    const isRightPanelOpen = (): boolean => {
-      const panel = document.querySelector<HTMLElement>('[data-dsh-panel]')
-      if (panel === null) return false
-      return !panel.className.includes('panelHidden') && getComputedStyle(panel).visibility !== 'hidden' && panel.getBoundingClientRect().width > 0
-    }
-    // Fix for dsh-better-sidebar: close the right panel via its toggle cluster
-    const closeRightPanel = (): void => {
-      const btn = document.querySelector<HTMLElement>('[data-dsh-toggle-cluster] button')
-      if (btn !== null) btn.click()
-    }
-    const closeDrawerAndPanel = (): void => {
+    const closeDrawer = (): void => {
       toggleSidebar()
-      if (isRightPanelOpen()) closeRightPanel()
     }
     const onKeyDown = (event: KeyboardEvent): void => {
       if (event.key !== 'Escape') return
       if (document.querySelector('[aria-modal="true"]') !== null) return
-      if (isRightPanelOpen()) {
-        closeRightPanel()
-        return
-      }
       if (drawerOpen()) toggleSidebar()
     }
     // Capture phase: run before the shell or a plugin processes the click,
@@ -317,8 +296,7 @@ export function installOverlayInteractions(ctx: ClientContext): void {
     // row's onClick never runs. Instead arm the drawer to close on the *fact*
     // of navigation: when the selected row's title changes, React has already
     // opened the conversation, so the drawer can close safely.
-    // Ported from mexiaosqwq/dsh-web-mobile v2.2.0 (#32) while keeping
-    // dsh-better-sidebar right-panel handling.
+    // Ported from mexiaosqwq/dsh-web-mobile v2.2.0 (#32).
     let lastTouchNavAt = 0
     let navSignatureAtArm = ''
     let navObserver: MutationObserver | null = null
@@ -351,7 +329,7 @@ export function installOverlayInteractions(ctx: ClientContext): void {
         const signature = selectedRowSignature()
         if (signature !== null && signature !== navSignatureAtArm) {
           disarmNav()
-          closeDrawerAndPanel()
+          closeDrawer()
         }
       })
       navObserver.observe(root, {
@@ -368,7 +346,7 @@ export function installOverlayInteractions(ctx: ClientContext): void {
       // A touch row-tap owns the close (pointerup or the navigation observer);
       // let the row's click reach React without toggling the drawer twice.
       if (performance.now() - lastTouchNavAt < 500) return
-      if (shouldCloseOnTapInsideDrawer(event.target)) closeDrawerAndPanel()
+      if (shouldCloseOnTapInsideDrawer(event.target)) closeDrawer()
     }
 
     const onDrawerPointerUp = (event: PointerEvent): void => {
@@ -383,7 +361,7 @@ export function installOverlayInteractions(ctx: ClientContext): void {
         lastTouchNavAt = performance.now()
         if (row.getAttribute('aria-selected') === 'true') {
           // Already-selected row will not navigate; closing immediately is safe.
-          closeDrawerAndPanel()
+          closeDrawer()
         } else {
           // Unselected row: let navigation land, then close via the observer.
           armNav()
@@ -393,7 +371,7 @@ export function installOverlayInteractions(ctx: ClientContext): void {
 
       // Non-row nav targets (newSession / taskboard / ssh / search rows that
       // are not treeitems): the pointerup close path is still correct.
-      closeDrawerAndPanel()
+      closeDrawer()
     }
 
     document.addEventListener('keydown', onKeyDown, true)
@@ -426,8 +404,6 @@ export function registerReconcileTasks(ctx: ClientContext): () => void {
     addReconcilerTask(createSheetRiseTask()),
     addReconcilerTask(createStatsLineTask()),
     // Legacy overlay task migrated to shell.overlay slot (ShellOverlay.tsx) — DSH-native
-    // Keep right-panel backdrop as reconciler task (panel-host is outside shell.overlay)
-    addReconcilerTask(createRightPanelBackdropTask(t)),
   ]
   return () => {
     for (const remove of removeTasks) remove()
