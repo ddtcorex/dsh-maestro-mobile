@@ -66,7 +66,13 @@ export function createStatsLineTask(): ReconcilerTask {
       // their text, so never mistake it (or any interactive dock panel)
       // for the stats strip.
       if (root.matches('[data-testid="todo-panel"]')) continue
-      if (root.querySelector('button') !== null) continue
+      // Upstream renders each metric as an interactive pill
+      // (button[class*="_pill"], aria-label "2 turns 97 steps · 257 tok/s"),
+      // so a blanket "no buttons" bail-out stopped matching the status row
+      // at all and the marker was never set. Keep skipping interactive dock
+      // panels, but accept a root whose buttons are all metric pills.
+      const buttons = [...root.querySelectorAll('button')]
+      if (buttons.length > 0 && !buttons.every((b) => b.matches('[class*="_pill"]'))) continue
       const text = root.textContent ?? ''
       if (!/(turns|steps|\bLLM\b|轮|步)/.test(text)) continue
       if (root.querySelector('[data-composer-input]') !== null) continue
