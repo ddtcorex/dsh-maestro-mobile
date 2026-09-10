@@ -147,7 +147,7 @@ export const LAYOUT_CSS = `/* ---------- mobile-only layout ---------- */
     justify-content: flex-start !important;
     align-items: center !important;
     margin-inline: 0 !important;
-    padding-inline: 14px !important;
+    padding-inline: 12px !important;
     text-align: left !important;
     height: 42px !important;
     min-height: 42px !important;
@@ -196,7 +196,7 @@ export const LAYOUT_CSS = `/* ---------- mobile-only layout ---------- */
     min-height: 36px !important;
     justify-content: flex-start !important;
     align-items: center !important;
-    padding-inline: 14px !important;
+    padding-inline: 12px !important;
     margin-inline: 0 !important;
     border-radius: 10px !important;
     box-sizing: border-box !important;
@@ -229,7 +229,7 @@ export const LAYOUT_CSS = `/* ---------- mobile-only layout ---------- */
     background: var(--dsw-alias-bg-layer-2, #f5f5f5) !important;
     border: 1px solid var(--dsw-alias-border-l1, rgba(0,0,0,.08)) !important;
     border-radius: 14px !important;
-    padding: 10px !important;
+    padding: 12px !important;
     box-sizing: border-box !important;
     flex-direction: column !important;
   }
