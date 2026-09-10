@@ -240,9 +240,11 @@ export const LAYOUT_CSS = `/* ---------- mobile-only layout ---------- */
     width: 100% !important;
   }
 
-  /* Drag handles are useless on touch and would float over the drawer. */
+  /* Drag handles are useless on touch and would float over the drawer.
+     AppFrame tags its two handles with data-side="sidebar" | "rightbar"
+     (the pre-0.1.5 "details" name no longer exists). */
   [data-side="sidebar"],
-  [data-side="details"] {
+  [data-side="rightbar"] {
     display: none !important;
   }
 
@@ -574,7 +576,7 @@ export const LAYOUT_CSS = `/* ---------- mobile-only layout ---------- */
      and the last tab paints past the viewport (unreachable). Force one line
      and horizontal scroll so every tab keeps its full label and stays reachable.
      Uses [class*="tabs"] scoped to the session header and the > [class*="tab"]
-     direct children so the better-sidebar [class*="tabBar"] family is never hit;
+     direct children so no other [class*="tab"] family is hit;
      guard the active variant (still a plain tab) out of none. */
   [data-mobile-nav="frame"] [data-phase] header [class*="tabs"] {
     flex: 0 1 auto !important;
@@ -623,153 +625,6 @@ export const LAYOUT_CSS = `/* ---------- mobile-only layout ---------- */
     min-height: 0;
   }
 
-  /* Fix for dsh-better-sidebar (npm: dsh-better-sidebar) — right panel on mobile:
-     make it a drawer (92vw) instead of full-viewport (100vw) so the dimmed
-     backdrop beside it is tappable to close — otherwise the 100vw panel hides
-     the backdrop entirely and chat appears permanently covered with no
-     affordance to dismiss. Also constrain height for keyboard inset and hide
-     the desktop drag handle which would float over the drawer. */
-  [data-dsh-panel-host] [data-dsh-panel] {
-    width: min(92vw, 360px) !important;
-    max-width: 92vw !important;
-    /* Keep content below the notch/status bar like the left drawer; the host
-       is viewport-fixed so env(safe-area-inset-top) is real notch height. */
-    padding-top: env(safe-area-inset-top, 0px) !important;
-    /* Bottom safe-area for home indicator; also allows keyboard inset handling. */
-    padding-bottom: env(safe-area-inset-bottom, 0px) !important;
-  }
-  /* Fix for dsh-better-sidebar — hide desktop resize handles on mobile. */
-  [data-dsh-panel-host] [data-dsh-panel] [class*="panelResize"],
-  [data-dsh-panel-host] [data-dsh-panel] [class*="cornerHandle"] {
-    display: none !important;
-  }
-  /* Fix for dsh-better-sidebar — float windows must not cover the whole
-     viewport on phones; constrain them like the panel drawer. */
-  [data-dsh-panel-host] [class*="floatWindow"] {
-    max-width: 92vw !important;
-    max-height: 80dvh !important;
-  }
-  /* Fix for dsh-better-sidebar — bottom panel is merged into the right drawer
-     on narrow viewports (JS does not render it), but keep a CSS guard so any
-     stray bottom panel never overlays the center column on mobile. */
-  [data-dsh-panel-host] [data-dsh-bottom-panel] {
-    display: none !important;
-  }
-  /* Fix for dsh-better-sidebar — while the right panel drawer is open on
-     mobile, hide the floating toggle cluster: the drawer is 92vw and covers
-     the right edge, so the cluster (z45) floats over the panel header and its
-     "Collapse sidebar" button overlaps the modal. Closing stays reachable via
-     the tappable backdrop on the 8vw exposed strip. When the drawer is closed
-     (the panel carries nArs4W_panelHidden) the cluster is shown again to
-     reopen. Both the cluster and panel are direct children of
-     [data-dsh-panel-host]. */
-  [data-dsh-panel-host]:not(:has([class*="panelHidden"])) [data-dsh-toggle-cluster] {
-    display: none !important;
-  }
-  /* Fix for dsh-better-sidebar — a mobile sheet (settings / explorer /
-     preview) is a full-width aria-modal dialog. The floating toggle cluster is
-     viewport-fixed at the top-right (z45), so once such a sheet is open it
-     floats over the sheet's own top-right chrome (cf. the "Collapse sidebar"
-     button overlapping the modal). The panel rule above only hides the cluster
-     while the right panel drawer is open; this covers any modal that is NOT
-     that panel (e.g. Settings opened from the left nav drawer), so the cluster
-     disappears whenever an aria-modal dialog is present. */
-  body:has([aria-modal="true"]) [data-dsh-toggle-cluster] {
-    display: none !important;
-  }
 }
 
-/* Fix for dsh-better-sidebar (npm: dsh-better-sidebar) — align the floating
-   toggle cluster with the DSH header's session log button. Upstream places
-   the cluster at top:3px, while the DSH header's actions sit at top:12-17px
-   (center ~28px). With the cluster's 28px buttons, top:14px puts its center
-   at 28px, visually aligned with the header's session log / headerActions
-   and the crumb. Safe-area inset is preserved for notched devices. Applies
-   to both mobile and desktop because the cluster is viewport-fixed. */
-[data-dsh-toggle-cluster] {
-  top: calc(14px + env(safe-area-inset-top, 0px)) !important;
-}
-
-/* Fix for dsh-better-sidebar (npm: dsh-better-sidebar) — align tabBar with
-   the DSH header when the right panel is open. Upstream tabBar is 34px at
-   y0 (center 17.5px) while the DSH header's interactive row is at top12-17
-   (center 28px, session log button 32px at y12). Make the tabBar sit at the
-   same 12px top with 32px height so its tabs share the header's baseline.
-   Desktop only — mobile hides the tabBar behind the 92vw drawer. */
-@media (min-width: 1024px) {
-  /* The tabBar is the flex row; width 100% + align-items center so its tabs
-     share the header's 12px-top baseline. Guard every selector that contains
-     the "tabBar" or "tab" fragments with :not so the wider fragments
-     (tabBarPlus / tabList / tabTitle / tabClose / tabBarRight) do not get
-     re-matched by the shorter prefix — otherwise [class*="tab"] also hits
-     nArs4W_tabList and stomps its flex-grow (see AGENTS.md prefix-overlap). */
-  [data-dsh-panel] [class*="tabBar"]:not([class*="tabBarPlus"]):not([class*="tabBarRight"]) {
-    height: 32px !important;
-    min-height: 32px !important;
-    width: 100% !important;
-    min-width: 0 !important;
-    max-width: 100% !important;
-    display: flex !important;
-    flex: none !important;
-    align-self: stretch !important;
-    box-sizing: border-box !important;
-    margin-top: 12px !important;
-    margin-left: 0 !important;
-    margin-right: 0 !important;
-    padding-top: 0 !important;
-    padding-bottom: 0 !important;
-    padding-left: 12px !important;
-    padding-right: 12px !important;
-    align-items: center !important;
-    justify-content: flex-start !important;
-  }
-  /* tabList grows to fill the tabBar (flex item, flex-grow 1). */
-  [data-dsh-panel] [class*="tabBar"]:not([class*="tabBarPlus"]):not([class*="tabBarRight"]) [class*="tabList"] {
-    height: 28px !important;
-    min-height: 28px !important;
-    flex: 1 1 auto !important;
-    flex-grow: 1 !important;
-    width: auto !important;
-    min-width: 0 !important;
-    align-items: center !important;
-    gap: 8px !important;
-    margin: 0 !important;
-    padding: 0 !important;
-    overflow: hidden !important;
-  }
-  /* A single tab; guard every longer "tab"-fragment so this does not leak
-     onto the tabList/tabTitle/tabClose/tabBarPlus siblings. */
-  [data-dsh-panel] [class*="tabBar"]:not([class*="tabBarPlus"]):not([class*="tabBarRight"]) [class*="tab"]:not([class*="tabList"]):not([class*="tabTitle"]):not([class*="tabClose"]):not([class*="tabBarPlus"]):not([class*="tabBarRight"]) {
-    height: 28px !important;
-    min-height: 28px !important;
-    flex: 0 1 auto !important;
-    min-width: 0 !important;
-    max-width: 180px !important;
-    align-items: center !important;
-    align-self: center !important;
-  }
-  [data-dsh-panel] [class*="tabBar"]:not([class*="tabBarPlus"]):not([class*="tabBarRight"]) [class*="tabTitle"] {
-    overflow: hidden !important;
-    text-overflow: ellipsis !important;
-    white-space: nowrap !important;
-    min-width: 0 !important;
-  }
-  /* Fix for dsh-better-sidebar — New tab (+) button in the tabBar. Upstream
-     renders it at 22x32 at y18 (center 34) while tabs are 80x18 at y19
-     (center 28) — the + button sits 6px low and is not square. Make it a
-     28px square and center it with the tabs. */
-  [data-dsh-panel] [class*="tabBar"]:not([class*="tabBarRight"]) [class*="tabBarPlus"],
-  [data-dsh-panel] [class*="tabBar"]:not([class*="tabBarRight"]) [class*="addTab"] {
-    width: 28px !important;
-    height: 28px !important;
-    min-height: 28px !important;
-    flex: none !important;
-    margin: 0 !important;
-    top: 0 !important;
-    align-self: center !important;
-    display: inline-flex !important;
-    align-items: center !important;
-    justify-content: center !important;
-  }
-}
 `
