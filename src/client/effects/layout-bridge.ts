@@ -23,6 +23,14 @@ export function installLayoutBridge(ctx: ClientContext): void {
     }
 
     const sync = (): void => {
+      if (!narrow.matches) {
+        // Desktop no-op: never leave the compat marker behind. The
+        // frame-controller applies the same rule; both agree wide means clean.
+        const wide = frame ?? findFrame()
+        if (wide !== null && wide.hasAttribute('data-mobile-nav')) wide.removeAttribute('data-mobile-nav')
+        frame = null
+        return
+      }
       const f = ensureFrame()
       if (f === null) return
       // DSH AppFrame already manages data-sidebar-collapsed via its own

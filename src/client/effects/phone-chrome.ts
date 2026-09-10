@@ -66,26 +66,45 @@ export function installFrameController(): () => void {
   if (frameControllerInstalled) return () => {}
   frameControllerInstalled = true
   let frame: HTMLElement | null = null
+  const narrow = window.matchMedia(MOBILE_QUERY)
+  const clearMarker = (el: HTMLElement | null): void => {
+    if (el === null) return
+    el.removeAttribute('data-mobile-nav')
+    el.removeAttribute('data-mobile-preview-full')
+    el.removeAttribute('data-aionui-explorer-open')
+    el.removeAttribute('data-aionui-preview-open')
+  }
   const removeTask = addReconcilerTask({
     name: 'frame-marker',
     scopes: ['*'],
     ensure: () => {
+      if (!narrow.matches) {
+        // Desktop: the plugin is a complete no-op — never leave the marker.
+        clearMarker(frame ?? findFrame())
+        frame = null
+        return
+      }
       frame = findFrame()
       if (frame !== null && !frame.hasAttribute('data-mobile-nav')) {
         frame.setAttribute('data-mobile-nav', 'frame')
       }
     },
     dispose: () => {
-      if (frame !== null) {
-        frame.removeAttribute('data-mobile-nav')
-        frame.removeAttribute('data-mobile-preview-full')
-        frame.removeAttribute('data-aionui-explorer-open')
-        frame.removeAttribute('data-aionui-preview-open')
-      }
+      clearMarker(frame)
       frame = null
     },
   })
+  // Width crossing does not always mutate the DOM enough to retrigger the
+  // reconciler, so re-apply the narrow/wide rule deterministically here.
+  const onChange = (): void => {
+    if (!narrow.matches) {
+      clearMarker(frame ?? findFrame())
+      frame = null
+    }
+  }
+  narrow.addEventListener('change', onChange)
   return () => {
+    narrow.removeEventListener('change', onChange)
     removeTask()
     frameControllerInstalled = false
   }
