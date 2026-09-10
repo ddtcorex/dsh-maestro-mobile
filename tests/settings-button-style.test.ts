@@ -17,7 +17,7 @@ test('the drawer settings control fills its mobile gutter and centers its label'
   // collision class as the dshmarket cats-row overlap).
   assert.match(
     layout,
-    /\[data-mobile-nav="frame"\] \[class\*="_settingsArea"\] button:not\(\[data-phase\]\):not\(\[aria-modal="true"\] \*\)\s*\{[^}]*width:\s*100%\s*!important;[^}]*justify-content:\s*flex-start\s*!important;[^}]*margin-inline:\s*0\s*!important;[^}]*padding-inline:\s*14px\s*!important;[^}]*height:\s*42px\s*!important;[^}]*min-height:\s*42px\s*!important;/s,
+    /\[data-mobile-nav="frame"\] \[class\*="_settingsArea"\] button:not\(\[data-phase\]\):not\(\[aria-modal="true"\] \*\)\s*\{[^}]*width:\s*100%\s*!important;[^}]*justify-content:\s*flex-start\s*!important;[^}]*margin-inline:\s*0\s*!important;[^}]*padding-inline:\s*12px\s*!important;[^}]*height:\s*42px\s*!important;[^}]*min-height:\s*42px\s*!important;/s,
   )
 })
 

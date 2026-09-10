@@ -147,7 +147,7 @@ export const LAYOUT_CSS = `/* ---------- mobile-only layout ---------- */
     justify-content: flex-start !important;
     align-items: center !important;
     margin-inline: 0 !important;
-    padding-inline: 14px !important;
+    padding-inline: 12px !important;
     text-align: left !important;
     height: 42px !important;
     min-height: 42px !important;
@@ -196,7 +196,7 @@ export const LAYOUT_CSS = `/* ---------- mobile-only layout ---------- */
     min-height: 36px !important;
     justify-content: flex-start !important;
     align-items: center !important;
-    padding-inline: 14px !important;
+    padding-inline: 12px !important;
     margin-inline: 0 !important;
     border-radius: 10px !important;
     box-sizing: border-box !important;
@@ -229,7 +229,7 @@ export const LAYOUT_CSS = `/* ---------- mobile-only layout ---------- */
     background: var(--dsw-alias-bg-layer-2, #f5f5f5) !important;
     border: 1px solid var(--dsw-alias-border-l1, rgba(0,0,0,.08)) !important;
     border-radius: 14px !important;
-    padding: 10px !important;
+    padding: 12px !important;
     box-sizing: border-box !important;
     flex-direction: column !important;
   }
@@ -442,6 +442,37 @@ export const LAYOUT_CSS = `/* ---------- mobile-only layout ---------- */
     top: 12px !important;
     z-index: 2 !important;
   }
+  /* DSH already ships a right-sidebar toggle in the session-header corner —
+     button[data-sidebar-right-expand], aria-label "Open right sidebar" ⟷
+     "Collapse right sidebar" — but hides the whole corner below its own
+     breakpoint. The header ⋯ menu only ever opened a single entry ("Download
+     session log") that already exists as the drawer-footer Session log
+     button, so its right-hand slot now hosts the panel toggle instead:
+     reachable one-handed, and it reuses upstream's own open/collapse state
+     rather than adding a second control or duplicating the i18n. */
+  [data-mobile-nav="frame"] [data-phase] header [data-conversation-header-corner] {
+    display: block !important;
+    position: absolute !important;
+    right: 8px !important;
+    top: 12px !important;
+    /* Upstream gives this corner margin-left 8px / margin-right -16px for its
+       in-flow desktop seat. An absolutely-positioned box resolves the right
+       offset against its margin edge, so the -16px would push the button 16px
+       past the gutter (x=370 instead of x=354) and off the 390px viewport. */
+    margin-inline: 0 !important;
+    z-index: 2 !important;
+  }
+  /* The ⋯ menu itself is redundant once its slot is reused. Matched by class
+     substring: the hash changes per build and the aria-label ("More actions")
+     changes per locale. */
+  [data-mobile-nav="frame"] [data-phase] header [class*="moreButton"] {
+    display: none !important;
+  }
+  /* Reserve the corner toggle's 28px plus its 8px gutter, or the
+     absolutely-positioned button lands on the workspace/chevron cluster. */
+  [data-mobile-nav="frame"] [data-phase] header [class*="_titleRow"] {
+    padding-right: 36px !important;
+  }
   [data-mobile-nav="frame"] [data-phase] header [class*="_headerActions"] {
     display: flex !important;
     align-items: center;
@@ -513,11 +544,12 @@ export const LAYOUT_CSS = `/* ---------- mobile-only layout ---------- */
   [data-mobile-nav="frame"] [data-phase] header [class*="_crumbs"] [class*="_separator"] {
     display: none !important;
   }
-  /* Session log download: gone from the header row on mobile (the utilities
-     seat holds only the session-log-export capsule). */
-  [data-mobile-nav="frame"] [data-phase] header > :first-child > :last-child {
-    display: none !important;
-  }
+  /* The header's trailing corner used to be hidden here ("session log download
+     is gone from the header row on mobile" — the utilities seat held only the
+     session-log-export capsule). DSH now puts the right-sidebar toggle in that
+     corner slot, so it is no longer hidden: the rule further up un-hides it
+     into the slot the redundant ⋯ menu vacated. Nothing else lives in the
+     corner (verified on 0.1.5: one slot, one button[data-sidebar-right-expand]). */
   /* Header crowding on narrow phones.
      A background-job trigger in the header actions, or the subagent lineage
      count ("N subagents") living inside the crumbs nav, consumes the width the
