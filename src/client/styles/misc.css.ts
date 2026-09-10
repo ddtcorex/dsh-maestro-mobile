@@ -130,6 +130,7 @@ export const MISC_CSS = `@media (max-width: 1023px) {
   [data-mobile-nav="fab"],
   [data-mobile-nav="backdrop"],
   [data-mobile-nav="session-log"],
+  [data-mobile-nav="attach"],
   [data-mobile-nav="drawer-actions"] {
     display: none !important;
   }

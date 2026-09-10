@@ -7,6 +7,7 @@ export const zh = {
   'close': 'Close directory',
   'backdrop': 'Click to close directory',
   'sessionLog': 'Session log',
+  'attach': 'Add attachment',
   'previewFullscreen': 'Fullscreen preview',
   'previewExitFullscreen': 'Exit fullscreen',
 } as const
@@ -17,6 +18,7 @@ export const en: Record<MobileNavKey, string> = {
   'close': 'Close directory',
   'backdrop': 'Click to close directory',
   'sessionLog': 'Session log',
+  'attach': 'Add attachment',
   'previewFullscreen': 'Fullscreen preview',
   'previewExitFullscreen': 'Exit fullscreen',
 }
