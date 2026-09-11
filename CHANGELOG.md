@@ -4,6 +4,24 @@ All notable changes to this project are documented in this file. Format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); this project uses
 [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.3.4] - 2026-09-11
+
+### Added
+
+- **Background-jobs control** — the session header's job trigger collapses from its labelled sentence (179x28px on a 390px phone, which left the session title 30px) to a 28px circle carrying the count as a badge, and its list docks as a full-width panel under the header instead of rendering below the viewport (#29).
+
+### Fixed
+
+- **Ask card with a long question** — the card no longer paints the question outside its own bounds, and the card now scrolls as one block so the choices and Submit stay reachable; the iOS input-focus zoom guard targets the current answer-field classes again (#28).
+- **Mobile chrome** — header, composer row and drawer foot card polish, with the right-sidebar toggle reusing the header corner the redundant flow menu vacated (#27).
+- **Composer** — `@` trigger menu taps are exempt from the touch mousedown guard that suppresses the soft keyboard (#20).
+- **Sidebar** — targets the DSH-native sidebar, and every rule is a complete no-op at 1024px and above (#24).
+
+### Changed
+
+- `lib/` build output is no longer tracked, and `AGENTS.md`/`CLAUDE.md` are back under version control (#21, #22).
+- The test suite covers every file under `tests/` (#25).
+
 ## [1.3.2] - 2026-09-04
 
 ### Fixed
