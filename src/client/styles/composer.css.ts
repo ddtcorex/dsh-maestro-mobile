@@ -8,9 +8,11 @@ export const COMPOSER_CSS = `
   [data-phase="active"] [data-composer-seat] {
     padding-bottom: max(12px, env(safe-area-inset-bottom, 0px)) !important;
   }
-  /* iOS Safari input-focus zoom guard — DSH ask_user_question inputs */
-  [data-question-key] [class*="_customInput"],
-  [data-question-key] [class*="_customTextarea"] {
+  /* iOS Safari input-focus zoom guard — DSH ask_user_question fields. The
+     answer stack is a hidden height mirror over the textarea, so both layers
+     must carry the same font-size or the auto-grown field height diverges. */
+  [data-question-key] [class*="_fieldInput"],
+  [data-question-key] [class*="_fieldMirror"] {
     font-size: 16px !important;
   }
   /* Hide tooltips on touch — "Stop generating" lingers mid-screen after tap on mobile */
@@ -27,10 +29,29 @@ export const COMPOSER_CSS = `
   }
   [data-question-key] [class*="_card"] {
     max-width: 100% !important;
+    /* A long question must scroll, never clip. The card caps its height at
+       min(60vh, 520px) and delegates scrolling to the option list alone
+       (.body), while the question itself lives in the card's fixed, unshrinkable
+       header: a question that wraps past the cap spends the whole budget, .body
+       computes to zero height (a zero-height scrollport cannot scroll), and the
+       footer is pushed below the card's overflow:hidden edge — the choices and
+       Submit become unreachable on a phone (mobile report 2026-09-11: "bị dài
+       theo chiều dọc mà không scroll được"). Make the card itself the single
+       scrollport so the question, the options and the footer scroll together,
+       and dissolve the inner scroll seat so the two do not nest. */
+    overflow-y: auto !important;
+    -webkit-overflow-scrolling: touch;
+    overscroll-behavior-y: contain !important;
+  }
+  [data-question-key] [class*="_card"] > header,
+  [data-question-key] [data-question-scroll] {
+    flex: 0 0 auto !important;
+    min-height: 0 !important;
+    overflow: visible !important;
   }
   /* Long unbreakable tokens (URLs, file paths, flag names, model ids) in the
      question title, an option's copy or the markdown detail must wrap: the
-     card is overflow:hidden, so a token that cannot break is painted past the
+     card clips horizontally, so a token that cannot break is painted past the
      card edge and silently clipped mid-word. anywhere (not break-word) also
      lowers the min-content size, which is what lets the option label shrink
      inside the option row's flex line. */

@@ -44,18 +44,18 @@ export const MISC_CSS = `@media (max-width: 1023px) {
       <textarea> computes font-size < 16px, and only reverts on blur. The ask
       dialog is a modal composer takeover, so taps outside never blur the
       field and the magnification persists until the field loses focus
-      (e.g. the dialog is dismissed). The ask
-      composer's custom-answer <input> (.customInput) and optionless free-form
-      <textarea> (.customTextarea) both ship at 14px (ui-user-questions
-      QuestionComposer.module.css). Raise them to 16px on mobile so Safari
-      sees a >=16px field and skips the zoom entirely. Scoped to the ask
-      composer's stable [data-question-key] root (AGENTS.md: scope hashed-class
-      selectors to the owning region, prefer stable data-* markers); the
-      class-name suffix match follows the plugin's established harness
-      CSS-module convention (verified against the live app: generated names
-      end with the original local name, e.g. uV2eYG_input / qDHVXG_searchInput). */
-  [data-question-key] [class*="_customInput"],
-  [data-question-key] [class*="_customTextarea"] {
+      (e.g. the dialog is dismissed). The ask composer's free-form answer is a
+      textarea over a hidden height mirror (.fieldInput / .fieldMirror), both
+      shipped at 14px by ui-user-questions QuestionComposer.module.css. Raise
+      BOTH layers to 16px on mobile: the mirror is what sizes the auto-grown
+      field, so a mismatch would make the box the wrong height for the typed
+      text. Scoped to the ask composer's stable [data-question-key] root
+      (AGENTS.md: scope hashed-class selectors to the owning region, prefer
+      stable data-* markers); the class-name suffix match follows the plugin's
+      established harness CSS-module convention (verified against the live app:
+      generated names end with the original local name, e.g. uV2eYG_input). */
+  [data-question-key] [class*="_fieldInput"],
+  [data-question-key] [class*="_fieldMirror"] {
     font-size: 16px !important;
   }
 
