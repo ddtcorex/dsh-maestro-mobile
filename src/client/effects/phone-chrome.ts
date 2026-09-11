@@ -6,6 +6,7 @@ import { createStatsLineTask } from './stats-line.ts'
 import { createPreviewFullscreenTask } from './preview-fullscreen.ts'
 import { createGitChipTask } from './git-chip-reparent.ts'
 import { createSettingsToolbarTask } from './settings-toolbar-reparent.ts'
+import { createJobsIndicatorTask } from './jobs-indicator.ts'
 import { consumeIfGestured, isStrokeLocked } from './gesture-guard.ts'
 
 // The custom client bundler cannot resolve `../` requires from src/client/effects,
@@ -403,6 +404,7 @@ export function registerReconcileTasks(ctx: ClientContext): () => void {
     addReconcilerTask(createPreviewCloseTask()),
     addReconcilerTask(createSheetRiseTask()),
     addReconcilerTask(createStatsLineTask()),
+    addReconcilerTask(createJobsIndicatorTask()),
     // Legacy overlay task migrated to shell.overlay slot (ShellOverlay.tsx) — DSH-native
   ]
   return () => {
