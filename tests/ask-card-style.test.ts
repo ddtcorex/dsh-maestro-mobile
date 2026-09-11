@@ -73,3 +73,17 @@ test('the iOS zoom guard targets the current answer-field classes', () => {
   assert.match(misc, guard)
   assert.doesNotMatch(composer + misc, /_customInput|_customTextarea/)
 })
+
+test('the question matches the answer copy and uses the full card width', () => {
+  // The heading block ships inside a flex lane beside the 24px collapse/close
+  // pair, so the question lost 52px + a 16px gap of line width and rendered
+  // one pixel larger than the option copy it belongs to.
+  assert.match(composer, /\[data-question-key\] \[class\*="_title"\] \{\s*\n\s*font-size: 14px !important;\n\s*line-height: 24px !important;\n  \}/)
+  assert.match(composer, /\[data-question-key\] \[class\*="_card"\] > header \{\s*\n\s*display: block !important;/)
+  assert.match(composer, /\[data-question-key\] \[class\*="_headerActions"\] \{\s*\n\s*position: absolute !important;/)
+  assert.match(composer, /\[data-question-key\] \[class\*="_eyebrow"\] \{\s*\n\s*padding-right: 56px !important;\n\s*margin-bottom: 8px !important;/)
+  // The card must stay a positioned ancestor for that absolute action pair.
+  const card = /\[data-question-key\] \[class\*="_card"\] \{([\s\S]*?)\n  \}/.exec(composer)?.[1]
+  assert.ok(card, 'the Ask card rule is missing from composer.css.ts')
+  assert.match(card, /position: relative !important;/)
+})

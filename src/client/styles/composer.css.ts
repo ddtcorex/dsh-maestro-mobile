@@ -42,6 +42,9 @@ export const COMPOSER_CSS = `
     overflow-y: auto !important;
     -webkit-overflow-scrolling: touch;
     overscroll-behavior-y: contain !important;
+    /* Positioning context for the header action pair, which is taken out of
+       the heading block's flow below. */
+    position: relative !important;
   }
   [data-question-key] [class*="_card"] > header,
   [data-question-key] [data-question-scroll] {
@@ -59,6 +62,34 @@ export const COMPOSER_CSS = `
   [data-question-key] [class*="_optionLine"],
   [data-question-key] [class*="_detail"] {
     overflow-wrap: anywhere !important;
+  }
+  /* The question is the card's lead line, but it must read as part of the same
+     text as the answer it asks about, and it must use the whole popup width.
+     Upstream keeps the heading block in a flex lane beside the 24px
+     collapse/close pair, which costs the question a 52px lane plus a 16px gap
+     (verified 390px: title box 218px wide against a 316px card, while the
+     option copy it belongs to spans 300px) and ships the question one pixel
+     larger than that copy (15px/21px against 14px/24px). Take the action pair
+     out of the flow, park it in the card's top-right corner, and give the
+     heading block the full width; the eyebrow keeps a right inset so it never
+     runs under the buttons and its extra 3px bottom margin starts the title
+     below them (buttons occupy 10..34px of the header). */
+  [data-question-key] [class*="_card"] > header {
+    display: block !important;
+    padding-right: 12px !important;
+  }
+  [data-question-key] [class*="_headerActions"] {
+    position: absolute !important;
+    top: 10px !important;
+    right: 12px !important;
+  }
+  [data-question-key] [class*="_eyebrow"] {
+    padding-right: 56px !important;
+    margin-bottom: 8px !important;
+  }
+  [data-question-key] [class*="_title"] {
+    font-size: 14px !important;
+    line-height: 24px !important;
   }
   [data-question-key] [class*="_footer"] {
     flex-wrap: wrap !important;
