@@ -673,9 +673,12 @@ export const LAYOUT_CSS = `/* ---------- mobile-only layout ---------- */
     border-radius: 999px !important;
   }
   /* The sentence and the chevron are what made the control wide; the badge and
-     the dots carry the state instead. */
+     the dots carry the state instead. Only the chevron goes: upstream renders a
+     live job as an animated 3x3 matrix <svg> on the same level (it carries the
+     triggerDot class), and hiding every direct-child svg took the loading
+     animation with it — with a job running the control showed a bare badge. */
   [data-mobile-nav="jobs"] [class*="_count"],
-  [data-mobile-nav="jobs"] > svg {
+  [data-mobile-nav="jobs"] > svg:not([class*="_triggerDot"]) {
     display: none !important;
   }
   /* An idle session renders no state dot (upstream draws one only for a live

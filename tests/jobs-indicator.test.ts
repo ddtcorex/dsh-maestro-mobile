@@ -31,6 +31,20 @@ test('the reconciler marks only the session-header jobs control', () => {
   assert.match(effect, /button\[class\*="_trigger"\]\[aria-expanded\]/)
 })
 
+test('a live job keeps upstream’s animated state dot', () => {
+  // The compact control's loading mark IS the dot upstream already draws for a
+  // live job (an animated 3x3 matrix <svg> carrying the triggerDot class, with
+  // the idle state rendered as a <span>): the selector must hide the chevron
+  // without taking that animation with it.
+  const hidden = /\[data-mobile-nav="jobs"\] \[class\*="_count"\],([\s\S]*?)\n  \}/.exec(layout)?.[1]
+  assert.ok(hidden, 'the hidden-sentence rule is missing')
+  assert.match(hidden, /\[data-mobile-nav="jobs"\] > svg:not\(\[class\*="_triggerDot"\]\) \{/)
+  assert.doesNotMatch(hidden, /\[data-mobile-nav="jobs"\] > svg \{/)
+  // No second loading affordance: the control stays static apart from the dot.
+  assert.doesNotMatch(layout, /data-jobs-live/)
+  assert.doesNotMatch(effect, /data-jobs-live/)
+})
+
 test('the compact control removes its markers so desktop stays a no-op', () => {
   assert.match(effect, /setAttribute\('data-mobile-nav', 'jobs'\)/)
   assert.match(effect, /setAttribute\(\s*'data-jobs-count',/)
