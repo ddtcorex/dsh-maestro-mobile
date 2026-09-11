@@ -642,13 +642,89 @@ export const LAYOUT_CSS = `/* ---------- mobile-only layout ---------- */
 
   /* --- Header popovers on mobile (dsh-client-ui-jobs / dsh-client-ui-subagent) --- */
   /* The official entries sit in the session header actions. Their popovers
-     are anchored to the trigger's left edge, so clamp them to the viewport. */
+     are anchored to the trigger's left edge, so clamp them to the viewport.
+     The background-job popover is re-docked below (it needs more than a clamp);
+     this stays for the other header popovers. */
   [data-mobile-nav="frame"] [data-phase] [data-slot="conversation.session.header"] > header [class*="_menu"] {
     left: 8px !important;
     right: auto !important;
     width: min(336px, calc(100vw - 16px));
     max-width: none;
     max-height: min(420px, calc(100dvh - 120px));
+  }
+  /* --- Background-job control (dsh-client-ui-jobs) ---
+     Upstream pins the labelled trigger at max-content width: with one job
+     running it measured 179x28px inside the 390px header and crushed the
+     session title (crumbs) to 30px, which is what the session header's own
+     crowding rules were compensating for elsewhere. Collapse it to the same
+     28px circle as the drawer and right-sidebar toggles and keep the count as
+     a badge. The accessible name is untouched, so the sentence upstream
+     renders stays available to assistive tech. */
+  [data-mobile-nav="jobs"] {
+    display: inline-grid !important;
+    place-items: center !important;
+    box-sizing: border-box !important;
+    position: relative !important;
+    width: 28px !important;
+    height: 28px !important;
+    min-height: 28px !important;
+    padding: 0 !important;
+    gap: 0 !important;
+    border-radius: 999px !important;
+  }
+  /* The sentence and the chevron are what made the control wide; the badge and
+     the dots carry the state instead. Only the chevron goes: upstream renders a
+     live job as an animated 3x3 matrix <svg> on the same level (it carries the
+     triggerDot class), and hiding every direct-child svg took the loading
+     animation with it — with a job running the control showed a bare badge. */
+  [data-mobile-nav="jobs"] [class*="_count"],
+  [data-mobile-nav="jobs"] > svg:not([class*="_triggerDot"]) {
+    display: none !important;
+  }
+  /* An idle session renders no state dot (upstream draws one only for a live
+     job), so the control would collapse to a bare badge: keep a neutral dot as
+     its glyph, and let the live dot take over as soon as one appears. */
+  [data-mobile-nav="jobs"]:not(:has([class*="_triggerDot"]))::before {
+    content: '';
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background: var(--dsw-alias-label-dimmed, #b9bdc4);
+  }
+  [data-mobile-nav="jobs"]::after {
+    content: attr(data-jobs-count) !important;
+    position: absolute !important;
+    top: -3px !important;
+    right: -4px !important;
+    box-sizing: border-box !important;
+    min-width: 15px !important;
+    height: 15px !important;
+    padding: 0 3px !important;
+    border-radius: 999px !important;
+    background: var(--dsw-alias-state-business-primary, #4f6ef7);
+    color: var(--dsw-alias-label-primary-foreground, #ffffff);
+    font-size: 10px !important;
+    line-height: 15px !important;
+    font-weight: 600 !important;
+    text-align: center !important;
+  }
+  /* Dock the job list under the session header. Upstream anchors this popover
+     to the jobs root, but the header-crowding rule above sets that root to
+     position: static, so the absolute panel resolved against a distant
+     containing block and rendered at y=849 — entirely below the 844px viewport,
+     which is the reported "open it and the list is not there". Fixed
+     positioning ignores both the lost anchor and the overflow:hidden ancestors
+     ([data-phase], .centerCol); 76px is the header's own min-height and the
+     safe-area inset keeps the panel below a notched status bar. Full width, so
+     the mono job labels keep every pixel a phone can give them. */
+  [data-mobile-nav="frame"] [data-phase] [data-slot="conversation.session.header"] > header [class*="_root"]:has(> [data-mobile-nav="jobs"]) > ul[class*="_menu"] {
+    position: fixed !important;
+    top: calc(76px + env(safe-area-inset-top, 0px)) !important;
+    left: 8px !important;
+    right: 8px !important;
+    width: auto !important;
+    max-width: none !important;
+    max-height: min(420px, calc(100dvh - 92px - env(safe-area-inset-top, 0px))) !important;
   }
   /* --- Settings sheet moved to settings-sheet.css.ts (DSH-native bottom sheet) ---
      Legacy aria-modal sheet rules removed — see src/client/styles/settings-sheet.css.ts

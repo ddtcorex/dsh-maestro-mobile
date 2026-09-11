@@ -39,6 +39,7 @@ Contrast: 4.5:1 verified on both themes via DSH token pairs (label-primary on bg
 - **BottomSheet**: Modal headless variant, r24, layer-2 fill, sheet-in .22s, mask fade .18s, drag handle 36x4
 - **Settings Sheet**: SettingsRoot modal → bottom sheet on mobile: overlay flex-end, panel 100% / 92dvh r24-top, nav pills row scroll, header h44 close 36, options scroll safe-area
 - **Composer**: container-type:inline-size row, permission/model triggers flex shrink with ellipsis, dropdown centered max 320px
+- **Session header**: one crowded row — the background-jobs control collapses to a 28px circle (`[data-mobile-nav="jobs"]` + `data-jobs-count`, set by the reconciler) with the count as a `::after` badge, and its list docks as a fixed full-width panel under the header (`top: 76px + safe-area`); upstream's labelled trigger measured 179x28px and left the session title 30px
 - **Safe-area**: `padding-top: env(safe-area-inset-top)` on frame, `padding-bottom: max(12px, env(safe-area-inset-bottom))` on composer seat / options
 
 ## A11y & Motion
