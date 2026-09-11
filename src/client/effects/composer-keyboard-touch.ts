@@ -9,8 +9,8 @@ import { installMobileEffect } from './phone-chrome.ts'
  * runs on every composer toolbar button's `onMouseDown` and ends with
  * `editor.getRootElement()?.focus({ preventScroll: true })`. That keeps the
  * caret in the editor for desktop typing, but on touch devices focusing the
- * contenteditable pops the soft keyboard on every tap of Commands / Add
- * attachment / Stop / Send — the reported "每次点都弹键盘".
+ * contenteditable pops the soft keyboard on every tap of Commands / Stop /
+ * Send — the reported "每次点都弹键盘".
  *
  * This is the local half of the upstream fix (the foundation source is not
  * edited in-tree). While a touch tap is the origin of a synthesized mousedown,

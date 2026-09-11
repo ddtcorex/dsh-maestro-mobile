@@ -133,32 +133,5 @@ export const COMPOSER_CSS = `
     flex: 0 0 auto !important;
     white-space: nowrap !important;
   }
-  /* One-tap attachment entry (conversation.input.left), styled to sit beside
-     the permission selector as a bare 28px icon button: transparent fill, no
-     border, hover-only affordance — the same ghost pattern upstream uses for
-     its own icon buttons (e.g. the right-sidebar tab strip). flex:none keeps
-     it out of the row's shrink cascade, which is scoped to the labelled
-     triggers. */
-  [data-mobile-nav="attach"] {
-    display: grid !important;
-    place-items: center !important;
-    flex: 0 0 auto !important;
-    width: 28px !important;
-    height: 28px !important;
-    padding: 0 !important;
-    border: 0 !important;
-    border-radius: 999px !important;
-    background: transparent !important;
-    color: var(--dsw-alias-label-primary, #0f1115) !important;
-    cursor: pointer !important;
-    -webkit-tap-highlight-color: transparent;
-  }
-  [data-mobile-nav="attach"]:hover {
-    background: var(--dsw-alias-interactive-bg-hover, rgba(0, 0, 0, .06)) !important;
-  }
-  [data-mobile-nav="attach"]:focus-visible {
-    outline: 2px solid var(--dsw-alias-state-business-primary, #0a84ff) !important;
-    outline-offset: 1px !important;
-  }
 }
 `
