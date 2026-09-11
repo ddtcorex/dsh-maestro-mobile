@@ -12,7 +12,7 @@ test('the redundant header More-actions menu stays hidden on mobile', () => {
   // locale.
   assert.match(
     layout,
-    /\[data-mobile-nav="frame"\] \[data-phase\] header \[class\*="moreButton"\]\s*\{\s*display:\s*none\s*!important;\s*\}/s,
+    /\[data-mobile-nav="frame"\] \[data-phase\] \[data-slot="conversation\.session\.header"\] > header \[class\*="moreButton"\]\s*\{\s*display:\s*none\s*!important;\s*\}/s,
   )
 })
 

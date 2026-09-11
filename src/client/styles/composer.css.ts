@@ -28,6 +28,17 @@ export const COMPOSER_CSS = `
   [data-question-key] [class*="_card"] {
     max-width: 100% !important;
   }
+  /* Long unbreakable tokens (URLs, file paths, flag names, model ids) in the
+     question title, an option's copy or the markdown detail must wrap: the
+     card is overflow:hidden, so a token that cannot break is painted past the
+     card edge and silently clipped mid-word. anywhere (not break-word) also
+     lowers the min-content size, which is what lets the option label shrink
+     inside the option row's flex line. */
+  [data-question-key] [class*="_title"],
+  [data-question-key] [class*="_optionLine"],
+  [data-question-key] [class*="_detail"] {
+    overflow-wrap: anywhere !important;
+  }
   [data-question-key] [class*="_footer"] {
     flex-wrap: wrap !important;
     gap: 10px 12px !important;

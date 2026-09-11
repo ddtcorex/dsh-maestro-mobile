@@ -414,12 +414,22 @@ export const LAYOUT_CSS = `/* ---------- mobile-only layout ---------- */
   /* --- Session header on mobile ---
      Keep the host-owned metadata in one responsive row. The conversation
      title and running/subagent status keep their lanes; the mode text is the
-     first to ellipsize when space runs out, while Files keeps its hit area. */
-  [data-mobile-nav="frame"] [data-phase] header {
+     first to ellipsize when space runs out, while Files keeps its hit area.
+     Every selector below is anchored on the session header through its slot
+     seat (data-slot="conversation.session.header", the display:contents
+     wrapper that receives the seat). A plain descendant header also matched
+     every other <header> rendered inside the active conversation — most
+     visibly the Ask card (ask_user_question), whose own <header> then became
+     a flex row: its heading block got width:100% + padding-left:20px, the
+     eyebrow collapsed to a zero-width flex item, and the <h2> question
+     turned into a flex item with min-width:auto, so a long question or any
+     unbreakable token painted ~1100px wide and was clipped by the card's
+     overflow:hidden (mobile report 2026-09-11). Keep the seat anchor. */
+  [data-mobile-nav="frame"] [data-phase] [data-slot="conversation.session.header"] > header {
     padding-left: 16px;
     padding-right: 8px;
   }
-  [data-mobile-nav="frame"] [data-phase] header > :first-child {
+  [data-mobile-nav="frame"] [data-phase] [data-slot="conversation.session.header"] > header > :first-child {
     display: flex !important;
     align-items: center;
     box-sizing: border-box;
@@ -428,7 +438,7 @@ export const LAYOUT_CSS = `/* ---------- mobile-only layout ---------- */
     gap: 2px;
     padding-left: 20px;
   }
-  [data-mobile-nav="frame"] [data-phase] header > :first-child > :first-child {
+  [data-mobile-nav="frame"] [data-phase] [data-slot="conversation.session.header"] > header > :first-child > :first-child {
     display: flex !important;
     align-items: center;
     flex: 1 1 auto;
@@ -450,7 +460,7 @@ export const LAYOUT_CSS = `/* ---------- mobile-only layout ---------- */
      button, so its right-hand slot now hosts the panel toggle instead:
      reachable one-handed, and it reuses upstream's own open/collapse state
      rather than adding a second control or duplicating the i18n. */
-  [data-mobile-nav="frame"] [data-phase] header [data-conversation-header-corner] {
+  [data-mobile-nav="frame"] [data-phase] [data-slot="conversation.session.header"] > header [data-conversation-header-corner] {
     display: block !important;
     position: absolute !important;
     right: 8px !important;
@@ -465,15 +475,15 @@ export const LAYOUT_CSS = `/* ---------- mobile-only layout ---------- */
   /* The ⋯ menu itself is redundant once its slot is reused. Matched by class
      substring: the hash changes per build and the aria-label ("More actions")
      changes per locale. */
-  [data-mobile-nav="frame"] [data-phase] header [class*="moreButton"] {
+  [data-mobile-nav="frame"] [data-phase] [data-slot="conversation.session.header"] > header [class*="moreButton"] {
     display: none !important;
   }
   /* Reserve the corner toggle's 28px plus its 8px gutter, or the
      absolutely-positioned button lands on the workspace/chevron cluster. */
-  [data-mobile-nav="frame"] [data-phase] header [class*="_titleRow"] {
+  [data-mobile-nav="frame"] [data-phase] [data-slot="conversation.session.header"] > header [class*="_titleRow"] {
     padding-right: 36px !important;
   }
-  [data-mobile-nav="frame"] [data-phase] header [class*="_headerActions"] {
+  [data-mobile-nav="frame"] [data-phase] [data-slot="conversation.session.header"] > header [class*="_headerActions"] {
     display: flex !important;
     align-items: center;
     box-sizing: border-box;
@@ -486,7 +496,7 @@ export const LAYOUT_CSS = `/* ---------- mobile-only layout ---------- */
   }
   /* The title takes the remaining width and never paints outside it; the
      metadata lane's mode text is what shrinks first. */
-  [data-mobile-nav="frame"] [data-phase] header [class*="_crumbs"] {
+  [data-mobile-nav="frame"] [data-phase] [data-slot="conversation.session.header"] > header [class*="_crumbs"] {
     flex: 1 1 0;
     min-width: 0;
     max-width: none;
@@ -497,7 +507,7 @@ export const LAYOUT_CSS = `/* ---------- mobile-only layout ---------- */
   /* Mode label: preserve its icon and scale with the viewport — it yields
      space to the title and subagent status first, but can use more width on
      wider screens up to 220px before ellipsizing. */
-  [data-mobile-nav="frame"] [data-phase] header [class*="_label"]:has(> svg) {
+  [data-mobile-nav="frame"] [data-phase] [data-slot="conversation.session.header"] > header [class*="_label"]:has(> svg) {
     order: 1;
     flex: 0 1 auto;
     min-width: 0;
@@ -511,7 +521,7 @@ export const LAYOUT_CSS = `/* ---------- mobile-only layout ---------- */
     text-overflow: ellipsis;
     white-space: nowrap !important;
   }
-  [data-mobile-nav="frame"] [data-phase] header [class*="_label"]:has(> svg) > svg {
+  [data-mobile-nav="frame"] [data-phase] [data-slot="conversation.session.header"] > header [class*="_label"]:has(> svg) > svg {
     position: absolute !important;
     left: 0 !important;
     top: 50% !important;
@@ -524,7 +534,7 @@ export const LAYOUT_CSS = `/* ---------- mobile-only layout ---------- */
      [class*="_root"] and exclude the switcher root ([class*="_switcherRoot"])
      so only the count/job roots get pinned (the switcher must stay shrinkable
      so its own title can ellipsize). */
-  [data-mobile-nav="frame"] [data-phase] header [class*="_root"]:not([class*="_switcherRoot"]):has(> button[class*="_trigger"]) {
+  [data-mobile-nav="frame"] [data-phase] [data-slot="conversation.session.header"] > header [class*="_root"]:not([class*="_switcherRoot"]):has(> button[class*="_trigger"]) {
     order: 2;
     flex: 0 0 auto;
     min-width: max-content;
@@ -532,8 +542,8 @@ export const LAYOUT_CSS = `/* ---------- mobile-only layout ---------- */
     white-space: nowrap !important;
     position: static;
   }
-  [data-mobile-nav="frame"] [data-phase] header [class*="_root"]:not([class*="_switcherRoot"]):has(> button[class*="_trigger"]) > button,
-  [data-mobile-nav="frame"] [data-phase] header [class*="_root"]:not([class*="_switcherRoot"]):has(> button[class*="_trigger"]) > button * {
+  [data-mobile-nav="frame"] [data-phase] [data-slot="conversation.session.header"] > header [class*="_root"]:not([class*="_switcherRoot"]):has(> button[class*="_trigger"]) > button,
+  [data-mobile-nav="frame"] [data-phase] [data-slot="conversation.session.header"] > header [class*="_root"]:not([class*="_switcherRoot"]):has(> button[class*="_trigger"]) > button * {
     white-space: nowrap !important;
   }
   /* The lineage count's leading "/" (ZKlsPq_separator — official desktop
@@ -541,7 +551,7 @@ export const LAYOUT_CSS = `/* ---------- mobile-only layout ---------- */
      stray extra breadcrumb level on small screens; hide it. The crumbSep "/"
      between ancestry segments (subagent sessions) is a real separator and
      stays. */
-  [data-mobile-nav="frame"] [data-phase] header [class*="_crumbs"] [class*="_separator"] {
+  [data-mobile-nav="frame"] [data-phase] [data-slot="conversation.session.header"] > header [class*="_crumbs"] [class*="_separator"] {
     display: none !important;
   }
   /* The header's trailing corner used to be hidden here ("session log download
@@ -564,11 +574,11 @@ export const LAYOUT_CSS = `/* ---------- mobile-only layout ---------- */
      [class*="_root"] (the real class carries a trailing space; [class*="_root"]
      matches nothing). */
   @media (max-width: 440px) {
-    [data-mobile-nav="frame"] [data-phase] header [class*="_crumbs"] {
+    [data-mobile-nav="frame"] [data-phase] [data-slot="conversation.session.header"] > header [class*="_crumbs"] {
       padding-right: 8px;
     }
-    [data-mobile-nav="frame"] [data-phase] header [class*="_headerActions"]:has([class*="_root"]) [class*="_label"]:has(> svg),
-    [data-mobile-nav="frame"] [data-phase] header:has([class*="_crumbs"] [class*="_root"]) [class*="_label"]:has(> svg) {
+    [data-mobile-nav="frame"] [data-phase] [data-slot="conversation.session.header"] > header [class*="_headerActions"]:has([class*="_root"]) [class*="_label"]:has(> svg),
+    [data-mobile-nav="frame"] [data-phase] [data-slot="conversation.session.header"] > header:has([class*="_crumbs"] [class*="_root"]) [class*="_label"]:has(> svg) {
       max-width: 18px;
       min-width: 18px;
       padding-left: 18px;
@@ -582,13 +592,13 @@ export const LAYOUT_CSS = `/* ---------- mobile-only layout ---------- */
      also hold a small right-hand gap — the subagent text should never sit
      flush against the mode component. */
   @media (max-width: 559px) {
-    [data-mobile-nav="frame"] [data-phase] header [class*="_crumbs"] {
+    [data-mobile-nav="frame"] [data-phase] [data-slot="conversation.session.header"] > header [class*="_crumbs"] {
       padding-right: 8px;
     }
-    [data-mobile-nav="frame"] [data-phase] header:has([class*="_crumbs"] [class*="_root"]) [class*="_headerActions"] [class*="_root"]:not([class*="_switcherRoot"]):has(> button[class*="_trigger"]) [class*="_count"] {
+    [data-mobile-nav="frame"] [data-phase] [data-slot="conversation.session.header"] > header:has([class*="_crumbs"] [class*="_root"]) [class*="_headerActions"] [class*="_root"]:not([class*="_switcherRoot"]):has(> button[class*="_trigger"]) [class*="_count"] {
       display: none !important;
     }
-    [data-mobile-nav="frame"] [data-phase] header:has([class*="_crumbs"] [class*="_root"]):has([class*="_headerActions"] [class*="_root"]) [class*="_label"]:has(> svg) {
+    [data-mobile-nav="frame"] [data-phase] [data-slot="conversation.session.header"] > header:has([class*="_crumbs"] [class*="_root"]):has([class*="_headerActions"] [class*="_root"]) [class*="_label"]:has(> svg) {
       max-width: 18px;
       min-width: 18px;
       padding-left: 18px;
@@ -596,7 +606,7 @@ export const LAYOUT_CSS = `/* ---------- mobile-only layout ---------- */
     }
   }
   @media (max-width: 359px) {
-    [data-mobile-nav="frame"] [data-phase] header:has([class*="_crumbs"] [class*="_root"]):has([class*="_headerActions"] [class*="_root"]) [class*="_label"]:has(> svg) {
+    [data-mobile-nav="frame"] [data-phase] [data-slot="conversation.session.header"] > header:has([class*="_crumbs"] [class*="_root"]):has([class*="_headerActions"] [class*="_root"]) [class*="_label"]:has(> svg) {
       display: none !important;
     }
   }
@@ -610,7 +620,7 @@ export const LAYOUT_CSS = `/* ---------- mobile-only layout ---------- */
      Uses [class*="tabs"] scoped to the session header and the > [class*="tab"]
      direct children so no other [class*="tab"] family is hit;
      guard the active variant (still a plain tab) out of none. */
-  [data-mobile-nav="frame"] [data-phase] header [class*="tabs"] {
+  [data-mobile-nav="frame"] [data-phase] [data-slot="conversation.session.header"] > header [class*="tabs"] {
     flex: 0 1 auto !important;
     min-width: 0 !important;
     max-width: 100% !important;
@@ -620,10 +630,10 @@ export const LAYOUT_CSS = `/* ---------- mobile-only layout ---------- */
     -webkit-overflow-scrolling: touch;
     scrollbar-width: none;
   }
-  [data-mobile-nav="frame"] [data-phase] header [class*="tabs"]::-webkit-scrollbar {
+  [data-mobile-nav="frame"] [data-phase] [data-slot="conversation.session.header"] > header [class*="tabs"]::-webkit-scrollbar {
     display: none;
   }
-  [data-mobile-nav="frame"] [data-phase] header [class*="tabs"] > [class*="tab"] {
+  [data-mobile-nav="frame"] [data-phase] [data-slot="conversation.session.header"] > header [class*="tabs"] > [class*="tab"] {
     flex: 0 0 auto !important;
     min-width: max-content !important;
     max-width: max-content !important;
@@ -633,7 +643,7 @@ export const LAYOUT_CSS = `/* ---------- mobile-only layout ---------- */
   /* --- Header popovers on mobile (dsh-client-ui-jobs / dsh-client-ui-subagent) --- */
   /* The official entries sit in the session header actions. Their popovers
      are anchored to the trigger's left edge, so clamp them to the viewport. */
-  [data-mobile-nav="frame"] [data-phase] header [class*="_menu"] {
+  [data-mobile-nav="frame"] [data-phase] [data-slot="conversation.session.header"] > header [class*="_menu"] {
     left: 8px !important;
     right: auto !important;
     width: min(336px, calc(100vw - 16px));
