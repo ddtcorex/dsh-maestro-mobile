@@ -424,6 +424,50 @@ function takeoverActive(): boolean {
   )
 }
 
+/**
+ * Whether a live text selection owns the pointer stroke.
+ *
+ * A selection-handle drag (and a long-press selection that appears between
+ * pointerdown and the axis lock) is horizontally dominant and geometrically
+ * indistinguishable from a drawer swipe, so the browser must keep it. Two
+ * disjoint selection models have to be read:
+ *
+ * - the DOCUMENT selection (`window.getSelection()`) covers message-flow text
+ *   and contenteditable hosts;
+ * - a selection inside a text control lives on the ELEMENT as
+ *   `selectionStart`/`selectionEnd` and is invisible to
+ *   `window.getSelection()` — measured on the composer during a hijacked
+ *   stroke: the textarea held 0..20 while the document selection reported
+ *   isCollapsed. `document.activeElement` is the right anchor: a handle drag
+ *   keeps focus inside the control, which also covers strokes whose points
+ *   land outside the control's own box.
+ *
+ * Feature-detected end to end so the node:test suite can exercise it without
+ * a DOM and older engines cannot throw out of a pointer handler.
+ * @returns true when the stroke must yield to the selection.
+ */
+export function selectionOwnsStroke(): boolean {
+  if (typeof window === 'undefined') return false
+  const selection = window.getSelection()
+  if (selection !== null && !selection.isCollapsed) return true
+  if (typeof document === 'undefined') return false
+  const active = document.activeElement as (HTMLElement & { selectionStart?: number | null; selectionEnd?: number | null }) | null
+  if (active === null) return false
+  const tag = active.tagName
+  if (tag !== 'TEXTAREA' && tag !== 'INPUT') return false
+  // Input types without a text selection (checkbox, number, email, …) report
+  // null here, and older WebKit/Gecko throw InvalidStateError instead. Both
+  // mean "no text selection is being dragged", never "the control owns this
+  // stroke", so neither may escape from a pointer handler.
+  try {
+    const start = active.selectionStart
+    const end = active.selectionEnd
+    return typeof start === 'number' && typeof end === 'number' && start !== end
+  } catch {
+    return false
+  }
+}
+
 /** Whether the swipe layer is on cooldown (animation in flight). */
 function onCooldown(): boolean {
   return performance.now() < cooldownUntil
@@ -760,6 +804,11 @@ function beginStroke(
   if (onCooldown()) return false
   if (modalOpen()) return false
   if (takeoverActive()) return false
+  // A live selection owns the stroke: yield before any geometric test. This
+  // also blocks swipe-open while a stale selection is alive; one tap collapses
+  // the selection everywhere, and backdrop tap-to-close is unaffected (a tap
+  // never reaches beginStroke's scroller/lock path).
+  if (selectionOwnsStroke()) return false
   if (!(event.target instanceof Element)) return false
   // A stroke beginning inside a genuinely horizontally scrollable container
   // belongs to that scroller (the stats line, a message code block, any
@@ -1027,6 +1076,15 @@ export function installSidebarSwipe(ctx: ClientContext): void {
         return
       }
       if (!tracking) {
+        // A long-press selection can appear AFTER pointerdown but BEFORE the
+        // axis lock: abandon the stroke and hand the touch back so the handles
+        // become draggable (reset() also lifts the touchmove preventDefault).
+        // Once locked the gesture stays committed — a selection never appears
+        // mid-swipe.
+        if (selectionOwnsStroke()) {
+          reset()
+          return
+        }
         if (tryLock(event)) {
           pushSample(event)
           applyFollow(ctx, event.clientX - startX)

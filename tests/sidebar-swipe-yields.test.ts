@@ -1,7 +1,25 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
 
-import { shouldAbortForMultiTouch, shouldAbortForTouchCount } from '../src/client/effects/sidebar-swipe.ts'
+import { shouldAbortForMultiTouch, shouldAbortForTouchCount, selectionOwnsStroke } from '../src/client/effects/sidebar-swipe.ts'
+
+/** Install DOM globals for one call, then restore whatever was there. */
+function withDom<T>(dom: { window?: unknown; document?: unknown }, run: () => T): T {
+  const hadWindow = 'window' in globalThis
+  const hadDocument = 'document' in globalThis
+  const previousWindow = (globalThis as Record<string, unknown>).window
+  const previousDocument = (globalThis as Record<string, unknown>).document
+  if ('window' in dom) (globalThis as Record<string, unknown>).window = dom.window
+  if ('document' in dom) (globalThis as Record<string, unknown>).document = dom.document
+  try {
+    return run()
+  } finally {
+    if (hadWindow) (globalThis as Record<string, unknown>).window = previousWindow
+    else delete (globalThis as Record<string, unknown>).window
+    if (hadDocument) (globalThis as Record<string, unknown>).document = previousDocument
+    else delete (globalThis as Record<string, unknown>).document
+  }
+}
 
 test('a second pointer abandons the stroke instead of being ignored', () => {
   // Merely ignoring the extra pointer keeps the stroke alive — and with it the
@@ -18,4 +36,72 @@ test('two fingers on screen abandon the touchmove preventDefault path', () => {
   assert.equal(shouldAbortForTouchCount(3), true)
   assert.equal(shouldAbortForTouchCount(1), false)
   assert.equal(shouldAbortForTouchCount(0), false)
+})
+
+test('a live text selection owns the stroke', () => {
+  // A selection-handle drag is horizontally dominant and geometrically
+  // identical to a swipe: without this yield the drawer arms and collapses the
+  // selection the user is extending.
+  assert.equal(
+    withDom({ window: { getSelection: () => ({ isCollapsed: false }) }, document: { activeElement: null } }, () =>
+      selectionOwnsStroke()),
+    true,
+  )
+})
+
+test('a collapsed document selection falls through to the active element', () => {
+  const collapsed = { getSelection: () => ({ isCollapsed: true }) }
+  assert.equal(
+    withDom({ window: collapsed, document: { activeElement: null } }, () => selectionOwnsStroke()),
+    false,
+  )
+  // A selection inside a text control is invisible to window.getSelection:
+  // measured on the composer during a hijacked stroke, the document selection
+  // reported isCollapsed while the textarea held 0..20.
+  assert.equal(
+    withDom(
+      {
+        window: collapsed,
+        document: { activeElement: { tagName: 'TEXTAREA', selectionStart: 0, selectionEnd: 20 } },
+      },
+      () => selectionOwnsStroke(),
+    ),
+    true,
+  )
+  assert.equal(
+    withDom(
+      {
+        window: collapsed,
+        document: { activeElement: { tagName: 'INPUT', selectionStart: 1, selectionEnd: 1 } },
+      },
+      () => selectionOwnsStroke(),
+    ),
+    false,
+  )
+})
+
+test('a non-text control never owns the stroke, and a throwing getter is not fatal', () => {
+  const collapsed = { getSelection: () => ({ isCollapsed: true }) }
+  // Input types without a text selection (checkbox, number, …) report null and
+  // older WebKit/Gecko throw InvalidStateError; both mean "no selection is
+  // being dragged", never "this control owns the stroke".
+  assert.equal(
+    withDom({ window: collapsed, document: { activeElement: { tagName: 'DIV' } } }, () => selectionOwnsStroke()),
+    false,
+  )
+  const throwing = {
+    tagName: 'TEXTAREA',
+    get selectionStart(): number {
+      throw new Error('InvalidStateError')
+    },
+    selectionEnd: 3,
+  }
+  assert.equal(
+    withDom({ window: collapsed, document: { activeElement: throwing } }, () => selectionOwnsStroke()),
+    false,
+  )
+})
+
+test('without a DOM the predicate is inert', () => {
+  assert.equal(withDom({}, () => selectionOwnsStroke()), false)
 })
