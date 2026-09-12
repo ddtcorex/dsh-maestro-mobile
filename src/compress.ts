@@ -56,19 +56,37 @@ function pickEncoding(res: ServerResponse): 'br' | 'gzip' | null {
   return null
 }
 
+/**
+ * Find a header value regardless of the caller's key casing. The patch sees
+ * the RAW writeHead argument (before Node lowercases), and HTTP header names
+ * are case-insensitive — a caller may pass `Content-Type` or `content-type`.
+ * @param headers - the raw headers object handed to writeHead.
+ * @param name - the lowercased header name to look up.
+ * @returns the value as a string, or undefined when absent.
+ */
+export function headerValue(headers: Record<string, string | number | string[]>, name: string): string | undefined {
+  const wanted = name.toLowerCase()
+  for (const key of Object.keys(headers)) {
+    if (key.toLowerCase() === wanted) return String(headers[key])
+  }
+  return undefined
+}
+
 /** Whether a response warrants deferred (potentially compressed) handling. */
-function isDeferrable(headers: Record<string, string | number | string[]>): boolean {
-  if (headers['content-encoding'] !== undefined) return false
-  const contentType = String(headers['content-type'] ?? '')
+export function isDeferrable(headers: Record<string, string | number | string[]>): boolean {
+  if (headerValue(headers, 'content-encoding') !== undefined) return false
+  const contentType = headerValue(headers, 'content-type') ?? ''
   return contentType.includes('json')
 }
 
 /** Append the Accept-Encoding Vary token without clobbering an existing Vary. */
-function varyWithAcceptEncoding(headers: Record<string, string | number | string[]>): void {
-  const existing = headers['vary']
-  headers['vary'] = existing === undefined
-    ? 'Accept-Encoding'
-    : `${String(existing)}, Accept-Encoding`
+export function varyWithAcceptEncoding(headers: Record<string, string | number | string[]>): void {
+  const existingKey = Object.keys(headers).find((key) => key.toLowerCase() === 'vary')
+  if (existingKey === undefined) {
+    headers['vary'] = 'Accept-Encoding'
+  } else {
+    headers[existingKey] = `${String(headers[existingKey])}, Accept-Encoding`
+  }
 }
 
 /** Buffer one body chunk for a deferred response. */
@@ -148,7 +166,9 @@ export function installResponseCompression(): () => void {
       ? brotliCompressSync(body, { params: { [zlibConstants.BROTLI_PARAM_QUALITY]: BROTLI_QUALITY } })
       : gzipSync(body, { level: 6 })
     const headers = { ...pending.headers }
-    delete headers['content-length']
+    for (const key of Object.keys(headers)) {
+      if (key.toLowerCase() === 'content-length') delete headers[key]
+    }
     headers['content-encoding'] = pending.encoding
     headers['content-length'] = compressed.byteLength
     varyWithAcceptEncoding(headers)
