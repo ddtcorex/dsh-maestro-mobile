@@ -13,7 +13,9 @@ Names by boundary: npm package = `@ddtcorex/dsh-maestro-mobile`; Cordis patch ro
 - `src/client/effects/` — DOM effects grouped by domain. `reconciler-core.ts` is a DOM-free engine (task registry, dirty-key routing, coalesced rAF flushing, per-task error isolation). `phone-chrome.ts` is the thin browser adapter: one `MutationObserver` on `document.documentElement` maps mutations to dirty keys and drives `installMobileEffect`.
 - `src/client/styles/` — CSS as TypeScript string modules. `index.ts` concatenates `tokens → base → layout → sheet → explorer-sheet → composer → settings-sheet → misc` in that order into one `<style>` tag. Mobile rules target `(max-width: 1023px)`; desktop rules hide mobile controls and must preserve the uninstalled layout.
 - `lib/` — gitignored build output (host ESM + inlined client bundle + d.ts). Generated; do not hand-edit, never commit.
-- `scripts/` — custom client bundler (`build-client.mjs`) and optional CDP smoke probe.
+- `scripts/` — custom client bundler (`build-client.mjs`), the CDP smoke probe (`cdp-probe.mjs`), the upstream contract scanner (`cdp-compat-contracts.mjs`) and one probe per risky behaviour under `scripts/probes/`.
+- `docs/upstream/` — `compat-contracts.json` (every upstream marker / class fragment this plugin depends on, with the rule that needs it) and `upgrade-runbook.md` (the post-upgrade checklist).
+- `docs/maintenance/pitfalls.md` — traps that already cost debugging time here; read it before writing a probe.
 - `tests/` — `node:test` unit tests.
 
 ## Development
