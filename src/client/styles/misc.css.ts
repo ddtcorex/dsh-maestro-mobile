@@ -93,72 +93,114 @@ export const MISC_CSS = `@media (max-width: 1023px) and (pointer: coarse) {
    touch-primary devices at every width (a large tablet in landscape keeps the
    desktop layout but still gets it), so a width-gated stylesheet would leave
    the dialog unstyled there. The dialog only exists once this plugin injected
-   the item. */
+   the item.
+
+   Hosted on <body> (session-menu.ts) and centred in the viewport. Measured
+   live: the drawer column carries z-index 150 and the frame's own overlay
+   layer 20, so a dialog appended to the AppFrame at z-index 70 painted UNDER
+   the open drawer and its buttons were unreachable.
+
+   Recipe (design-system/pages/session-delete.md): mask token + --dsw-mask-blur,
+   layer-2 surface, radius 24, --dsw-shadow-lv3, --ds-ease-out, reduced-motion
+   off. */
 @media (pointer: coarse) {
   [data-mobile-nav="delete-dialog-backdrop"] {
     position: fixed;
     inset: 0;
-    z-index: 70;
-    background: rgba(0, 0, 0, .42);
-    animation: dsh-maestro-mobile-fade .16s ease-out;
+    /* Above the shell's own scale: the drawer column is z-index 150 and the
+       settings panel 40, so 199/200 keeps the confirmation on top of both. */
+    z-index: 199;
+    background: var(--dsw-alias-bg-mask-1, rgba(0, 0, 0, .24));
+    backdrop-filter: var(--dsw-mask-blur, blur(2px));
+    -webkit-backdrop-filter: var(--dsw-mask-blur, blur(2px));
+    animation: dsh-maestro-mobile-fade .18s var(--ds-ease-out, ease-in-out);
   }
   [data-mobile-nav="delete-dialog"] {
     position: fixed;
-    z-index: 71;
-    left: 12px;
-    right: 12px;
-    bottom: calc(12px + env(safe-area-inset-bottom, 0px));
+    /* Centred with inset + margin:auto (not a transform) so the entrance
+       animation cannot fight the centring. */
+    inset: 0;
+    margin: auto;
+    z-index: 200;
+    width: min(calc(100vw - 32px), 380px);
+    height: fit-content;
+    max-height: calc(100dvh - 48px);
+    overflow-y: auto;
+    -webkit-overflow-scrolling: touch;
+    overscroll-behavior-y: contain;
     display: flex;
     flex-direction: column;
     gap: 10px;
-    padding: 18px 16px 14px;
-    border-radius: 18px;
-    background: var(--dsw-alias-bg-layer-1, #fff);
+    padding: 20px 18px 16px;
+    box-sizing: border-box;
+    border: 1px solid var(--dsw-alias-border-l1, rgba(0, 0, 0, .04));
+    border-radius: 24px;
+    background: var(--dsw-alias-bg-layer-2, #fff);
     color: var(--dsw-alias-label-primary, #0f1115);
-    box-shadow: 0 12px 40px rgba(0, 0, 0, .28);
-    animation: dsh-maestro-mobile-sheet-up .22s var(--ds-ease-out, ease-in-out);
+    box-shadow: var(--dsw-shadow-lv3, 0 12px 32px rgba(0, 0, 0, .08));
+    animation: dsh-maestro-mobile-sheet-in .22s var(--ds-ease-out, ease-in-out);
   }
   [data-mobile-nav="delete-confirm-title"] {
     font-size: 16px;
     line-height: 24px;
-    font-weight: 600;
+    font-weight: 500;
   }
   [data-mobile-nav="delete-confirm-desc"] {
     font-size: 14px;
-    line-height: 21px;
-    color: var(--dsw-alias-label-secondary, #4b5563);
+    line-height: 22px;
+    color: var(--dsw-alias-label-secondary, #61666b);
     overflow-wrap: anywhere;
   }
   [data-mobile-nav="delete-error"] {
     font-size: 13px;
     line-height: 19px;
-    color: var(--dsw-alias-state-error-primary, #b91c1c);
+    color: var(--dsw-alias-state-error-primary, #ec1313);
     overflow-wrap: anywhere;
   }
   [data-mobile-nav="delete-confirm-actions"] {
     display: flex;
     justify-content: flex-end;
-    gap: 10px;
+    gap: 8px;
     margin-top: 2px;
   }
   [data-mobile-nav="delete-confirm-actions"] button {
-    min-height: 40px;
-    padding: 0 16px;
-    border-radius: 10px;
-    border: 1px solid var(--dsw-alias-border-l1, rgba(0, 0, 0, .12));
+    /* 44px keeps the iOS/Android touch target even at the smallest width. */
+    min-height: 44px;
+    padding: 0 18px;
+    border: 1px solid var(--dsw-alias-border-l1, rgba(0, 0, 0, .04));
+    border-radius: 12px;
     background: transparent;
-    color: inherit;
+    color: var(--dsw-alias-label-primary, #0f1115);
+    font: inherit;
     font-size: 14px;
+    line-height: 22px;
     font-weight: 500;
     cursor: pointer;
+    -webkit-tap-highlight-color: transparent;
   }
-  [data-mobile-nav="delete-confirm-yes"] {
-    border-color: transparent;
-    background: var(--dsw-alias-state-error-primary, #b91c1c);
-    color: #fff;
+  [data-mobile-nav="delete-confirm-actions"] button:hover:not(:disabled),
+  [data-mobile-nav="delete-confirm-actions"] button:active:not(:disabled) {
+    background: var(--dsw-alias-interactive-bg-hover, rgba(0, 0, 0, .04));
+  }
+  [data-mobile-nav="delete-confirm-actions"] button:focus-visible {
+    outline: 2px solid var(--dsw-alias-state-business-primary, #4176e6);
+    outline-offset: 1px;
+  }
+  /* Destructive action: a danger OUTLINE, not a filled button. The fill would
+     need an on-error foreground token and DSH has none, so a filled red button
+     could invert its label in a light-fill theme; the token red on the layer-2
+     surface clears 4.5:1 in both themes. The selector repeats the actions
+     scope because the plain actions-button rule is (0,1,1) and would otherwise
+     win over this (0,1,0) rule — exactly how the danger colour went missing
+     before. (No backticks anywhere in this file: the stylesheet is a TS
+     template literal.) */
+  [data-mobile-nav="delete-confirm-actions"] [data-mobile-nav="delete-confirm-yes"] {
+    border-color: var(--dsw-alias-state-error-primary, #ec1313);
+    color: var(--dsw-alias-state-error-primary, #ec1313);
+    background: transparent;
   }
   [data-mobile-nav="delete-confirm-actions"] button:disabled {
-    opacity: .55;
+    opacity: .5;
     cursor: default;
   }
   @media (prefers-reduced-motion: reduce) {
