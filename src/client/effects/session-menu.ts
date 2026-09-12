@@ -17,7 +17,7 @@
  * worth that risk.
  */
 import type { ClientContext } from '@deepseek-ai/dsh-client-runtime/client'
-import { MOBILE_QUERY, TOUCH_QUERY, getFrame, installMobileEffect } from './phone-chrome.ts'
+import { MOBILE_QUERY, TOUCH_QUERY, installMobileEffect } from './phone-chrome.ts'
 
 // The custom client bundler cannot resolve `../` requires from
 // src/client/effects, so these mirror their sources. Keep in sync.
@@ -150,30 +150,45 @@ export function installSessionMenuDelete(ctx: ClientContext): void {
     let injectRaf = 0
     let dialogHost: { backdrop: HTMLElement; card: HTMLElement } | null = null
     let closeDialogOnKey: ((event: KeyboardEvent) => void) | null = null
+    let closeDialogOnTab: ((event: KeyboardEvent) => void) | null = null
+    let restoreFocusTo: HTMLElement | null = null
+    let dialogSeq = 0
 
     const closeDialog = (): void => {
       if (closeDialogOnKey !== null) {
         document.removeEventListener('keydown', closeDialogOnKey, true)
         closeDialogOnKey = null
       }
+      if (closeDialogOnTab !== null && dialogHost !== null) {
+        dialogHost.card.removeEventListener('keydown', closeDialogOnTab)
+        closeDialogOnTab = null
+      }
       if (dialogHost !== null) {
         dialogHost.backdrop.remove()
         dialogHost.card.remove()
         dialogHost = null
       }
+      // Return focus to whatever had it before the dialog (a11y: a modal must
+      // not leave the caret on <body>).
+      restoreFocusTo?.focus?.()
+      restoreFocusTo = null
     }
 
     /** Build the modal shell every dialog state shares. */
     const openDialog = (): { card: HTMLElement; body: HTMLElement; error: HTMLElement } => {
       closeDialog()
-      const frame = getFrame() ?? document.body
       const backdrop = document.createElement('div')
       backdrop.dataset.mobileNav = 'delete-dialog-backdrop'
       const card = document.createElement('div')
       card.dataset.mobileNav = 'delete-dialog'
       card.setAttribute('role', 'dialog')
       card.setAttribute('aria-modal', 'true')
+      dialogSeq += 1
+      const titleId = `mobile-nav-delete-title-${dialogSeq}`
+      card.setAttribute('aria-labelledby', titleId)
+      restoreFocusTo = document.activeElement instanceof HTMLElement ? document.activeElement : null
       const title = document.createElement('div')
+      title.id = titleId
       title.dataset.mobileNav = 'delete-confirm-title'
       const body = document.createElement('div')
       body.dataset.mobileNav = 'delete-confirm-desc'
@@ -189,8 +204,32 @@ export function installSessionMenuDelete(ctx: ClientContext): void {
       }
       document.addEventListener('keydown', onKey, true)
       closeDialogOnKey = onKey
+      // Modal keyboard contract: with only the action buttons focusable, Tab
+      // cycles between them instead of escaping to the page behind.
+      const onTab = (event: KeyboardEvent): void => {
+        if (event.key !== 'Tab') return
+        const stops = [...card.querySelectorAll<HTMLElement>('button:not(:disabled)')]
+        if (stops.length === 0) return
+        const first = stops[0]
+        const last = stops[stops.length - 1]
+        if (first === undefined || last === undefined) return
+        const active = document.activeElement
+        if (!event.shiftKey && active === last) {
+          event.preventDefault()
+          first.focus()
+        } else if (event.shiftKey && active === first) {
+          event.preventDefault()
+          last.focus()
+        }
+      }
+      card.addEventListener('keydown', onTab)
+      closeDialogOnTab = onTab
       backdrop.addEventListener('click', closeDialog)
-      frame.append(backdrop, card)
+      // Hosted on <body>, NOT inside the AppFrame: measured live, the drawer
+      // column carries z-index 150 while the frame's own overlay layer is 20,
+      // so a dialog appended to the frame painted UNDER the open drawer and its
+      // buttons could not be tapped.
+      document.body.append(backdrop, card)
       dialogHost = { backdrop, card }
       return { card, body, error }
     }
@@ -214,6 +253,8 @@ export function installSessionMenuDelete(ctx: ClientContext): void {
       const yes = button(navT('deleteConfirmYes'), 'delete-confirm-yes')
       no.addEventListener('click', closeDialog)
       actions?.append(no, yes)
+      // Focus the SAFE action, never the destructive one.
+      no.focus()
 
       const fail = (message: string): void => {
         error.textContent = message

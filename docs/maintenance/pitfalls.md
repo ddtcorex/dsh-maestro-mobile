@@ -38,3 +38,13 @@ wrong, how it presented, and the rule that prevents it.
 **A stacked PR dies with its base branch.** When the base branch is deleted by a squash-merge, GitHub closes the dependent PR and refuses both `gh pr reopen` and a base-branch edit. Rebase only your own commits onto the new `master` (`git rebase --onto master <old-base-tip> <branch>`), push, and open a fresh PR that references the closed one.
 
 **The git guard mints a ticket per exact command string.** Appending even a second command (`; gh pr view …`) changes the text and invalidates the approval. Present the command, approve, then re-run it byte-identically.
+
+## CSS / DOM traps (session-delete dialog, 2026-09-12)
+
+**A fixed-position dialog inside the AppFrame paints under the drawer.** The drawer column (`fIyUMG_sidebarCol`) is `z-index: 150` while the frame's own overlay layer is 20, so a dialog appended to the frame at `z-index: 70` rendered *behind* the open drawer and its buttons could not be tapped. Modals belong on `document.body` with a layer above the shell scale (mask 199 / card 200). Verify with `document.elementFromPoint()` at the dialog's own centre and at each button centre — a `role="dialog"` that exists is not a dialog that is reachable.
+
+**A descendant selector out-specifies a bare attribute selector.** `[data-mobile-nav="delete-confirm-actions"] button` is (0,1,1); `[data-mobile-nav="delete-confirm-yes"]` is (0,1,0). The generic rule therefore won and the destructive button rendered as a second neutral button. Repeat the scope in the override, and assert the computed colour in a probe, not just the presence of a rule.
+
+**Never write a backtick inside a CSS-in-TS template literal.** A `...] button`-style mention in a comment terminates the string; `tsc` then fails with a confusing `',' expected` far from the real cause. (Prose in that file must avoid backticks entirely.)
+
+**`pnpm verify` failing with a parser error in a `.css.ts` file is a template-literal syntax error**, not a CSS problem — read the reported line, not the CSS semantics.
