@@ -12,6 +12,7 @@ import { installViewportBridge } from './effects/viewport.ts'
 import { installSidebarSwipe } from './effects/sidebar-swipe.ts'
 import { installHeroPresetMenuFix } from './effects/preset-menu-fix.ts'
 import { installComposerKeyboardTouch } from './effects/composer-keyboard-touch.ts'
+import { installSessionMenuDelete } from './effects/session-menu.ts'
 import { NS, en, zh } from './i18n/locales.ts'
 import type { MobileNavKey } from './i18n/locales.ts'
 
@@ -23,7 +24,7 @@ declare module '@deepseek-ai/dsh-client-ui-slots' {
 }
 
 /** Required services (cordis fiber inject — the loader passes all module exports as an object plugin). */
-export const inject = ['slots', 'layout', 'locale', 'sessionLogDownload']
+export const inject = ['slots', 'layout', 'locale', 'sessionLogDownload', 'sessions', 'workspaces']
 
 /**
  * Mobile-adaptive shell, browser half: injects the mobile stylesheet, then
@@ -180,6 +181,12 @@ export function apply(ctx: ClientContext): void {
   // the contenteditable for every toolbar mousedown, which pops the soft
   // keyboard on each phone tap of Commands / Stop / Send.
   installComposerKeyboardTouch(ctx)
+
+  // Session deletion on touch-primary devices (every width): injects a delete
+  // item into the host's per-session row menu and drives a confirmation-first
+  // dialog against the host route. The host menu knows rename / fork / archive
+  // only; archive hides a row without removing its log.
+  installSessionMenuDelete(ctx)
 
   // DSH-native overlay: backdrop + FAB via AppFrame's overlayLayer (z20)
   // Replaces manual frame.appendChild in overlay-backdrop-fab.ts — keeps
