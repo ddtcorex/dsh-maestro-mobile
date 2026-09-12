@@ -3,7 +3,7 @@
 // See design-system/pages/composer.md
 
 export const COMPOSER_CSS = `
-@media (max-width: 1023px) {
+@media (max-width: 1023px) and (pointer: coarse) {
   /* Composer seat safe-area: reuse DSH composer card geometry */
   [data-phase="active"] [data-composer-seat] {
     padding-bottom: max(12px, env(safe-area-inset-bottom, 0px)) !important;

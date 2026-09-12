@@ -2,7 +2,7 @@
 // Self-contained: each section (composer / tablet / desktop) carries its own
 // media query.
 
-export const MISC_CSS = `@media (max-width: 1023px) {
+export const MISC_CSS = `@media (max-width: 1023px) and (pointer: coarse) {
   /* ---------- composer dock: swap git branch chip with the todo card ----------
      The git-graph branch chip (conversation.input.dock, order 100) floats
      alone at the bottom-left above the input card, with a dead zone to its
@@ -88,7 +88,7 @@ export const MISC_CSS = `@media (max-width: 1023px) {
    desktop-mode tall windows) the same full-bleed sheet leaves content
    clustered at the left edge with a large dead zone on the right. Cap and
    center the modal sheets and the aionui bottom sheets instead. */
-@media (min-width: 768px) and (max-width: 1023px) {
+@media (min-width: 768px) and (max-width: 1023px) and (pointer: coarse) {
   /* All modal dialogs: centered, never edge-to-edge. The settings sheet has
      a higher-specificity full-width rule above, so repeat its selector here
      to win; the generic export/other-modal rule is covered by the second
@@ -125,7 +125,7 @@ export const MISC_CSS = `@media (max-width: 1023px) {
 
 /* ---------- desktop: the mobile controls must never appear ---------- */
 
-@media (min-width: 1024px) {
+@media (min-width: 1024px), (pointer: fine), (pointer: none) {
   [data-mobile-nav="toggle"],
   [data-mobile-nav="fab"],
   [data-mobile-nav="backdrop"],

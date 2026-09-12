@@ -13,24 +13,47 @@ import { consumeIfGestured, isStrokeLocked } from './gesture-guard.ts'
 // so this mirrors the namespace id from src/client/locales.ts. Keep in sync.
 const NS = 'mobileNav'
 
-/** Same breakpoint as the shell's SIDEBAR_AUTO_COLLAPSE (viewport < 1024). */
-export const MOBILE_QUERY = '(max-width: 1023px)'
+/** Same width bound as the shell's SIDEBAR_AUTO_COLLAPSE (viewport < 1024),
+ *  ANDed with a touch-primary pointer guard. Width alone cannot tell a phone
+ *  from a desktop window: split views and OS display scaling push a PC's CSS
+ *  viewport below 1024px too, and the whole mobile shell (drawer, header
+ *  toggle, gestures) would mount there. (pointer: coarse) keeps the
+ *  adaptation on touch-primary devices while any mouse-driven window stays
+ *  desktop at every width.
+ *
+ *  Probe consequence: headless Chrome reports (pointer: none) — not coarse —
+ *  unless touch emulation is enabled, so a CDP probe must call
+ *  Emulation.setTouchEmulationEnabled (or set hasTouch) before asserting any
+ *  mobile UI, or every assertion silently becomes a desktop assertion. */
+export const MOBILE_QUERY = '(max-width: 1023px) and (pointer: coarse)'
 
-/** Desktop no-op boundary, kept next to the mobile query for one source of truth. */
+/** Desktop no-op boundary, kept next to the mobile query for one source of truth.
+ *  Informational only: the authoritative desktop guard is the complement media
+ *  query in styles/misc.css.ts, because slot-rendered controls exist at every
+ *  width. */
 export const DESKTOP_QUERY = '(min-width: 1024px)'
 
+/** Pointer-only guard for the features that have no desktop equivalent
+ *  (session-menu deletion and friends): armed on touch-primary devices at
+ *  EVERY width, so a large tablet in landscape keeps the desktop layout but
+ *  still gets them. Mouse-driven or pointer-less windows never arm. */
+export const TOUCH_QUERY = '(pointer: coarse)'
+
 /**
- * Re-arm a mobile-only DOM effect on every width change. Replaces the
+ * Re-arm a mobile-only DOM effect on every query change. Replaces the
  * repeated matchMedia + change-listener scaffold so all breakpoint strings
- * live in one place.
+ * live in one place. `query` defaults to MOBILE_QUERY; an effect that arms on
+ * a different condition passes its own string instead of building a private
+ * matchMedia scaffold.
  */
 export function installMobileEffect(
   ctx: ClientContext,
   label: string,
   install: (narrow: MediaQueryList) => (() => void) | undefined,
+  query: string = MOBILE_QUERY,
 ): void {
   ctx.effect(() => {
-    const narrow = window.matchMedia(MOBILE_QUERY)
+    const narrow = window.matchMedia(query)
     let cleanup: (() => void) | undefined
     const arm = (): void => {
       cleanup?.()
