@@ -1,0 +1,274 @@
+{
+  "$comment": "Upstream DOM/CSS contracts this plugin depends on, in machine-readable form. Consumer: node scripts/cdp-compat-contracts.mjs \u2014 it loads the live page (touch emulation on) and reports HIT / MISS / SKIP per entry. `lazy: true` means the markup only exists in some state (a session open, a tab selected, a dialog open): a MISS is reported as SKIP with the manual step that would reveal it and does not fail the run. A MISS on a non-lazy entry fails the run. Run it after every host upgrade, before anything is reported broken.",
+  "contracts": [
+    {
+      "id": "shell-overlay",
+      "kind": "marker",
+      "needle": "[data-shell-overlay]",
+      "owner": "dsh-client-ui-layout",
+      "lazy": false,
+      "note": "AppFrame overlay layer: findFrame() anchors the drawer / FAB / backdrop here"
+    },
+    {
+      "id": "composer-card",
+      "kind": "marker",
+      "needle": "[data-composer-card]",
+      "owner": "dsh-client-ui-conversation",
+      "lazy": true,
+      "state": "open any session",
+      "note": "composer capsule root: keyboard guard, file input, tool-row scoping"
+    },
+    {
+      "id": "composer-input",
+      "kind": "marker",
+      "needle": "[data-composer-input]",
+      "owner": "dsh-client-ui-conversation",
+      "lazy": true,
+      "state": "open any session",
+      "note": "Lexical editing surface: focus shadow + stats-row exclusion"
+    },
+    {
+      "id": "composer-seat",
+      "kind": "marker",
+      "needle": "[data-composer-seat]",
+      "owner": "dsh-client-ui-conversation",
+      "lazy": true,
+      "state": "open any session",
+      "note": "composer seat: safe-area padding, row geometry rules"
+    },
+    {
+      "id": "conversation-overlay",
+      "kind": "marker",
+      "needle": "[data-conversation-composer-overlay]",
+      "owner": "dsh-client-ui-conversation",
+      "lazy": true,
+      "state": "open a conversation.view tab (trajectory)",
+      "note": "generic view-overlay flag: the swipe layer yields the left edge to it"
+    },
+    {
+      "id": "phase-root",
+      "kind": "marker",
+      "needle": "[data-phase]",
+      "owner": "dsh-client-ui-conversation",
+      "lazy": true,
+      "state": "open any session",
+      "note": "phase root: tooltip suppression scope + safe-area rules"
+    },
+    {
+      "id": "question-key",
+      "kind": "marker",
+      "needle": "[data-question-key]",
+      "owner": "dsh-client-ui-user-questions",
+      "lazy": true,
+      "state": "trigger an ask_user_question card",
+      "note": "ask card root: scrollport + field sizing rules"
+    },
+    {
+      "id": "trigger-menu",
+      "kind": "marker",
+      "needle": "[data-trigger-menu]",
+      "owner": "dsh-client-ui-input-trigger",
+      "lazy": true,
+      "state": "type @ in the composer",
+      "note": "trigger menu rows pick on mousedown and are exempt from the keyboard guard"
+    },
+    {
+      "id": "composer-stack",
+      "kind": "hash",
+      "needle": "_composerStack",
+      "owner": "dsh-client-ui-conversation",
+      "lazy": true,
+      "state": "open any session",
+      "note": "stats-row hunter scopes to the composer stack"
+    },
+    {
+      "id": "composer-modes",
+      "kind": "hash",
+      "needle": "_modes",
+      "owner": "dsh-client-ui-conversation",
+      "lazy": true,
+      "state": "open any session",
+      "note": "access-mode / plan seat row"
+    },
+    {
+      "id": "composer-tools",
+      "kind": "hash",
+      "needle": "_tools",
+      "owner": "dsh-client-ui-conversation",
+      "lazy": true,
+      "state": "open any session",
+      "note": "left tool row (the + trigger)"
+    },
+    {
+      "id": "composer-trailing",
+      "kind": "hash",
+      "needle": "_trailing",
+      "owner": "dsh-client-ui-conversation",
+      "lazy": true,
+      "state": "open any session",
+      "note": "right cluster pinning (model, context meter, send)"
+    },
+    {
+      "id": "composer-trigger-label",
+      "kind": "hash",
+      "needle": "_triggerLabel",
+      "owner": "dsh-client-ui-conversation",
+      "lazy": true,
+      "state": "open any session",
+      "note": "labelled triggers are the shrink cascade the row rules scope to"
+    },
+    {
+      "id": "message-actions",
+      "kind": "hash",
+      "needle": "_actions",
+      "owner": "dsh-client-ui-conversation",
+      "lazy": true,
+      "state": "open any session",
+      "note": "message action row: tooltip suppression must stay scoped here"
+    },
+    {
+      "id": "message-bubble",
+      "kind": "hash",
+      "needle": "_bubble",
+      "owner": "dsh-client-ui-conversation",
+      "lazy": true,
+      "state": "open a session with a user message",
+      "note": "user bubble: the rule this must NOT hide (regression guard)"
+    },
+    {
+      "id": "session-row",
+      "kind": "hash",
+      "needle": "_sessionRow",
+      "owner": "dsh-client-ui-workspace",
+      "lazy": true,
+      "state": "open the drawer with a workspace selected",
+      "note": "row anchor for the session-delete item; the SELECTED row has no action button"
+    },
+    {
+      "id": "session-row-title",
+      "kind": "hash",
+      "needle": "_title",
+      "owner": "dsh-client-ui-workspace",
+      "lazy": true,
+      "state": "open the drawer",
+      "note": "row label: the only row \u2192 session key the DOM offers"
+    },
+    {
+      "id": "session-group",
+      "kind": "hash",
+      "needle": "_groupSection",
+      "owner": "dsh-client-ui-workspace",
+      "lazy": true,
+      "state": "open the drawer",
+      "note": "workspace group: disambiguates duplicate row labels"
+    },
+    {
+      "id": "menu-item-label",
+      "kind": "hash",
+      "needle": "_itemLabel",
+      "owner": "dsh-client-ui-primitives",
+      "lazy": true,
+      "state": "open any row menu",
+      "note": "menu item label the injected delete item clones"
+    },
+    {
+      "id": "menu-item-icon",
+      "kind": "hash",
+      "needle": "_itemIcon",
+      "owner": "dsh-client-ui-primitives",
+      "lazy": true,
+      "state": "open any row menu",
+      "note": "menu item icon slot the trash glyph replaces"
+    },
+    {
+      "id": "menu-viewport",
+      "kind": "hash",
+      "needle": "_viewport",
+      "owner": "dsh-client-ui-primitives",
+      "lazy": true,
+      "state": "open any row menu",
+      "note": "menu list container the injected item is appended to"
+    },
+    {
+      "id": "settings-panel",
+      "kind": "hash",
+      "needle": "_panel",
+      "owner": "dsh-client-ui-settings",
+      "lazy": true,
+      "state": "open Settings",
+      "note": "settings sheet panel geometry"
+    },
+    {
+      "id": "settings-nav-list",
+      "kind": "hash",
+      "needle": "_navList",
+      "owner": "dsh-client-ui-settings",
+      "lazy": true,
+      "state": "open Settings",
+      "note": "mobile settings nav column rules"
+    },
+    {
+      "id": "settings-nav-title",
+      "kind": "hash",
+      "needle": "_navTitle",
+      "owner": "dsh-client-ui-settings",
+      "lazy": true,
+      "state": "open Settings",
+      "note": "settings group heading sizing"
+    },
+    {
+      "id": "market-installed-row",
+      "kind": "hash",
+      "needle": "irow",
+      "owner": "dshmarket",
+      "lazy": true,
+      "state": "open Settings \u2192 plugin market",
+      "note": "installed-plugin row wrap (outer rows only; irowActions/irowTrailing are excluded)"
+    },
+    {
+      "id": "gitgraph-chip",
+      "kind": "marker",
+      "needle": "[data-gitgraph-chip]",
+      "owner": "dsh-git-graph",
+      "lazy": true,
+      "state": "open a session inside a git repository",
+      "note": "dock chip reparented above the composer"
+    },
+    {
+      "id": "jobs-indicator",
+      "kind": "marker",
+      "needle": "[data-jobs-count]",
+      "owner": "dsh-client-ui-jobs",
+      "lazy": true,
+      "state": "have a background job running",
+      "note": "jobs chip compacting rule"
+    },
+    {
+      "id": "aionui-explorer",
+      "kind": "marker",
+      "needle": "[data-aionui-explorer-col]",
+      "owner": "dsh-web-ui-all",
+      "lazy": true,
+      "state": "install the aionui suite and open the explorer",
+      "note": "explorer sheet geometry + takeover yield"
+    },
+    {
+      "id": "aionui-preview",
+      "kind": "marker",
+      "needle": "[data-aionui-preview-col]",
+      "owner": "dsh-web-ui-all",
+      "lazy": true,
+      "state": "install the aionui suite and open a preview",
+      "note": "preview sheet + fullscreen toggle geometry"
+    },
+    {
+      "id": "theme-flag",
+      "kind": "marker",
+      "needle": "[data-ds-dark-theme]",
+      "owner": "dsh-client-ui-theme",
+      "lazy": true,
+      "note": "theme-color meta follows this body flag while the dark theme is active",
+      "state": "switch to the dark theme"
+    }
+  ]
+}
