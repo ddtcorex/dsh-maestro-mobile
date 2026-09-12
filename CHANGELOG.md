@@ -4,6 +4,33 @@ All notable changes to this project are documented in this file. Format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); this project uses
 [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.4.0] - 2026-09-12
+
+### Added
+
+- **Session deletion on touch devices** — the session-row ⋯ menu gains a "Delete session" item with a confirmation-first dialog (Escape cancels, failures are announced, focus starts on Cancel), backed by a new host route `POST /api/mobile-nav.session.delete` that removes the session's own log directory and refuses anything outside the persistence root. A session still live in the host process is refused with `409 session-busy` rather than deleted under a running agent (#35, #37).
+- **Upstream contract scan and regression probes** — `docs/upstream/compat-contracts.json` plus `pnpm contracts:cdp` report every marker and class fragment this plugin depends on (HIT / MISS / SKIP), and `pnpm probe:pointer-gating`, `probe:swipe`, `probe:session-delete` cover the risky behaviours on the live page. `docs/maintenance/pitfalls.md` and `docs/upstream/upgrade-runbook.md` record the traps and the post-upgrade checklist (#36).
+
+### Changed
+
+- **The mobile branch is pointer-gated** — rules and effects now require `(max-width: 1023px) and (pointer: coarse)`, with the exact complement for desktop, so a narrow mouse-driven window (or an OS-scaled display) keeps the stock shell instead of mounting the mobile one (#32).
+- **Draggable floating widgets can yield the drawer swipe** through the new `data-mobile-nav-dragging` cooperation mark, with a positional fallback for widgets that ship no mark (#34).
+
+### Fixed
+
+- **Pinch zoom** — a second finger abandons the swipe stroke instead of being ignored, so the browser's pinch is never cancelled (#32).
+- **Text selection** — a live selection (document selection or a control's own `selectionStart`/`selectionEnd`) owns the stroke instead of being collapsed by the drawer gesture (#32).
+- **Viewport meta** — the plugin re-asserts `viewport-fit=cover` across host rewrites and node replacement, so notch insets cannot silently go stale (#32).
+- **iOS focus zoom** — the 16px field floor applies on iOS/iPadOS WebKit only, and the viewport meta no longer carries `maximum-scale`, which used to take pinch away from Android (#32).
+- **View overlays** — an open `conversation.view` overlay (trajectory tab, file viewer) keeps the left-edge horizontal pan (#32).
+- **Response compression** — header lookups and rewrites are case-insensitive, so a mixed-case `Content-Type`/`Content-Length` no longer skips compression or ships a stale length (#32).
+- **Tooltips** — suppression is scoped to the conversation phase and pointer-gated, so other plugins' tooltips survive on a phone (#32).
+- **Session-delete dialog** — it is hosted on `<body>` above the shell's drawer layer, centred in the viewport, and the destructive action keeps its danger styling instead of losing it to a descendant selector (#37).
+
+### Removed
+
+- The composer's one-tap attachment button; the `+` trigger in the same tool row already opens the file picker (#31).
+
 ## [1.3.4] - 2026-09-11
 
 ### Added
