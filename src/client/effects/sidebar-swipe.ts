@@ -430,6 +430,34 @@ function onCooldown(): boolean {
 }
 
 /**
+ * Whether a second pointer means the browser owns this interaction.
+ *
+ * Two fingers on the screen mean a pinch, and a two-finger drag is never a
+ * drawer swipe. Merely ignoring the extra pointer keeps the stroke alive —
+ * and with it the touchmove preventDefault below, which cancels the native
+ * pinch. On iOS that pinch is the only way back out of a zoom, so fighting it
+ * recreates the trap where the page can be zoomed in but not back out. Hand
+ * the whole interaction back instead.
+ * @param trackingPointer - the pointer id currently owning the stroke (0 = none).
+ * @param incomingPointerId - the pointer id of the new pointerdown.
+ * @returns true when the live stroke must be abandoned.
+ */
+export function shouldAbortForMultiTouch(trackingPointer: number, incomingPointerId: number): boolean {
+  return trackingPointer !== 0 && trackingPointer !== incomingPointerId
+}
+
+/**
+ * Whether the touch count alone proves a multi-touch gesture: the
+ * belt-and-braces path for engines that hand the pinch to the compositor
+ * without delivering a second pointerdown.
+ * @param touches - `TouchEvent.touches.length` for the current touchmove.
+ * @returns true when the stroke must be abandoned before any preventDefault.
+ */
+export function shouldAbortForTouchCount(touches: number): boolean {
+  return touches > 1
+}
+
+/**
  * Cache the follow geometry for a freshly locked stroke. Runs ONCE per
  * stroke (one getComputedStyle, plus one getBoundingClientRect only for the
  * cold-start fallback); the per-move path afterwards is write-only.
@@ -982,7 +1010,10 @@ export function installSidebarSwipe(ctx: ClientContext): void {
       consumedEl = null
       clearStrokeLocked() // belt-and-suspenders: a lost stroke must not leak its lock into this epoch
       if (event.pointerType !== 'touch' && event.pointerType !== 'pen') return
-      if (trackingPointer !== 0 && trackingPointer !== event.pointerId) return
+      if (shouldAbortForMultiTouch(trackingPointer, event.pointerId)) {
+        abortStroke(ctx)
+        return
+      }
       beginStroke(event, frameRtl(), viewportWidth())
     }
 
@@ -1068,8 +1099,20 @@ export function installSidebarSwipe(ctx: ClientContext): void {
     // horizontally scrollable container never reach this state at all
     // (beginStroke rejects them via findHorizontalScroller), so their
     // native horizontal pan is never prevented.
+    //
+    // Multi-touch is the one case that must never be prevented: two fingers
+    // mean a pinch, and preventDefault on those touchmoves cancels the
+    // browser's zoom gesture. The pointerdown guard above already abandons
+    // the stroke when a second finger lands; this is the belt-and-braces path
+    // for engines that hand the gesture to the compositor without delivering
+    // a second pointerdown.
     const onTouchMove = (event: TouchEvent): void => {
-      if (trackingPointer !== 0) event.preventDefault()
+      if (trackingPointer === 0) return
+      if (shouldAbortForTouchCount(event.touches.length)) {
+        abortStroke(ctx)
+        return
+      }
+      event.preventDefault()
     }
 
     document.addEventListener('pointerdown', onPointerDown, true)
