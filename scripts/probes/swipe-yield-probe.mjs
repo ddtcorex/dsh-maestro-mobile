@@ -274,6 +274,39 @@ async function main() {
     else if (!selectionKept) fail('swipe.selection-yields', 'selection collapsed despite the yield')
     else pass('swipe.selection-yields', `drawer stayed closed (before=${selectionBefore}), selection intact`)
 
+    // Drag cooperation mark: a component that marks itself while dragging must
+    // keep the drawer from arming for the whole stroke.
+    await resetScenario(client)
+    await client.evaluate(`(() => {
+      const host = document.createElement('div');
+      host.id = 'probe-yield-host';
+      host.setAttribute('data-mobile-nav-dragging', '');
+      host.style.cssText = 'position:fixed;left:0;top:380px;width:120px;height:120px;z-index:9999';
+      document.body.appendChild(host);
+      return true;
+    })()`)
+    const markBefore = await drawerOpen(client)
+    await edgeSwipeOpen(client, width)
+    const markAfter = await drawerOpen(client)
+    if (markAfter) fail('swipe.drag-mark-yields', `drawer opened (before=${markBefore} after=${markAfter})`)
+    else pass('swipe.drag-mark-yields', `drawer stayed closed (before=${markBefore})`)
+
+    // Floating-widget heuristic: a small freely-positioned layer with no mark
+    // still yields, because the user pressed the widget itself.
+    await resetScenario(client)
+    await client.evaluate(`(() => {
+      const host = document.createElement('div');
+      host.id = 'probe-yield-host';
+      host.style.cssText = 'position:fixed;left:0;top:380px;width:80px;height:80px;z-index:9999';
+      document.body.appendChild(host);
+      return true;
+    })()`)
+    const widgetBefore = await drawerOpen(client)
+    await edgeSwipeOpen(client, width)
+    const widgetAfter = await drawerOpen(client)
+    if (widgetAfter) fail('swipe.floating-widget-yields', `drawer opened (before=${widgetBefore} after=${widgetAfter})`)
+    else pass('swipe.floating-widget-yields', `drawer stayed closed (before=${widgetBefore})`)
+
     // Pinch: two fingers inside the start zone must not open the drawer and
     // must not have their touchmoves prevented.
     await resetScenario(client)

@@ -1,6 +1,7 @@
 import type { ClientContext } from '@deepseek-ai/dsh-client-runtime/client'
 import { installMobileEffect, getFrame } from './phone-chrome.ts'
 import { markGestureConsumed, consumeIfGestured, markStrokeLocked, clearStrokeLocked } from './gesture-guard.ts'
+import { dragMarkYields, floatingWidgetYields } from './drag-yield.ts'
 import { fadeOverlayOut } from './overlay-backdrop-fab.ts'
 
 /**
@@ -824,6 +825,12 @@ function beginStroke(
   // the selection everywhere, and backdrop tap-to-close is unaffected (a tap
   // never reaches beginStroke's scroller/lock path).
   if (selectionOwnsStroke()) return false
+  // A live draggable (cooperation mark, see drag-yield.ts) or a plugin-shipped
+  // floating widget (positional heuristic) owns the stroke: yield before any
+  // geometric test so the drawer cannot arm for a drag that starts inside the
+  // start zone.
+  if (dragMarkYields(event.target, document)) return false
+  if (floatingWidgetYields(event)) return false
   if (!(event.target instanceof Element)) return false
   // A stroke beginning inside a genuinely horizontally scrollable container
   // belongs to that scroller (the stats line, a message code block, any
@@ -1097,6 +1104,14 @@ export function installSidebarSwipe(ctx: ClientContext): void {
         // Once locked the gesture stays committed — a selection never appears
         // mid-swipe.
         if (selectionOwnsStroke()) {
+          reset()
+          return
+        }
+        // Second timing window for the drag signals: a dragger often raises the
+        // mark (or moves the widget under the pointer) AFTER our pointerdown
+        // handler ran. Re-check at every lock attempt so the stroke yields
+        // before the axis locks — once locked it stays committed.
+        if (dragMarkYields(event.target, document) || floatingWidgetYields(event)) {
           reset()
           return
         }
