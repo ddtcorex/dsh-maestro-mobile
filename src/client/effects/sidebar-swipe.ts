@@ -416,11 +416,26 @@ function modalOpen(): boolean {
   return document.querySelector('[aria-modal="true"]') !== null
 }
 
-/** True when a full-screen takeover (taskboard / ssh) owns the frame. */
-function takeoverActive(): boolean {
+/**
+ * Marker the host sets on the root of an active conversation.view overlay
+ * (the trajectory tab, a file viewer, any future third-party view). It is the
+ * generic overlay flag shared by every view tab, deliberately read here rather
+ * than any plugin-specific marker.
+ */
+export const OVERLAY_SELECTOR = '[data-conversation-composer-overlay]'
+
+/**
+ * True when a full-screen takeover (taskboard / ssh) owns the frame, or any
+ * host conversation.view overlay is open. In both cases the drawer edge-swipe
+ * gestures yield so horizontal content scrolling (kanban columns, trajectory
+ * tables, CSV/code panes) wins the left-edge start zone; the FAB still opens
+ * the drawer.
+ */
+export function takeoverActive(): boolean {
   return (
     document.documentElement.hasAttribute('data-dsh-taskboard-active') ||
-    document.documentElement.hasAttribute('data-dsh-ssh-active')
+    document.documentElement.hasAttribute('data-dsh-ssh-active') ||
+    document.querySelector(OVERLAY_SELECTOR) !== null
   )
 }
 

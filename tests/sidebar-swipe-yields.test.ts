@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
 
-import { shouldAbortForMultiTouch, shouldAbortForTouchCount, selectionOwnsStroke } from '../src/client/effects/sidebar-swipe.ts'
+import { shouldAbortForMultiTouch, shouldAbortForTouchCount, selectionOwnsStroke, takeoverActive, OVERLAY_SELECTOR } from '../src/client/effects/sidebar-swipe.ts'
 
 /** Install DOM globals for one call, then restore whatever was there. */
 function withDom<T>(dom: { window?: unknown; document?: unknown }, run: () => T): T {
@@ -104,4 +104,33 @@ test('a non-text control never owns the stroke, and a throwing getter is not fat
 
 test('without a DOM the predicate is inert', () => {
   assert.equal(withDom({}, () => selectionOwnsStroke()), false)
+})
+
+test('an open conversation overlay counts as a takeover', () => {
+  // The host marks every conversation.view overlay root (trajectory tables,
+  // file viewer, future third-party views) with the same generic attribute;
+  // reading it directly keeps the yield rule independent of any one plugin.
+  // While it is open the drawer edge-swipe must yield so horizontal content
+  // panning wins the left-edge zone — the FAB still opens the drawer.
+  const documentElement = { hasAttribute: (name: string) => name === 'data-dsh-ssh-active' }
+  assert.equal(
+    withDom(
+      { document: { documentElement, querySelector: (selector: string) => (selector === OVERLAY_SELECTOR ? {} : null) } },
+      () => takeoverActive(),
+    ),
+    true,
+  )
+  assert.equal(
+    withDom(
+      { document: { documentElement, querySelector: () => null } },
+      () => takeoverActive(),
+    ),
+    true,
+    'taskboard / ssh takeovers still yield',
+  )
+  const idle = { hasAttribute: () => false }
+  assert.equal(
+    withDom({ document: { documentElement: idle, querySelector: () => null } }, () => takeoverActive()),
+    false,
+  )
 })
