@@ -416,17 +416,104 @@ function modalOpen(): boolean {
   return document.querySelector('[aria-modal="true"]') !== null
 }
 
-/** True when a full-screen takeover (taskboard / ssh) owns the frame. */
-function takeoverActive(): boolean {
+/**
+ * Marker the host sets on the root of an active conversation.view overlay
+ * (the trajectory tab, a file viewer, any future third-party view). It is the
+ * generic overlay flag shared by every view tab, deliberately read here rather
+ * than any plugin-specific marker.
+ */
+export const OVERLAY_SELECTOR = '[data-conversation-composer-overlay]'
+
+/**
+ * True when a full-screen takeover (taskboard / ssh) owns the frame, or any
+ * host conversation.view overlay is open. In both cases the drawer edge-swipe
+ * gestures yield so horizontal content scrolling (kanban columns, trajectory
+ * tables, CSV/code panes) wins the left-edge start zone; the FAB still opens
+ * the drawer.
+ */
+export function takeoverActive(): boolean {
   return (
     document.documentElement.hasAttribute('data-dsh-taskboard-active') ||
-    document.documentElement.hasAttribute('data-dsh-ssh-active')
+    document.documentElement.hasAttribute('data-dsh-ssh-active') ||
+    document.querySelector(OVERLAY_SELECTOR) !== null
   )
+}
+
+/**
+ * Whether a live text selection owns the pointer stroke.
+ *
+ * A selection-handle drag (and a long-press selection that appears between
+ * pointerdown and the axis lock) is horizontally dominant and geometrically
+ * indistinguishable from a drawer swipe, so the browser must keep it. Two
+ * disjoint selection models have to be read:
+ *
+ * - the DOCUMENT selection (`window.getSelection()`) covers message-flow text
+ *   and contenteditable hosts;
+ * - a selection inside a text control lives on the ELEMENT as
+ *   `selectionStart`/`selectionEnd` and is invisible to
+ *   `window.getSelection()` — measured on the composer during a hijacked
+ *   stroke: the textarea held 0..20 while the document selection reported
+ *   isCollapsed. `document.activeElement` is the right anchor: a handle drag
+ *   keeps focus inside the control, which also covers strokes whose points
+ *   land outside the control's own box.
+ *
+ * Feature-detected end to end so the node:test suite can exercise it without
+ * a DOM and older engines cannot throw out of a pointer handler.
+ * @returns true when the stroke must yield to the selection.
+ */
+export function selectionOwnsStroke(): boolean {
+  if (typeof window === 'undefined') return false
+  const selection = window.getSelection()
+  if (selection !== null && !selection.isCollapsed) return true
+  if (typeof document === 'undefined') return false
+  const active = document.activeElement as (HTMLElement & { selectionStart?: number | null; selectionEnd?: number | null }) | null
+  if (active === null) return false
+  const tag = active.tagName
+  if (tag !== 'TEXTAREA' && tag !== 'INPUT') return false
+  // Input types without a text selection (checkbox, number, email, …) report
+  // null here, and older WebKit/Gecko throw InvalidStateError instead. Both
+  // mean "no text selection is being dragged", never "the control owns this
+  // stroke", so neither may escape from a pointer handler.
+  try {
+    const start = active.selectionStart
+    const end = active.selectionEnd
+    return typeof start === 'number' && typeof end === 'number' && start !== end
+  } catch {
+    return false
+  }
 }
 
 /** Whether the swipe layer is on cooldown (animation in flight). */
 function onCooldown(): boolean {
   return performance.now() < cooldownUntil
+}
+
+/**
+ * Whether a second pointer means the browser owns this interaction.
+ *
+ * Two fingers on the screen mean a pinch, and a two-finger drag is never a
+ * drawer swipe. Merely ignoring the extra pointer keeps the stroke alive —
+ * and with it the touchmove preventDefault below, which cancels the native
+ * pinch. On iOS that pinch is the only way back out of a zoom, so fighting it
+ * recreates the trap where the page can be zoomed in but not back out. Hand
+ * the whole interaction back instead.
+ * @param trackingPointer - the pointer id currently owning the stroke (0 = none).
+ * @param incomingPointerId - the pointer id of the new pointerdown.
+ * @returns true when the live stroke must be abandoned.
+ */
+export function shouldAbortForMultiTouch(trackingPointer: number, incomingPointerId: number): boolean {
+  return trackingPointer !== 0 && trackingPointer !== incomingPointerId
+}
+
+/**
+ * Whether the touch count alone proves a multi-touch gesture: the
+ * belt-and-braces path for engines that hand the pinch to the compositor
+ * without delivering a second pointerdown.
+ * @param touches - `TouchEvent.touches.length` for the current touchmove.
+ * @returns true when the stroke must be abandoned before any preventDefault.
+ */
+export function shouldAbortForTouchCount(touches: number): boolean {
+  return touches > 1
 }
 
 /**
@@ -732,6 +819,11 @@ function beginStroke(
   if (onCooldown()) return false
   if (modalOpen()) return false
   if (takeoverActive()) return false
+  // A live selection owns the stroke: yield before any geometric test. This
+  // also blocks swipe-open while a stale selection is alive; one tap collapses
+  // the selection everywhere, and backdrop tap-to-close is unaffected (a tap
+  // never reaches beginStroke's scroller/lock path).
+  if (selectionOwnsStroke()) return false
   if (!(event.target instanceof Element)) return false
   // A stroke beginning inside a genuinely horizontally scrollable container
   // belongs to that scroller (the stats line, a message code block, any
@@ -982,7 +1074,10 @@ export function installSidebarSwipe(ctx: ClientContext): void {
       consumedEl = null
       clearStrokeLocked() // belt-and-suspenders: a lost stroke must not leak its lock into this epoch
       if (event.pointerType !== 'touch' && event.pointerType !== 'pen') return
-      if (trackingPointer !== 0 && trackingPointer !== event.pointerId) return
+      if (shouldAbortForMultiTouch(trackingPointer, event.pointerId)) {
+        abortStroke(ctx)
+        return
+      }
       beginStroke(event, frameRtl(), viewportWidth())
     }
 
@@ -996,6 +1091,15 @@ export function installSidebarSwipe(ctx: ClientContext): void {
         return
       }
       if (!tracking) {
+        // A long-press selection can appear AFTER pointerdown but BEFORE the
+        // axis lock: abandon the stroke and hand the touch back so the handles
+        // become draggable (reset() also lifts the touchmove preventDefault).
+        // Once locked the gesture stays committed — a selection never appears
+        // mid-swipe.
+        if (selectionOwnsStroke()) {
+          reset()
+          return
+        }
         if (tryLock(event)) {
           pushSample(event)
           applyFollow(ctx, event.clientX - startX)
@@ -1068,8 +1172,20 @@ export function installSidebarSwipe(ctx: ClientContext): void {
     // horizontally scrollable container never reach this state at all
     // (beginStroke rejects them via findHorizontalScroller), so their
     // native horizontal pan is never prevented.
+    //
+    // Multi-touch is the one case that must never be prevented: two fingers
+    // mean a pinch, and preventDefault on those touchmoves cancels the
+    // browser's zoom gesture. The pointerdown guard above already abandons
+    // the stroke when a second finger lands; this is the belt-and-braces path
+    // for engines that hand the gesture to the compositor without delivering
+    // a second pointerdown.
     const onTouchMove = (event: TouchEvent): void => {
-      if (trackingPointer !== 0) event.preventDefault()
+      if (trackingPointer === 0) return
+      if (shouldAbortForTouchCount(event.touches.length)) {
+        abortStroke(ctx)
+        return
+      }
+      event.preventDefault()
     }
 
     document.addEventListener('pointerdown', onPointerDown, true)

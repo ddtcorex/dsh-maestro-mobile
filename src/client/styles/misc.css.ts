@@ -2,7 +2,7 @@
 // Self-contained: each section (composer / tablet / desktop) carries its own
 // media query.
 
-export const MISC_CSS = `@media (max-width: 1023px) {
+export const MISC_CSS = `@media (max-width: 1023px) and (pointer: coarse) {
   /* ---------- composer dock: swap git branch chip with the todo card ----------
      The git-graph branch chip (conversation.input.dock, order 100) floats
      alone at the bottom-left above the input card, with a dead zone to its
@@ -38,24 +38,30 @@ export const MISC_CSS = `@media (max-width: 1023px) {
     transition: transform .12s !important;
   }
 
-  /* ---------- ask question composer (ask_user_question): kill iOS Safari
-      input-focus auto-zoom ----------
-      Safari on iPhone enlarges the whole viewport when a focused <input> /
-      <textarea> computes font-size < 16px, and only reverts on blur. The ask
-      dialog is a modal composer takeover, so taps outside never blur the
-      field and the magnification persists until the field loses focus
-      (e.g. the dialog is dismissed). The ask composer's free-form answer is a
-      textarea over a hidden height mirror (.fieldInput / .fieldMirror), both
-      shipped at 14px by ui-user-questions QuestionComposer.module.css. Raise
-      BOTH layers to 16px on mobile: the mirror is what sizes the auto-grown
-      field, so a mismatch would make the box the wrong height for the typed
-      text. Scoped to the ask composer's stable [data-question-key] root
-      (AGENTS.md: scope hashed-class selectors to the owning region, prefer
-      stable data-* markers); the class-name suffix match follows the plugin's
-      established harness CSS-module convention (verified against the live app:
-      generated names end with the original local name, e.g. uV2eYG_input). */
-  [data-question-key] [class*="_fieldInput"],
-  [data-question-key] [class*="_fieldMirror"] {
+  /* ---------- iOS focus-zoom floor: raise the fields, do not ban zoom ----------
+      Safari on iPhone enlarges the whole visual viewport when a focused
+      <input> / <textarea> computes font-size < 16px, and only reverts on blur.
+      The ask dialog is a modal composer takeover, so taps outside never blur
+      the field and the magnification persists until the field loses focus.
+      Gated on html[data-mobile-nav-ios] (phone-chrome.ts detectIosWebKit)
+      because only WebKit on iOS zooms on focus: Android and desktop keep the
+      compact fields they were designed with, and no zoom-limiting token is
+      written into the viewport meta (that would take pinch away from them).
+      The floor covers every text-entry control on the page, including the ones
+      portalled outside the frame (settings dialogs, the market sheet,
+      third-party panels) — a phone can reach all of them. Button-like inputs
+      are excluded (nothing to type, no keyboard) and select is left alone on
+      purpose: it would break the composer's 28px access-mode control, and a
+      native picker overlays the screen instead of leaving a zoomed page behind.
+      The ask composer's hidden height mirror must carry the SAME size as its
+      textarea — it is what sizes the auto-grown field, so a mismatch makes the
+      box the wrong height for the typed text. */
+  html[data-mobile-nav-ios] textarea,
+  html[data-mobile-nav-ios] [contenteditable]:not([contenteditable="false"]),
+  html[data-mobile-nav-ios] [data-input-mirror],
+  html[data-mobile-nav-ios] [data-input-backdrop],
+  html[data-mobile-nav-ios] [data-question-key] [class*="_fieldMirror"],
+  html[data-mobile-nav-ios] input:not([type="button"]):not([type="checkbox"]):not([type="color"]):not([type="file"]):not([type="hidden"]):not([type="image"]):not([type="radio"]):not([type="range"]):not([type="reset"]):not([type="submit"]) {
     font-size: 16px !important;
   }
 
@@ -88,7 +94,7 @@ export const MISC_CSS = `@media (max-width: 1023px) {
    desktop-mode tall windows) the same full-bleed sheet leaves content
    clustered at the left edge with a large dead zone on the right. Cap and
    center the modal sheets and the aionui bottom sheets instead. */
-@media (min-width: 768px) and (max-width: 1023px) {
+@media (min-width: 768px) and (max-width: 1023px) and (pointer: coarse) {
   /* All modal dialogs: centered, never edge-to-edge. The settings sheet has
      a higher-specificity full-width rule above, so repeat its selector here
      to win; the generic export/other-modal rule is covered by the second
@@ -125,7 +131,7 @@ export const MISC_CSS = `@media (max-width: 1023px) {
 
 /* ---------- desktop: the mobile controls must never appear ---------- */
 
-@media (min-width: 1024px) {
+@media (min-width: 1024px), (pointer: fine), (pointer: none) {
   [data-mobile-nav="toggle"],
   [data-mobile-nav="fab"],
   [data-mobile-nav="backdrop"],

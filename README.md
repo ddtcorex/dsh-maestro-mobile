@@ -1,12 +1,12 @@
 # dsh-maestro-mobile
 
-Mobile adaptation for the DeepSeek Harness (DSH) Web UI. Below 1024px it turns the sidebar into an overlay drawer, sheets the dialogs, and tunes the composer for phones; at ≥1024px it is a complete no-op, so desktop is untouched.
+Mobile adaptation for the DeepSeek Harness (DSH) Web UI. On touch-primary devices below 1024px it turns the sidebar into an overlay drawer, sheets the dialogs, and tunes the composer for phones; any mouse-driven window, at every width, is a complete no-op — a narrow desktop window or a scaled display never gets the mobile shell.
 
 ## What you get
 
 | Capability | How it works |
 |---|---|
-| Sidebar → drawer | Below 1024px the sidebar becomes a left overlay drawer (~80vw, `transform:none` when open); desktop ≥1024px is untouched |
+| Sidebar → drawer | On touch-primary devices below 1024px the sidebar becomes a left overlay drawer (~80vw, `transform:none` when open); desktop is untouched at every width |
 | Dialogs → sheets | Settings, explorer, and preview become mobile-friendly bottom sheets with `env(safe-area-inset-*)` handling and notch avoidance |
 | Status-bar & safe areas | Status-bar / notch padding, light/dark `theme-color`, and `touch-action: manipulation` + `gesturestart` guard against double-tap zoom |
 | Composer stays clean | Permission capsule, model name, and switch menus use fixed-size pinning so they never squeeze or overlap on narrow screens |
@@ -62,7 +62,7 @@ DSH_PROBE_SESSION_ID=<id> pnpm smoke:cdp
 - Host / client split is load-bearing: `src/index.ts` is the intentionally empty host `apply()`; all browser behavior lives in `src/client/`.
 - `src/client/index.tsx` injects `['slots','layout','locale','sessionLogDownload']`, registers locale dictionaries, injects one `<style data-plugin>` tag, and registers two slots (`MobileNavToggle` and `MobileDrawerFooter`).
 - Shared full-tree reconciler: `reconciler-core.ts` (zero-import engine) + `phone-chrome.ts` (a single `MutationObserver` driving `installMobileEffect`).
-- Styles are concatenated `base → layout → compat → misc` into one tag; mobile rules target `(max-width: 1023px)`.
+- Styles are concatenated `tokens → base → layout → sheet → explorer-sheet → composer → settings-sheet → misc` into one tag; mobile rules target `(max-width: 1023px) and (pointer: coarse)`.
 
 ## License
 

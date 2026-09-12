@@ -27,10 +27,11 @@ Contrast: 4.5:1 verified on both themes via DSH token pairs (label-primary on bg
 ## Breakpoints (single source: DSH AppFrame)
 
 - `SIDEBAR_AUTO_COLLAPSE = 1024` — narrow <1024 collapses sidebar to 56px rail
-- Mobile: `(max-width: 1023px)` — drawer + sheets
-- Tablet: `(min-width: 768px) and (max-width: 1023px)` — centered sheets max 720px
-- Desktop: `(min-width: 1024px)` — no-op, hide [data-mobile-nav]
-- Tiny: `(max-width: 359px)` / `(max-width: 440px)` — progressive header crowding guards
+- Mobile: `(max-width: 1023px) and (pointer: coarse)` — drawer + sheets; the pointer half keeps a narrow mouse-driven window on the desktop shell
+- Touch-only (no width bound): `(pointer: coarse)` — the features with no desktop equivalent (session-menu deletion)
+- Tablet: `(min-width: 768px) and (max-width: 1023px) and (pointer: coarse)` — centered sheets max 720px
+- Desktop: `(min-width: 1024px), (pointer: fine), (pointer: none)` — no-op, hide `[data-mobile-nav]`; the exact complement of Mobile
+- Tiny: `(max-width: 359px)` / `(max-width: 440px)` — progressive header crowding guards (nested inside Mobile)
 
 ## Components
 

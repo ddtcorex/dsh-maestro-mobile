@@ -4,7 +4,7 @@
 // Consolidated from legacy compat.css.ts — core visibility + geometry retained, polish migrated to DSH tokens
 
 export const EXPLORER_SHEET_CSS = `
-@media (max-width: 1023px) {
+@media (max-width: 1023px) and (pointer: coarse) {
   /* Core: both cols leave grid as floating panels */
   [data-aionui-explorer-col],
   [data-aionui-preview-col] {

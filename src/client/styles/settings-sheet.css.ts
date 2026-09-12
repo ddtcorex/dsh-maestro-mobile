@@ -6,7 +6,7 @@
 // Guard: [class*="_nav"] is prefix of _navTitle/_navList/_navCell/... — outer nav uses :not guards.
 
 export const SETTINGS_SHEET_CSS = `
-@media (max-width: 1023px) {
+@media (max-width: 1023px) and (pointer: coarse) {
   /* Overlay anchor: only when it hosts the Settings panel (panel:has(navList)) */
   [class*="_overlay"]:has([class*="_panel"]:has([class*="_navList"])) {
     align-items: flex-end !important;
@@ -207,7 +207,7 @@ export const SETTINGS_SHEET_CSS = `
 }
 
 /* Tablet 768-1023: centered constrained sheet, r24 all corners */
-@media (min-width: 768px) and (max-width: 1023px) {
+@media (min-width: 768px) and (max-width: 1023px) and (pointer: coarse) {
   [class*="_overlay"]:has([class*="_panel"]:has([class*="_navList"])) {
     align-items: center !important;
     padding: 24px 16px calc(16px + env(safe-area-inset-bottom, 0px)) !important;
@@ -231,7 +231,7 @@ export const SETTINGS_SHEET_CSS = `
   }
 }
 
-@media (min-width: 1024px) {
+@media (min-width: 1024px), (pointer: fine), (pointer: none) {
   [class*="_panel"]:has([class*="_navList"])::before {
     display: none !important;
   }

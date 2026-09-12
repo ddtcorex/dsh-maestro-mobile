@@ -41,7 +41,8 @@ pnpm build          # tsc host + client && node scripts/build-client.mjs  -> lib
 
 - Keep the host/client split intact; the empty host `apply()` is intentional.
 - Prefer stable `data-*` markers and structural selectors over hashed classes. For unavoidable hashed classes use substring matching (`[class*=_frag]`), never attribute-suffix (`[class$=…]`); scope to the owning region and guard prefix-overlapping fragments with `:not`.
-- Put every long-lived style tag, listener, timer, or `MutationObserver` inside `ctx.effect(() => { ...; return disposer }, label)`. Re-arm width-sensitive effects on `matchMedia('(max-width: 1023px)')` changes so wide→narrow transitions work.
+- Put every long-lived style tag, listener, timer, or `MutationObserver` inside `ctx.effect(() => { ...; return disposer }, label)`. Re-arm query-sensitive effects through `installMobileEffect` (it owns the `matchMedia` + change listener) so wide→narrow and pointer changes work; pass `TOUCH_QUERY` for the features that have no desktop equivalent.
+- **The mobile branch is pointer-gated, not width-gated.** `MOBILE_QUERY = '(max-width: 1023px) and (pointer: coarse)'` in `src/client/effects/phone-chrome.ts` is the single source of truth: JS effects and every narrow CSS block must use the identical predicate, and the desktop blocks use its exact complement `(min-width: 1024px), (pointer: fine), (pointer: none)`. A mouse-driven window of any width stays desktop. Headless Chrome reports `(pointer: none)` unless touch emulation is on — probes must call `Emulation.setTouchEmulationEnabled` (see `scripts/cdp-probe.mjs`) and assert the query.
 - Treat DOM markers as the cross-module state contract: `data-mobile-nav="frame"`, `data-sidebar-collapsed`, `data-aionui-explorer-open`, `data-aionui-preview-open`, `data-mobile-preview-full`.
 - Use idempotent `ensure()` / reparent logic when injecting nodes into React-owned DOM; clean up moved nodes and listeners on disposal.
 - Client runtime effects are synchronous DOM work. TypeScript style: single quotes, no semicolons, explicit exported return types, installer names `install<Domain>`.
@@ -53,7 +54,8 @@ pnpm build          # tsc host + client && node scripts/build-client.mjs  -> lib
 
 After source / layout changes, verify in a real browser at both sides of the breakpoint (live DSH Web, not just curl/grep):
 
-- **Phone ~390px**: rail hidden; drawer / FAB / backdrop open and close; Escape; session-row action menus do not close the drawer; Settings usable; Files opens explorer/preview sheets; session-log/footer actions work; preview fullscreen opens and resets.
+- **Phone ~390px** (touch emulation on): rail hidden; drawer / FAB / backdrop open and close; Escape; session-row action menus do not close the drawer; Settings usable; Files opens explorer/preview sheets; session-log/footer actions work; preview fullscreen opens and resets.
+- **Narrow desktop window ~900px** (touch emulation off): the plugin is a complete no-op — no frame marker, no toggle/FAB, no stylesheet effect. This is the regression the pointer gate exists for.
 - **Tablet 768–1023px**: centered, width-constrained sheet geometry.
 - **Desktop ≥1024px**: compare with the plugin disabled — no layout or interaction change.
 

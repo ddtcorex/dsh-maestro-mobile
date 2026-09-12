@@ -13,24 +13,47 @@ import { consumeIfGestured, isStrokeLocked } from './gesture-guard.ts'
 // so this mirrors the namespace id from src/client/locales.ts. Keep in sync.
 const NS = 'mobileNav'
 
-/** Same breakpoint as the shell's SIDEBAR_AUTO_COLLAPSE (viewport < 1024). */
-export const MOBILE_QUERY = '(max-width: 1023px)'
+/** Same width bound as the shell's SIDEBAR_AUTO_COLLAPSE (viewport < 1024),
+ *  ANDed with a touch-primary pointer guard. Width alone cannot tell a phone
+ *  from a desktop window: split views and OS display scaling push a PC's CSS
+ *  viewport below 1024px too, and the whole mobile shell (drawer, header
+ *  toggle, gestures) would mount there. (pointer: coarse) keeps the
+ *  adaptation on touch-primary devices while any mouse-driven window stays
+ *  desktop at every width.
+ *
+ *  Probe consequence: headless Chrome reports (pointer: none) — not coarse —
+ *  unless touch emulation is enabled, so a CDP probe must call
+ *  Emulation.setTouchEmulationEnabled (or set hasTouch) before asserting any
+ *  mobile UI, or every assertion silently becomes a desktop assertion. */
+export const MOBILE_QUERY = '(max-width: 1023px) and (pointer: coarse)'
 
-/** Desktop no-op boundary, kept next to the mobile query for one source of truth. */
+/** Desktop no-op boundary, kept next to the mobile query for one source of truth.
+ *  Informational only: the authoritative desktop guard is the complement media
+ *  query in styles/misc.css.ts, because slot-rendered controls exist at every
+ *  width. */
 export const DESKTOP_QUERY = '(min-width: 1024px)'
 
+/** Pointer-only guard for the features that have no desktop equivalent
+ *  (session-menu deletion and friends): armed on touch-primary devices at
+ *  EVERY width, so a large tablet in landscape keeps the desktop layout but
+ *  still gets them. Mouse-driven or pointer-less windows never arm. */
+export const TOUCH_QUERY = '(pointer: coarse)'
+
 /**
- * Re-arm a mobile-only DOM effect on every width change. Replaces the
+ * Re-arm a mobile-only DOM effect on every query change. Replaces the
  * repeated matchMedia + change-listener scaffold so all breakpoint strings
- * live in one place.
+ * live in one place. `query` defaults to MOBILE_QUERY; an effect that arms on
+ * a different condition passes its own string instead of building a private
+ * matchMedia scaffold.
  */
 export function installMobileEffect(
   ctx: ClientContext,
   label: string,
   install: (narrow: MediaQueryList) => (() => void) | undefined,
+  query: string = MOBILE_QUERY,
 ): void {
   ctx.effect(() => {
-    const narrow = window.matchMedia(MOBILE_QUERY)
+    const narrow = window.matchMedia(query)
     let cleanup: (() => void) | undefined
     const arm = (): void => {
       cleanup?.()
@@ -185,19 +208,82 @@ export function installReconciler(ctx: ClientContext): () => void {
   }
 }
 
+/**
+ * Whether the page runs on iOS / iPadOS WebKit, where focusing a text field
+ * whose computed font-size is below 16px zooms the whole visual viewport.
+ * Every other engine ignores field font-size, so the 16px floor in
+ * styles/misc.css.ts is gated on this marker instead of applying to every
+ * phone — Android would only get bigger fields for no benefit.
+ *
+ * Pure and injectable so the decision table is unit-testable:
+ * - The feature probe is the reliable signal: `font: -apple-system-body` is
+ *   Safari-only and `-webkit-touch-callout` is an iOS property, so the pair is
+ *   true on iOS WebKit (including Chrome / Edge / Opera on iOS, which are
+ *   WebKit and zoom identically) and false on Chromium and on macOS Safari.
+ * - The UA fallback covers engines whose CSS.supports is missing or which
+ *   parse the probe differently: iPhone / iPad / iPod UAs, plus iPadOS 13+
+ *   which reports a Macintosh UA and is told apart by its touch points.
+ * @param nav - the navigator fields the decision reads.
+ * @param supports - `CSS.supports`, or null when unavailable.
+ * @returns true when the page must hold every text field at >= 16px.
+ */
+export function detectIosWebKit(
+  nav: { userAgent: string; maxTouchPoints: number },
+  supports: ((condition: string) => boolean) | null,
+): boolean {
+  if (supports !== null) {
+    try {
+      if (supports('(font: -apple-system-body) and (-webkit-touch-callout: none)')) return true
+    } catch {
+      // A UA that rejects the condition string falls through to the UA test.
+    }
+  }
+  const ua = nav.userAgent
+  if (/iP(hone|ad|od)/.test(ua)) return true
+  return /Macintosh/.test(ua) && nav.maxTouchPoints > 1
+}
+
+/** Marker the iOS-only zoom-guard CSS is scoped to (set on documentElement). */
+export const IOS_MARKER = 'data-mobile-nav-ios'
+
 /** Register a reconciler task. The returned disposer removes it immediately. */
 export function addReconcilerTask(task: ReconcilerTask): () => void {
   return core.register(task)
 }
 
 /**
+ * Viewport content the plugin owns while the mobile branch is armed.
+ * Deliberately zoom-free: iOS 10+ ignores maximum-scale/user-scalable for user
+ * pinch but other engines honour them, so writing them would only take zoom
+ * away from Android; the iOS focus-zoom fix is the >=16px field floor
+ * (data-mobile-nav-ios), not a zoom ban.
+ */
+export const VIEWPORT_CONTENT = 'width=device-width, initial-scale=1, viewport-fit=cover'
+
+/**
+ * The viewport content the plugin writes, for any host value observed at arm
+ * time. Pure so the "no zoom tokens" rule is testable without a DOM.
+ * @param existing - the host's own viewport content (unused today; kept in the
+ * signature so a future host token that must be carried forward has one place
+ * to live).
+ * @returns the plugin-owned content.
+ */
+export function viewportContentFor(existing: string): string {
+  void existing
+  return VIEWPORT_CONTENT
+}
+
+const findViewportMeta = (): HTMLMetaElement | null =>
+  document.querySelector<HTMLMetaElement>('meta[name="viewport"]')
+
+/**
  * Phone chrome: KEEP the system status bar (no fullscreen) and make it
  * blend into the page. On narrow screens:
- * - The viewport meta gains viewport-fit=cover, so env(safe-area-inset-top)
- *   is the real status-bar / notch height and the stylesheet can push every
- *   surface below it (off notched phones, or in a browser tab where the
- *   layout viewport already sits below the status bar, the inset is 0 and
- *   nothing shifts).
+ * - The viewport meta is OWNED by the plugin while armed:
+ *   width=device-width, initial-scale=1, viewport-fit=cover, re-asserted on
+ *   every host rewrite, node replacement, or late injection, so
+ *   env(safe-area-inset-top) stays the real status-bar / notch height instead
+ *   of silently going stale when the host touches the meta.
  * - A theme-color meta tracks the shell background (the official theme is
  *   toggled by body[data-ds-dark-theme], which flips --dsw-alias-bg-base):
  *   Android then paints the status bar / URL bar with the page's own base
@@ -209,39 +295,76 @@ export function addReconcilerTask(task: ReconcilerTask): () => void {
  */
 export function installPhoneChrome(ctx: ClientContext): void {
   installMobileEffect(ctx, 'dsh-maestro-mobile: status bar theme + viewport + zoom guard', () => {
-    const viewport = document.querySelector<HTMLMetaElement>('meta[name="viewport"]')
-    const originalViewport = viewport?.content ?? ''
     const themeMeta = document.createElement('meta')
     themeMeta.name = 'theme-color'
     const bodyBg = (): string => getComputedStyle(document.body).backgroundColor
+    let originalViewport: string | null = null
+    let observedMeta: HTMLMetaElement | null = null
+    // Our own write retriggers the observers; the equality check in
+    // assertViewport turns that pass into a no-op, and `applying` guards the
+    // write itself against re-entrant observer callbacks on exotic engines.
+    let applying = false
 
-    const sync = (): void => {
+    // The plugin owns the meta while armed, so a host rewrite, a node
+    // replacement, or a meta that arrives after this effect arms cannot
+    // silently drop viewport-fit=cover; attachMetaObserver re-binds to the
+    // current node so a replacement keeps being watched.
+    const assertViewport = (): void => {
+      const viewport = findViewportMeta()
+      if (viewport === null) return
+      if (originalViewport === null) originalViewport = viewport.content
+      if (applying || viewport.content === VIEWPORT_CONTENT) return
+      applying = true
+      viewport.content = viewportContentFor(viewport.content)
+      applying = false
+    }
+    const metaObserver = new MutationObserver(assertViewport)
+    const attachMetaObserver = (): void => {
+      const viewport = findViewportMeta()
+      if (viewport === observedMeta) return
+      if (observedMeta !== null) metaObserver.disconnect()
+      observedMeta = viewport
       if (viewport !== null) {
-        // iOS Safari auto-zooms when focusing any field below 16px unless the
-        // viewport meta carries maximum-scale=1. The host page may set that
-        // flag; this rewrite REPLACES the meta, so carry the token forward
-        // instead of dropping it (dispose restores the original anyway).
-        const locked = /(^|,)\s*maximum-scale\s*=/.test(viewport.content)
-        viewport.content = `width=device-width, initial-scale=1${locked ? ', maximum-scale=1' : ''}, viewport-fit=cover`
+        metaObserver.observe(viewport, { attributes: true, attributeFilter: ['content'] })
       }
-      themeMeta.content = bodyBg()
-      if (themeMeta.parentElement === null) document.head.appendChild(themeMeta)
     }
-    const restore = (): void => {
-      if (viewport !== null) viewport.content = originalViewport
-      themeMeta.remove()
-    }
-    const onGestureStart = (event: Event) => event.preventDefault()
+    const headObserver = new MutationObserver((): void => {
+      attachMetaObserver()
+      assertViewport()
+    })
+    headObserver.observe(document.head, { childList: true })
+    attachMetaObserver()
+    assertViewport()
+
     const observer = new MutationObserver(() => {
       themeMeta.content = bodyBg()
     })
     observer.observe(document.body, { attributes: true, attributeFilter: ['data-ds-dark-theme'] })
+    const onGestureStart = (event: Event) => event.preventDefault()
     document.addEventListener('gesturestart', onGestureStart)
-    sync()
+    // iOS WebKit zooms the viewport when a field below 16px takes focus; the
+    // marker gates the 16px floor in styles/misc.css.ts to that engine only.
+    const cssSupports = typeof CSS !== 'undefined' && typeof CSS.supports === 'function'
+      ? (condition: string): boolean => CSS.supports(condition)
+      : null
+    if (detectIosWebKit(navigator, cssSupports)) {
+      document.documentElement.setAttribute(IOS_MARKER, '')
+    }
+    themeMeta.content = bodyBg()
+    if (themeMeta.parentElement === null) document.head.appendChild(themeMeta)
     return () => {
+      metaObserver.disconnect()
+      headObserver.disconnect()
       observer.disconnect()
       document.removeEventListener('gesturestart', onGestureStart)
-      restore()
+      const viewport = findViewportMeta()
+      // Hand the meta back only if it still holds OUR content; a host value
+      // written while we were armed wins on dispose.
+      if (viewport !== null && originalViewport !== null && viewport.content === VIEWPORT_CONTENT) {
+        viewport.content = originalViewport
+      }
+      themeMeta.remove()
+      document.documentElement.removeAttribute(IOS_MARKER)
     }
   })
 }

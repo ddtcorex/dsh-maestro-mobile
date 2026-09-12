@@ -78,7 +78,7 @@ export const SHEET_CSS = `
   padding: 0 24px;
   min-height: 0;
 }
-@media (min-width: 768px) and (max-width: 1023px) {
+@media (min-width: 768px) and (max-width: 1023px) and (pointer: coarse) {
   [data-mobile-sheet="dialog"] {
     width: min(calc(100vw - 32px), 720px);
     border-radius: 24px;
@@ -91,7 +91,7 @@ export const SHEET_CSS = `
     animation: none !important;
   }
 }
-@media (min-width: 1024px) {
+@media (min-width: 1024px), (pointer: fine), (pointer: none) {
   [data-mobile-sheet="root"] {
     align-items: center;
     padding: 24px;

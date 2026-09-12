@@ -144,7 +144,28 @@ async function setViewport(client, width, height, mobile) {
     height,
     deviceScaleFactor: mobile ? 2 : 1,
     mobile: !!mobile,
+    hasTouch: !!mobile,
   });
+  // The mobile branch is gated on (pointer: coarse) as well as width. Headless
+  // Chrome reports (pointer: none) — not coarse — unless touch emulation is
+  // enabled, so without this call every mobile assertion below would silently
+  // become a desktop assertion.
+  await client.send('Emulation.setTouchEmulationEnabled', {
+    enabled: !!mobile,
+    // maxTouchPoints must stay within 1..16 even while disabling, so only send
+    // it on the enabling side (CDP rejects 0 with -32602).
+    ...(mobile ? { maxTouchPoints: 5 } : {}),
+  });
+}
+
+/** Read the pointer capability the plugin's media query actually sees. */
+async function pointerState(client) {
+  return client.evaluate(`(() => ({
+    coarse: matchMedia('(pointer: coarse)').matches,
+    fine: matchMedia('(pointer: fine)').matches,
+    none: matchMedia('(pointer: none)').matches,
+    maxTouchPoints: navigator.maxTouchPoints,
+  }))()`);
 }
 
 async function rectFor(client, selector) {
@@ -274,6 +295,15 @@ async function runCoreScenario(client, config, signal, pageErrors) {
   });
   pass('core.plugin-style', `count=${boot.styleCount}`);
   pass('mobile.frame-marker', 'present=true');
+
+  // The mobile branch is pointer-gated as well as width-gated: assert the
+  // media query the plugin reads, so a probe running without touch emulation
+  // fails loudly instead of silently testing the desktop shell.
+  const mobilePointer = await waitFor('mobile pointer state', config.timeoutMs, signal, async () => {
+    const state = await pointerState(client);
+    return state.coarse === true ? state : null;
+  });
+  pass('mobile.pointer-coarse', `coarse=true maxTouchPoints=${mobilePointer.maxTouchPoints}`);
 
   // Drawer state: open = backdrop present, frame without data-sidebar-collapsed,
   // first frame child (the drawer) with positive size; closed = collapsed frame
@@ -436,6 +466,35 @@ async function runCoreScenario(client, config, signal, pageErrors) {
     return !state.frame && !state.preview && !state.toggleVisible && !state.fabVisible ? state : null;
   });
   pass('desktop.boundary-1024', 'frame=absent preview=absent controls=hidden');
+
+  // Narrow DESKTOP window (900px, fine/no pointer): must stay desktop. Width
+  // alone used to arm the whole mobile shell here, and the pointer state is
+  // asserted too so the gate can never pass on a probe whose touch emulation
+  // silently failed.
+  await setViewport(client, 900, 800, false);
+  const narrowPointer = await waitFor('narrow desktop pointer state', config.timeoutMs, signal, async () => {
+    const state = await pointerState(client);
+    return state.coarse === false ? state : null;
+  });
+  pass('desktop.narrow-pointer', `coarse=false none=${narrowPointer.none} fine=${narrowPointer.fine}`);
+  await waitFor('narrow desktop no-op', config.timeoutMs, signal, async () => {
+    const state = await client.evaluate(`(() => {
+      const visible = (selector) => {
+        const element = document.querySelector(selector);
+        if (element === null) return false;
+        const style = getComputedStyle(element);
+        const rect = element.getBoundingClientRect();
+        return style.display !== 'none' && style.visibility !== 'hidden' && rect.width > 0 && rect.height > 0;
+      };
+      return {
+        frame: document.querySelector(${JSON.stringify(MOBILE_FRAME_SELECTOR)}) !== null,
+        toggleVisible: visible(${JSON.stringify(MOBILE_TOGGLE_SELECTOR)}),
+        fabVisible: visible(${JSON.stringify(MOBILE_FAB_SELECTOR)}),
+      };
+    })()`);
+    return !state.frame && !state.toggleVisible && !state.fabVisible ? state : null;
+  });
+  pass('desktop.narrow-900', 'frame=absent controls=hidden');
 
   // Exact 1023px boundary: still mobile, so the frame and an open control must
   // come back.
@@ -838,7 +897,12 @@ async function main() {
     const waitForPageLoad = (label) => waitFor(label, config.timeoutMs, signal, async () => {
       try {
         const state = await client.evaluate(`({ ready: document.readyState === 'complete', href: location.href })`);
-        return state.ready && state.href.startsWith(config.url) ? state : null;
+        if (!state.ready) return null;
+        // Compare origin, not the literal URL: a raw-port navigation carrying
+        // ?token=… is redirected to the bare origin once the launch-token
+        // cookie is minted, so a startsWith() check on the full URL never
+        // matches.
+        return new URL(state.href).origin === new URL(config.url).origin ? state : null;
       } catch {
         return null;
       }

@@ -3,7 +3,7 @@
 
 export const LAYOUT_CSS = `/* ---------- mobile-only layout ---------- */
 
-@media (max-width: 1023px) {
+@media (max-width: 1023px) and (pointer: coarse) {
   /* --- Phone chrome ---
      The system status bar stays visible (no fullscreen). Three adjustments
      make it behave:
