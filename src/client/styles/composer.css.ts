@@ -10,9 +10,14 @@ export const COMPOSER_CSS = `
   }
   /* The iOS focus-zoom 16px field floor (including the ask composer's height
      mirror) lives in misc.css.ts, gated on html[data-mobile-nav-ios]. */
-  /* Hide tooltips on touch — "Stop generating" lingers mid-screen after tap on mobile */
-  [role="tooltip"] {
-    display: none !important;
+  /* Hide tooltips on touch — "Stop generating" lingers mid-screen after tap on
+     mobile. Scoped to the conversation phase and gated on a touch-ish pointer:
+     an unscoped [role="tooltip"] rule would also hide tooltips owned by other
+     plugins (market, dashboard, third-party panels) on any phone. */
+  @media (hover: none), (pointer: coarse) {
+    [data-phase] [role="tooltip"] {
+      display: none !important;
+    }
   }
   /* Ask question composer — fix Submit cutoff on narrow phones (user report 390px).
      The footer is a single row (pager + feedback flex:1 + actions) that overflows
