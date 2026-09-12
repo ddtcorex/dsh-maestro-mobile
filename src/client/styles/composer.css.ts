@@ -8,13 +8,8 @@ export const COMPOSER_CSS = `
   [data-phase="active"] [data-composer-seat] {
     padding-bottom: max(12px, env(safe-area-inset-bottom, 0px)) !important;
   }
-  /* iOS Safari input-focus zoom guard — DSH ask_user_question fields. The
-     answer stack is a hidden height mirror over the textarea, so both layers
-     must carry the same font-size or the auto-grown field height diverges. */
-  [data-question-key] [class*="_fieldInput"],
-  [data-question-key] [class*="_fieldMirror"] {
-    font-size: 16px !important;
-  }
+  /* The iOS focus-zoom 16px field floor (including the ask composer's height
+     mirror) lives in misc.css.ts, gated on html[data-mobile-nav-ios]. */
   /* Hide tooltips on touch — "Stop generating" lingers mid-screen after tap on mobile */
   [role="tooltip"] {
     display: none !important;

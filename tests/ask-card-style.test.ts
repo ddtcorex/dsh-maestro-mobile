@@ -67,10 +67,17 @@ test('the iOS zoom guard targets the current answer-field classes', () => {
   // Upstream renamed the answer stack to .field / .fieldInput / .fieldMirror;
   // the guard kept matching the dead .customInput / .customTextarea names, so
   // iOS Safari zoomed the whole viewport on focus. The mirror sizes the
-  // auto-grown field, so it must carry the same 16px as the textarea.
-  const guard = /\[data-question-key\] \[class\*="_fieldInput"\],\s*\n\s*\[data-question-key\] \[class\*="_fieldMirror"\] \{\s*\n\s*font-size: 16px !important;/
-  assert.match(composer, guard)
-  assert.match(misc, guard)
+  // auto-grown field, so it must carry the same 16px as the textarea. The
+  // floor now lives once in misc.css.ts, gated on html[data-mobile-nav-ios] so
+  // only the engine that zooms pays for it.
+  assert.match(
+    misc,
+    /html\[data-mobile-nav-ios\] \[data-question-key\] \[class\*="_fieldMirror"\]/,
+  )
+  assert.match(
+    misc,
+    /html\[data-mobile-nav-ios\] textarea,/,
+  )
   assert.doesNotMatch(composer + misc, /_customInput|_customTextarea/)
 })
 

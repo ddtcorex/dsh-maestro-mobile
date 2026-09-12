@@ -208,6 +208,44 @@ export function installReconciler(ctx: ClientContext): () => void {
   }
 }
 
+/**
+ * Whether the page runs on iOS / iPadOS WebKit, where focusing a text field
+ * whose computed font-size is below 16px zooms the whole visual viewport.
+ * Every other engine ignores field font-size, so the 16px floor in
+ * styles/misc.css.ts is gated on this marker instead of applying to every
+ * phone — Android would only get bigger fields for no benefit.
+ *
+ * Pure and injectable so the decision table is unit-testable:
+ * - The feature probe is the reliable signal: `font: -apple-system-body` is
+ *   Safari-only and `-webkit-touch-callout` is an iOS property, so the pair is
+ *   true on iOS WebKit (including Chrome / Edge / Opera on iOS, which are
+ *   WebKit and zoom identically) and false on Chromium and on macOS Safari.
+ * - The UA fallback covers engines whose CSS.supports is missing or which
+ *   parse the probe differently: iPhone / iPad / iPod UAs, plus iPadOS 13+
+ *   which reports a Macintosh UA and is told apart by its touch points.
+ * @param nav - the navigator fields the decision reads.
+ * @param supports - `CSS.supports`, or null when unavailable.
+ * @returns true when the page must hold every text field at >= 16px.
+ */
+export function detectIosWebKit(
+  nav: { userAgent: string; maxTouchPoints: number },
+  supports: ((condition: string) => boolean) | null,
+): boolean {
+  if (supports !== null) {
+    try {
+      if (supports('(font: -apple-system-body) and (-webkit-touch-callout: none)')) return true
+    } catch {
+      // A UA that rejects the condition string falls through to the UA test.
+    }
+  }
+  const ua = nav.userAgent
+  if (/iP(hone|ad|od)/.test(ua)) return true
+  return /Macintosh/.test(ua) && nav.maxTouchPoints > 1
+}
+
+/** Marker the iOS-only zoom-guard CSS is scoped to (set on documentElement). */
+export const IOS_MARKER = 'data-mobile-nav-ios'
+
 /** Register a reconciler task. The returned disposer removes it immediately. */
 export function addReconcilerTask(task: ReconcilerTask): () => void {
   return core.register(task)
@@ -304,6 +342,14 @@ export function installPhoneChrome(ctx: ClientContext): void {
     observer.observe(document.body, { attributes: true, attributeFilter: ['data-ds-dark-theme'] })
     const onGestureStart = (event: Event) => event.preventDefault()
     document.addEventListener('gesturestart', onGestureStart)
+    // iOS WebKit zooms the viewport when a field below 16px takes focus; the
+    // marker gates the 16px floor in styles/misc.css.ts to that engine only.
+    const cssSupports = typeof CSS !== 'undefined' && typeof CSS.supports === 'function'
+      ? (condition: string): boolean => CSS.supports(condition)
+      : null
+    if (detectIosWebKit(navigator, cssSupports)) {
+      document.documentElement.setAttribute(IOS_MARKER, '')
+    }
     themeMeta.content = bodyBg()
     if (themeMeta.parentElement === null) document.head.appendChild(themeMeta)
     return () => {
@@ -318,6 +364,7 @@ export function installPhoneChrome(ctx: ClientContext): void {
         viewport.content = originalViewport
       }
       themeMeta.remove()
+      document.documentElement.removeAttribute(IOS_MARKER)
     }
   })
 }
