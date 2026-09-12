@@ -214,13 +214,38 @@ export function addReconcilerTask(task: ReconcilerTask): () => void {
 }
 
 /**
+ * Viewport content the plugin owns while the mobile branch is armed.
+ * Deliberately zoom-free: iOS 10+ ignores maximum-scale/user-scalable for user
+ * pinch but other engines honour them, so writing them would only take zoom
+ * away from Android; the iOS focus-zoom fix is the >=16px field floor
+ * (data-mobile-nav-ios), not a zoom ban.
+ */
+export const VIEWPORT_CONTENT = 'width=device-width, initial-scale=1, viewport-fit=cover'
+
+/**
+ * The viewport content the plugin writes, for any host value observed at arm
+ * time. Pure so the "no zoom tokens" rule is testable without a DOM.
+ * @param existing - the host's own viewport content (unused today; kept in the
+ * signature so a future host token that must be carried forward has one place
+ * to live).
+ * @returns the plugin-owned content.
+ */
+export function viewportContentFor(existing: string): string {
+  void existing
+  return VIEWPORT_CONTENT
+}
+
+const findViewportMeta = (): HTMLMetaElement | null =>
+  document.querySelector<HTMLMetaElement>('meta[name="viewport"]')
+
+/**
  * Phone chrome: KEEP the system status bar (no fullscreen) and make it
  * blend into the page. On narrow screens:
- * - The viewport meta gains viewport-fit=cover, so env(safe-area-inset-top)
- *   is the real status-bar / notch height and the stylesheet can push every
- *   surface below it (off notched phones, or in a browser tab where the
- *   layout viewport already sits below the status bar, the inset is 0 and
- *   nothing shifts).
+ * - The viewport meta is OWNED by the plugin while armed:
+ *   width=device-width, initial-scale=1, viewport-fit=cover, re-asserted on
+ *   every host rewrite, node replacement, or late injection, so
+ *   env(safe-area-inset-top) stays the real status-bar / notch height instead
+ *   of silently going stale when the host touches the meta.
  * - A theme-color meta tracks the shell background (the official theme is
  *   toggled by body[data-ds-dark-theme], which flips --dsw-alias-bg-base):
  *   Android then paints the status bar / URL bar with the page's own base
@@ -232,39 +257,67 @@ export function addReconcilerTask(task: ReconcilerTask): () => void {
  */
 export function installPhoneChrome(ctx: ClientContext): void {
   installMobileEffect(ctx, 'dsh-maestro-mobile: status bar theme + viewport + zoom guard', () => {
-    const viewport = document.querySelector<HTMLMetaElement>('meta[name="viewport"]')
-    const originalViewport = viewport?.content ?? ''
     const themeMeta = document.createElement('meta')
     themeMeta.name = 'theme-color'
     const bodyBg = (): string => getComputedStyle(document.body).backgroundColor
+    let originalViewport: string | null = null
+    let observedMeta: HTMLMetaElement | null = null
+    // Our own write retriggers the observers; the equality check in
+    // assertViewport turns that pass into a no-op, and `applying` guards the
+    // write itself against re-entrant observer callbacks on exotic engines.
+    let applying = false
 
-    const sync = (): void => {
+    // The plugin owns the meta while armed, so a host rewrite, a node
+    // replacement, or a meta that arrives after this effect arms cannot
+    // silently drop viewport-fit=cover; attachMetaObserver re-binds to the
+    // current node so a replacement keeps being watched.
+    const assertViewport = (): void => {
+      const viewport = findViewportMeta()
+      if (viewport === null) return
+      if (originalViewport === null) originalViewport = viewport.content
+      if (applying || viewport.content === VIEWPORT_CONTENT) return
+      applying = true
+      viewport.content = viewportContentFor(viewport.content)
+      applying = false
+    }
+    const metaObserver = new MutationObserver(assertViewport)
+    const attachMetaObserver = (): void => {
+      const viewport = findViewportMeta()
+      if (viewport === observedMeta) return
+      if (observedMeta !== null) metaObserver.disconnect()
+      observedMeta = viewport
       if (viewport !== null) {
-        // iOS Safari auto-zooms when focusing any field below 16px unless the
-        // viewport meta carries maximum-scale=1. The host page may set that
-        // flag; this rewrite REPLACES the meta, so carry the token forward
-        // instead of dropping it (dispose restores the original anyway).
-        const locked = /(^|,)\s*maximum-scale\s*=/.test(viewport.content)
-        viewport.content = `width=device-width, initial-scale=1${locked ? ', maximum-scale=1' : ''}, viewport-fit=cover`
+        metaObserver.observe(viewport, { attributes: true, attributeFilter: ['content'] })
       }
-      themeMeta.content = bodyBg()
-      if (themeMeta.parentElement === null) document.head.appendChild(themeMeta)
     }
-    const restore = (): void => {
-      if (viewport !== null) viewport.content = originalViewport
-      themeMeta.remove()
-    }
-    const onGestureStart = (event: Event) => event.preventDefault()
+    const headObserver = new MutationObserver((): void => {
+      attachMetaObserver()
+      assertViewport()
+    })
+    headObserver.observe(document.head, { childList: true })
+    attachMetaObserver()
+    assertViewport()
+
     const observer = new MutationObserver(() => {
       themeMeta.content = bodyBg()
     })
     observer.observe(document.body, { attributes: true, attributeFilter: ['data-ds-dark-theme'] })
+    const onGestureStart = (event: Event) => event.preventDefault()
     document.addEventListener('gesturestart', onGestureStart)
-    sync()
+    themeMeta.content = bodyBg()
+    if (themeMeta.parentElement === null) document.head.appendChild(themeMeta)
     return () => {
+      metaObserver.disconnect()
+      headObserver.disconnect()
       observer.disconnect()
       document.removeEventListener('gesturestart', onGestureStart)
-      restore()
+      const viewport = findViewportMeta()
+      // Hand the meta back only if it still holds OUR content; a host value
+      // written while we were armed wins on dispose.
+      if (viewport !== null && originalViewport !== null && viewport.content === VIEWPORT_CONTENT) {
+        viewport.content = originalViewport
+      }
+      themeMeta.remove()
     }
   })
 }
