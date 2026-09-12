@@ -88,6 +88,87 @@ export const MISC_CSS = `@media (max-width: 1023px) and (pointer: coarse) {
   }
 }
 
+/* ---------- session delete: confirmation dialog ----------
+   Gated on the pointer, NOT on width: the delete item is injected on
+   touch-primary devices at every width (a large tablet in landscape keeps the
+   desktop layout but still gets it), so a width-gated stylesheet would leave
+   the dialog unstyled there. The dialog only exists once this plugin injected
+   the item. */
+@media (pointer: coarse) {
+  [data-mobile-nav="delete-dialog-backdrop"] {
+    position: fixed;
+    inset: 0;
+    z-index: 70;
+    background: rgba(0, 0, 0, .42);
+    animation: dsh-maestro-mobile-fade .16s ease-out;
+  }
+  [data-mobile-nav="delete-dialog"] {
+    position: fixed;
+    z-index: 71;
+    left: 12px;
+    right: 12px;
+    bottom: calc(12px + env(safe-area-inset-bottom, 0px));
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    padding: 18px 16px 14px;
+    border-radius: 18px;
+    background: var(--dsw-alias-bg-layer-1, #fff);
+    color: var(--dsw-alias-label-primary, #0f1115);
+    box-shadow: 0 12px 40px rgba(0, 0, 0, .28);
+    animation: dsh-maestro-mobile-sheet-up .22s var(--ds-ease-out, ease-in-out);
+  }
+  [data-mobile-nav="delete-confirm-title"] {
+    font-size: 16px;
+    line-height: 24px;
+    font-weight: 600;
+  }
+  [data-mobile-nav="delete-confirm-desc"] {
+    font-size: 14px;
+    line-height: 21px;
+    color: var(--dsw-alias-label-secondary, #4b5563);
+    overflow-wrap: anywhere;
+  }
+  [data-mobile-nav="delete-error"] {
+    font-size: 13px;
+    line-height: 19px;
+    color: var(--dsw-alias-state-error-primary, #b91c1c);
+    overflow-wrap: anywhere;
+  }
+  [data-mobile-nav="delete-confirm-actions"] {
+    display: flex;
+    justify-content: flex-end;
+    gap: 10px;
+    margin-top: 2px;
+  }
+  [data-mobile-nav="delete-confirm-actions"] button {
+    min-height: 40px;
+    padding: 0 16px;
+    border-radius: 10px;
+    border: 1px solid var(--dsw-alias-border-l1, rgba(0, 0, 0, .12));
+    background: transparent;
+    color: inherit;
+    font-size: 14px;
+    font-weight: 500;
+    cursor: pointer;
+  }
+  [data-mobile-nav="delete-confirm-yes"] {
+    border-color: transparent;
+    background: var(--dsw-alias-state-error-primary, #b91c1c);
+    color: #fff;
+  }
+  [data-mobile-nav="delete-confirm-actions"] button:disabled {
+    opacity: .55;
+    cursor: default;
+  }
+  @media (prefers-reduced-motion: reduce) {
+    [data-mobile-nav="delete-dialog"],
+    [data-mobile-nav="delete-dialog-backdrop"] {
+      animation: none !important;
+    }
+  }
+}
+
 /* ---------- tablet / wide mobile: keep sheets from becoming full-width ----------
    Below 768px the near-full-width sheets are the right call for a phone.
    On wider but still sub-desktop viewports (foldables, tablet portrait,

@@ -9,6 +9,16 @@ export const zh = {
   'sessionLog': 'Session log',
   'previewFullscreen': 'Fullscreen preview',
   'previewExitFullscreen': 'Exit fullscreen',
+  'deleteSession': 'Delete session',
+  'deleteConfirmTitle': 'Delete session',
+  'deleteConfirmDesc': 'Delete "{title}"? Its session log is removed from this machine and cannot be recovered.',
+  'deleteConfirmYes': 'Delete',
+  'deleteConfirmNo': 'Cancel',
+  'deletePending': 'Deleting…',
+  'deleteErrorNotFound': 'That session no longer exists. Refresh the list and try again.',
+  'deleteErrorBusy': 'That session is still running. Stop it first, then delete it.',
+  'deleteErrorResolve': 'Could not tell which session this row belongs to, so nothing was deleted.',
+  'deleteErrorGeneric': 'Delete failed: {message}',
 } as const
 
 /** English dictionary, key-identical to the primary source. */
@@ -19,6 +29,16 @@ export const en: Record<MobileNavKey, string> = {
   'sessionLog': 'Session log',
   'previewFullscreen': 'Fullscreen preview',
   'previewExitFullscreen': 'Exit fullscreen',
+  'deleteSession': 'Delete session',
+  'deleteConfirmTitle': 'Delete session',
+  'deleteConfirmDesc': 'Delete "{title}"? Its session log is removed from this machine and cannot be recovered.',
+  'deleteConfirmYes': 'Delete',
+  'deleteConfirmNo': 'Cancel',
+  'deletePending': 'Deleting…',
+  'deleteErrorNotFound': 'That session no longer exists. Refresh the list and try again.',
+  'deleteErrorBusy': 'That session is still running. Stop it first, then delete it.',
+  'deleteErrorResolve': 'Could not tell which session this row belongs to, so nothing was deleted.',
+  'deleteErrorGeneric': 'Delete failed: {message}',
 }
 
 /** Key domain of the `mobileNav` namespace (primary dictionary is the source of truth). */

@@ -1,13 +1,13 @@
 # dsh-maestro-mobile
 
-Single-package, client-only plugin for the DeepSeek Harness (DSH) Web UI. It adapts the Web UI for portrait / mobile viewports below 1024px — overlay drawer, full-width conversation, sheet-based settings / explorer / preview, status-bar safe areas, composer-row and stats-line fixes. At ≥1024px it is a complete no-op.
+Mobile adaptation for the DeepSeek Harness (DSH) Web UI. On touch-primary devices it turns the sidebar into an overlay drawer, sheets the dialogs, tunes the composer for phones, and adds session deletion to the session-row menu; a mouse-driven window, at every width, is a complete no-op.
 
 Names by boundary: npm package = `@ddtcorex/dsh-maestro-mobile`; Cordis patch row id = `dsh-maestro-mobile`.
 
 ## Layout
 
-- `src/index.ts` — host half. The `apply()` is intentionally empty so the row appears in the host Loader; all browser behavior lives in `src/client/`.
-- `src/client/index.tsx` — browser half. Injects `['slots','layout','locale','sessionLogDownload']`, registers locale dictionaries, injects one `<style data-plugin>` tag, installs effects, and registers two slots:
+- `src/index.ts` — host half: transparent response compression (`compress.ts`) plus the session-delete route; `src/delete-session.ts` is the harness-free deletion core and `src/delete-route.ts` the request gate.
+- `src/client/index.tsx` — browser half. Injects `['slots','layout','locale','sessionLogDownload','sessions','workspaces']`, registers locale dictionaries, injects one `<style data-plugin>` tag, installs effects, and registers two slots:
   - `conversation.session.header.actions` → `MobileNavToggle`: drawer toggle + Files button
   - `sidebar.footer.action` → `MobileDrawerFooter`: Files + session-log actions
 - `src/client/effects/` — DOM effects grouped by domain. `reconciler-core.ts` is a DOM-free engine (task registry, dirty-key routing, coalesced rAF flushing, per-task error isolation). `phone-chrome.ts` is the thin browser adapter: one `MutationObserver` on `document.documentElement` maps mutations to dirty keys and drives `installMobileEffect`.
@@ -39,7 +39,7 @@ pnpm build          # tsc host + client && node scripts/build-client.mjs  -> lib
 
 ## Conventions
 
-- Keep the host/client split intact; the empty host `apply()` is intentional.
+- Keep the host/client split intact; the host half owns response compression and the session-delete route, the browser half owns every DOM effect.
 - Prefer stable `data-*` markers and structural selectors over hashed classes. For unavoidable hashed classes use substring matching (`[class*=_frag]`), never attribute-suffix (`[class$=…]`); scope to the owning region and guard prefix-overlapping fragments with `:not`.
 - Put every long-lived style tag, listener, timer, or `MutationObserver` inside `ctx.effect(() => { ...; return disposer }, label)`. Re-arm query-sensitive effects through `installMobileEffect` (it owns the `matchMedia` + change listener) so wide→narrow and pointer changes work; pass `TOUCH_QUERY` for the features that have no desktop equivalent.
 - **The mobile branch is pointer-gated, not width-gated.** `MOBILE_QUERY = '(max-width: 1023px) and (pointer: coarse)'` in `src/client/effects/phone-chrome.ts` is the single source of truth: JS effects and every narrow CSS block must use the identical predicate, and the desktop blocks use its exact complement `(min-width: 1024px), (pointer: fine), (pointer: none)`. A mouse-driven window of any width stays desktop. Headless Chrome reports `(pointer: none)` unless touch emulation is on — probes must call `Emulation.setTouchEmulationEnabled` (see `scripts/cdp-probe.mjs`) and assert the query.
@@ -66,4 +66,9 @@ Optional CDP probe: `DSH_PROBE_SESSION_ID=<id> pnpm smoke:cdp` (env `DSH_PROBE_U
 
 ## Security
 
-This plugin has no secrets and no network calls; it only manipulates DOM / CSS in the browser. Never print, commit, or add fixture values for real tokens or PINs in tests or docs. Keep the host/client split intact; never modify third-party source packages to add behavior — use scoped DOM markers and CSS overrides.
+The plugin carries no secrets, but it is no longer browser-only: the host half registers `POST /api/mobile-nav.session.delete`, which **destroys a session log**. Treat that route as a destructive surface:
+
+- It inherits the deployment gates (Maestro PIN proxy on `:3080`/`:3081` with an `HttpOnly; SameSite=Lax` cookie; loopback bind + launch-token fence on `:3082`) and adds `delete-route.ts` defence in depth — POST only, reject `Sec-Fetch-Site: cross-site`, require an `Origin` whose host matches the request `Host` when one is present, treat a malformed `Origin` as hostile, and accept exactly one non-empty string `sessionId` in a size-capped JSON body.
+- Never widen the flow past confirmation-first: the mutation exists only behind the dialog's confirm button, and the client refuses to guess a row it cannot resolve with certainty.
+- Never print, commit, or add fixture values for real tokens or PINs in tests or docs; tests use placeholder paths and derive live paths from `homedir()` / `import.meta.url`.
+- Keep the host/client split intact; never modify third-party source packages to add behavior — use scoped DOM markers and CSS overrides.
