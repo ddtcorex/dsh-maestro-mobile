@@ -3,6 +3,14 @@
   "private": false,
   "version": "1.4.0",
   "description": "Portrait and mobile adaptation for DeepSeek Harness Web UI \u2014 overlay drawer, full-width conversation, sheet-based dialogs, safe-area handling",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/ddtcorex/dsh-maestro-mobile.git"
+  },
+  "engines": {
+    "node": "^22.19.0 || >=24.0.0"
+  },
   "type": "module",
   "main": "lib/index.js",
   "types": "lib/types/index.d.ts",
