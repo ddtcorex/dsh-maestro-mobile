@@ -24,12 +24,12 @@ Thank you for contributing to **dsh-maestro-mobile** (`@ddtcorex/dsh-maestro-mob
    src/client/index.tsx   # browser half — slots, locale, <style> inject, effects
    src/client/effects/    # DOM effects (reconciler-core.ts engine + phone-chrome.ts adapter)
    src/client/styles/     # CSS as TS string modules (base → layout → compat → misc order)
-   lib/                   # committed build output (host ESM + inlined client bundle + d.ts)
+   lib/                   # build output, gitignored (host ESM + inlined client bundle + d.ts)
    tests/                 # node:test suites (reconciler-core)
    cordis.patch.yml       # Cordis patch row
    ```
 
-   `lib/` is committed — a change is incomplete until `pnpm build` refreshes it. Never hand-edit `lib/`.
+   `lib/` is gitignored build output — a change is incomplete until `pnpm build` refreshes it locally. Never hand-edit `lib/`.
 
 ## Workflow
 

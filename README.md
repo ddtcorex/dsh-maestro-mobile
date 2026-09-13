@@ -29,7 +29,7 @@ dsh plugin --profile web add @ddtcorex/dsh-maestro-mobile
 dsh plugin --profile web add link:/path/to/dsh-maestro-mobile
 ```
 
-The repo ships committed `lib/` build output, so there is no `allowBuilds` block. Restart `dsh web` after installing or after any `pnpm build`.
+`lib/` is gitignored build output: `pnpm build` produces it locally, and `pnpm-workspace.yaml` carries the `allowBuilds.esbuild` entry a fresh install needs. Restart `dsh web` after installing or after any `pnpm build`.
 
 ### Manual `cordis.yml` row
 
@@ -49,7 +49,7 @@ pnpm test:core      # node --test tests/reconciler-core.test.ts
 pnpm build          # tsc host + client && node scripts/build-client.mjs -> lib/
 ```
 
-`pnpm build` is the required gate after any source change; `lib/` is committed, so a change is incomplete until the build refreshes it.
+`pnpm build` is the required gate after any source change; `lib/` is gitignored build output, so a change is incomplete until the build refreshes it locally.
 
 Optional CDP regression probe (requires a live DSH Web on `:3080`):
 
