@@ -219,7 +219,10 @@ export function installReconciler(ctx: ClientContext): () => void {
  * - The feature probe is the reliable signal: `font: -apple-system-body` is
  *   Safari-only and `-webkit-touch-callout` is an iOS property, so the pair is
  *   true on iOS WebKit (including Chrome / Edge / Opera on iOS, which are
- *   WebKit and zoom identically) and false on Chromium and on macOS Safari.
+ *   WebKit and zoom identically) and false on Chromium. macOS Safari also
+ *   implements both halves, so the probe alone cannot tell a desktop Mac
+ *   from an iPhone: the touch-point count is what separates them (a Mac
+ *   reports 0, every iOS device reports > 0).
  * - The UA fallback covers engines whose CSS.supports is missing or which
  *   parse the probe differently: iPhone / iPad / iPod UAs, plus iPadOS 13+
  *   which reports a Macintosh UA and is told apart by its touch points.
@@ -233,7 +236,7 @@ export function detectIosWebKit(
 ): boolean {
   if (supports !== null) {
     try {
-      if (supports('(font: -apple-system-body) and (-webkit-touch-callout: none)')) return true
+      if (nav.maxTouchPoints > 0 && supports('(font: -apple-system-body) and (-webkit-touch-callout: none)')) return true
     } catch {
       // A UA that rejects the condition string falls through to the UA test.
     }
@@ -245,6 +248,29 @@ export function detectIosWebKit(
 
 /** Marker the iOS-only zoom-guard CSS is scoped to (set on documentElement). */
 export const IOS_MARKER = 'data-mobile-nav-ios'
+
+/**
+ * iOS focus-zoom guard marker. Runs UNGATED (every width, every pointer):
+ * iOS WebKit zooms a <16px field on focus even on viewports that never match
+ * the phone breakpoint (iPad landscape, Stage Manager, desktop-mode iPadOS),
+ * so gating the marker on the mobile branch would leave those viewports with
+ * the marker missing and the 16px floor inert. Non-iOS engines never carry
+ * the marker, so their compact fields are untouched.
+ * @param ctx - client root context.
+ */
+export function installIosZoomGuard(ctx: ClientContext): void {
+  ctx.effect(() => {
+    const cssSupports = typeof CSS !== 'undefined' && typeof CSS.supports === 'function'
+      ? (condition: string): boolean => CSS.supports(condition)
+      : null
+    if (detectIosWebKit(navigator, cssSupports)) {
+      document.documentElement.setAttribute(IOS_MARKER, '')
+    }
+    return () => {
+      document.documentElement.removeAttribute(IOS_MARKER)
+    }
+  }, 'dsh-maestro-mobile: iOS zoom guard marker')
+}
 
 /** Register a reconciler task. The returned disposer removes it immediately. */
 export function addReconcilerTask(task: ReconcilerTask): () => void {
@@ -342,14 +368,10 @@ export function installPhoneChrome(ctx: ClientContext): void {
     observer.observe(document.body, { attributes: true, attributeFilter: ['data-ds-dark-theme'] })
     const onGestureStart = (event: Event) => event.preventDefault()
     document.addEventListener('gesturestart', onGestureStart)
-    // iOS WebKit zooms the viewport when a field below 16px takes focus; the
-    // marker gates the 16px floor in styles/misc.css.ts to that engine only.
-    const cssSupports = typeof CSS !== 'undefined' && typeof CSS.supports === 'function'
-      ? (condition: string): boolean => CSS.supports(condition)
-      : null
-    if (detectIosWebKit(navigator, cssSupports)) {
-      document.documentElement.setAttribute(IOS_MARKER, '')
-    }
+    // The iOS zoom-guard marker lives in installIosZoomGuard (ungated): this
+    // effect only arms on the phone breakpoint, so it must neither set nor
+    // clear a marker it does not own — clearing here would drop the floor on
+    // a wide iPad the moment this branch disarms.
     themeMeta.content = bodyBg()
     if (themeMeta.parentElement === null) document.head.appendChild(themeMeta)
     return () => {
@@ -364,7 +386,6 @@ export function installPhoneChrome(ctx: ClientContext): void {
         viewport.content = originalViewport
       }
       themeMeta.remove()
-      document.documentElement.removeAttribute(IOS_MARKER)
     }
   })
 }

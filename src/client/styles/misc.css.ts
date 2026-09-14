@@ -38,33 +38,9 @@ export const MISC_CSS = `@media (max-width: 1023px) and (pointer: coarse) {
     transition: transform .12s !important;
   }
 
-  /* ---------- iOS focus-zoom floor: raise the fields, do not ban zoom ----------
-      Safari on iPhone enlarges the whole visual viewport when a focused
-      <input> / <textarea> computes font-size < 16px, and only reverts on blur.
-      The ask dialog is a modal composer takeover, so taps outside never blur
-      the field and the magnification persists until the field loses focus.
-      Gated on html[data-mobile-nav-ios] (phone-chrome.ts detectIosWebKit)
-      because only WebKit on iOS zooms on focus: Android and desktop keep the
-      compact fields they were designed with, and no zoom-limiting token is
-      written into the viewport meta (that would take pinch away from them).
-      The floor covers every text-entry control on the page, including the ones
-      portalled outside the frame (settings dialogs, the market sheet,
-      third-party panels) — a phone can reach all of them. Button-like inputs
-      are excluded (nothing to type, no keyboard) and select is left alone on
-      purpose: it would break the composer's 28px access-mode control, and a
-      native picker overlays the screen instead of leaving a zoomed page behind.
-      The ask composer's hidden height mirror must carry the SAME size as its
-      textarea — it is what sizes the auto-grown field, so a mismatch makes the
-      box the wrong height for the typed text. */
-  html[data-mobile-nav-ios] textarea,
-  html[data-mobile-nav-ios] [contenteditable]:not([contenteditable="false"]),
-  html[data-mobile-nav-ios] [data-input-mirror],
-  html[data-mobile-nav-ios] [data-input-backdrop],
-  html[data-mobile-nav-ios] [data-question-key] [class*="_fieldMirror"],
-  html[data-mobile-nav-ios] input:not([type="button"]):not([type="checkbox"]):not([type="color"]):not([type="file"]):not([type="hidden"]):not([type="image"]):not([type="radio"]):not([type="range"]):not([type="reset"]):not([type="submit"]) {
-    font-size: 16px !important;
-  }
-
+  /* ---------- iOS focus-zoom floor lives top-level below ----------
+     It must not sit inside this phone media: iOS zooms a small field at every
+     width and pointer, and the marker it is gated on is armed ungated. */
   /* ---------- new-session hero preset menu: prevent top cutoff on long lists ----------
      Host Menu (ui-primitives/Menu.tsx) measures lh from calc(100vh - 24px) but
      clamps with innerHeight (dynamic viewport) using
@@ -86,6 +62,37 @@ export const MISC_CSS = `@media (max-width: 1023px) and (pointer: coarse) {
     content-visibility: auto;
     contain-intrinsic-size: auto 600px;
   }
+}
+
+/* ---------- iOS focus-zoom floor: raise the fields, do not ban zoom ----------
+   Safari on iPhone and iPad enlarges the whole visual viewport when a focused
+   text field computes font-size below 16px, and only reverts on blur. The ask
+   dialog is a modal composer takeover, so taps outside never blur the field
+   and the magnification persists until the field loses focus.
+   Deliberately UNGATED by width and pointer: iOS zooms at every viewport
+   (iPad landscape, Stage Manager and desktop-mode iPadOS never match the
+   phone media), so a floor nested inside that media stays inert exactly where
+   the zoom still fires. Gated on html[data-mobile-nav-ios] instead
+   (phone-chrome.ts installIosZoomGuard, armed on every viewport for iOS
+   WebKit only): Android and desktop keep the compact fields they were
+   designed with, and no zoom-limiting token is written into the viewport meta
+   (that would take pinch away from them).
+   The floor covers every text-entry control on the page, including the ones
+   portalled outside the frame (settings dialogs, the market sheet,
+   third-party panels) — a phone can reach all of them. Button-like inputs
+   are excluded (nothing to type, no keyboard) and select is left alone on
+   purpose: it would break the composer's 28px access-mode control, and a
+   native picker overlays the screen instead of leaving a zoomed page behind.
+   The ask composer's hidden height mirror must carry the SAME size as its
+   textarea — it is what sizes the auto-grown field, so a mismatch makes the
+   box the wrong height for the typed text. */
+html[data-mobile-nav-ios] textarea,
+html[data-mobile-nav-ios] [contenteditable]:not([contenteditable="false"]),
+html[data-mobile-nav-ios] [data-input-mirror],
+html[data-mobile-nav-ios] [data-input-backdrop],
+html[data-mobile-nav-ios] [data-question-key] [class*="_fieldMirror"],
+html[data-mobile-nav-ios] input:not([type="button"]):not([type="checkbox"]):not([type="color"]):not([type="file"]):not([type="hidden"]):not([type="image"]):not([type="radio"]):not([type="range"]):not([type="reset"]):not([type="submit"]) {
+  font-size: 16px !important;
 }
 
 /* ---------- session delete: confirmation dialog ----------
