@@ -4,7 +4,7 @@ import { MobileDrawerFooter } from './components/MobileDrawerFooter.tsx'
 import { ShellOverlay } from './components/ShellOverlay.tsx'
 import { MOBILE_CSS } from './styles/index.ts'
 
-import { installFrameController, installOverlayInteractions, installPhoneChrome, installReconciler, registerReconcileTasks, MOBILE_QUERY } from './effects/phone-chrome.ts'
+import { installFrameController, installOverlayInteractions, installPhoneChrome, installReconciler, registerReconcileTasks, installIosZoomGuard, MOBILE_QUERY } from './effects/phone-chrome.ts'
 import { installSubagentChipTouch } from './effects/subagent-chip-touch.ts'
 import { installAionuiCompat } from './effects/aionui-compat.ts'
 import { installLayoutBridge } from './effects/layout-bridge.ts'
@@ -168,6 +168,11 @@ export function apply(ctx: ClientContext): void {
   installSubagentChipTouch(ctx)
 
   installPhoneChrome(ctx)
+
+  // iOS focus-zoom guard marker: ungated (every width/pointer) so the 16px
+  // floor in misc.css.ts holds on iPad viewports that never match the phone
+  // breakpoint. Non-iOS engines never carry the marker.
+  installIosZoomGuard(ctx)
 
   installAionuiCompat(ctx)
 
