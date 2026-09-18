@@ -25,7 +25,7 @@ wrong, how it presented, and the rule that prevents it.
 
 **Title is the only row → session key the DOM offers.** Rows carry no id. Resolution matches the row's rendered label against the session snapshot and disambiguates duplicates by the owning workspace; when that is still ambiguous the flow refuses. Never "fix" that by taking the nth match: deleting the wrong session is unrecoverable.
 
-**Host internals are probed, not imported.** `delete-session.ts` reads `agents.store` / `sessions.store.detach` behind optional chaining, and refuses a live session (`409 session-busy`) when the host exposes no disposal face. On DSH 0.1.5-rc.2 it does not, so only cold sessions are deletable there — that is a recorded phase-1 limit, not a bug to paper over.
+**Host internals are probed, not imported.** `delete-session.ts` reads `agents.store` / `sessions.store.detach` behind optional chaining, and refuses a live session (`409 session-busy`) when the host exposes no disposal face. On DSH ≤0.1.6-alpha.2 it does not (observed 0.1.5-rc.2 through 0.1.6-alpha.2), so only cold sessions are deletable there — that is a recorded phase-1 limit, not a bug to paper over.
 
 **`src/index.ts` cannot be imported by `node:test`.** Its host imports carry the `.js` specifier tsc emits, so a test importing it fails to resolve. Host-side pure helpers live in their own module (`delete-route.ts`) and are tested there.
 

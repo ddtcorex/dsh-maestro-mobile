@@ -1,14 +1,15 @@
-import type { ClientContext } from '@deepseek-ai/dsh-client-runtime/client'
+import type { Context as ClientContext } from '@deepseek-ai/cordis'
 import { DESKTOP_QUERY, MOBILE_QUERY } from './effects/phone-chrome.ts'
 /**
- * Debug badge — ?mobile-nav-debug=1
+ * Debug badge — ?dsh-maestro-mobile-debug=1 (legacy ?mobile-nav-debug=1)
  * Renders a live state overlay (URL, viewport, media queries, shell chrome,
  * aionui columns, captured errors) so a phone-side repro can be
- * diagnosed without guessing. No-op unless the query param is present.
+ * diagnosed without guessing. No-op unless one of the query params is present.
  */
 export function installDebugBadge(ctx: ClientContext): void {
   ctx.effect(() => {
-    if (!new URLSearchParams(location.search).has('mobile-nav-debug')) return () => {}
+    const query = new URLSearchParams(location.search)
+    if (!query.has('dsh-maestro-mobile-debug') && !query.has('mobile-nav-debug')) return () => {}
     const errors: string[] = []
     const onError = (event: ErrorEvent) => errors.push(`ERR ${event.message.slice(0, 120)}`)
     const onRejection = (event: PromiseRejectionEvent) => errors.push(`REJ ${String(event.reason).slice(0, 120)}`)

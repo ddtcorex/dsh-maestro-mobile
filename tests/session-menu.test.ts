@@ -2,14 +2,16 @@ import assert from 'node:assert/strict'
 import { readFileSync } from 'node:fs'
 import test from 'node:test'
 
-import { resolveSessionId, type SessionMenuInput } from '../src/client/effects/session-menu.ts'
+import { isCurrentSession, resolveSessionId, type SessionMenuInput } from '../src/client/effects/session-menu.ts'
 
 // Shape of `ctx.sessions.list.getSnapshot()`: ids + byId of client-side
 // SessionSummary rows (id, title, displayTitle, cwd), never the wire summary.
+// 0.1.6 dropped SessionListState.current: the open session is the one the
+// main view retains (retainedBy.mainView > 0).
 const SESSIONS = {
   ids: ['s-main', 's-dup-a', 's-dup-b', 's-blank', 's-sub', 's-archived', 's-other'],
   byId: {
-    's-main': { id: 's-main', title: 'Fix the drawer', displayTitle: 'Fix the drawer', blank: false },
+    's-main': { id: 's-main', title: 'Fix the drawer', displayTitle: 'Fix the drawer', blank: false, retainedBy: { mainView: 1 } },
     's-dup-a': { id: 's-dup-a', title: 'Same title', displayTitle: 'Same title', blank: false },
     's-dup-b': { id: 's-dup-b', title: 'Same title', displayTitle: 'Same title', blank: false },
     's-blank': { id: 's-blank', title: 'Fix the drawer', displayTitle: 'Fix the drawer', blank: true },
@@ -17,7 +19,6 @@ const SESSIONS = {
     's-archived': { id: 's-archived', title: 'Fix the drawer', displayTitle: 'Fix the drawer' },
     's-other': { id: 's-other', title: 'Unrelated', displayTitle: 'Unrelated', blank: false },
   },
-  current: 's-main',
 }
 
 const WORKSPACES = {
@@ -59,6 +60,14 @@ test('an unresolvable duplicate is refused rather than guessed', () => {
   // an error in the UI instead of a positional guess.
   assert.equal(resolveSessionId({ ...base, rowTitle: 'Same title', groupTitle: undefined }), undefined)
   assert.equal(resolveSessionId({ ...base, rowTitle: 'Same title', groupTitle: 'Unknown' }), undefined)
+})
+
+test('isCurrentSession follows the main-view retention, not a current field', () => {
+  assert.equal(isCurrentSession(SESSIONS, 's-main'), true)
+  assert.equal(isCurrentSession(SESSIONS, 's-other'), false)
+  assert.equal(isCurrentSession(SESSIONS, 'no-such-session'), false)
+  const nobodyRetained = { ids: SESSIONS.ids, byId: Object.fromEntries(Object.entries(SESSIONS.byId).map(([id, entry]) => [id, { ...entry, retainedBy: undefined }])) }
+  assert.equal(isCurrentSession(nobodyRetained, 's-main'), false)
 })
 
 const source = readFileSync(new URL('../src/client/effects/session-menu.ts', import.meta.url), 'utf8')

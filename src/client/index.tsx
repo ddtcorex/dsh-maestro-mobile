@@ -1,4 +1,4 @@
-import type { ClientContext } from '@deepseek-ai/dsh-client-runtime/client'
+import type { Context as ClientContext } from '@deepseek-ai/cordis'
 import { MobileNavToggle } from './components/MobileNavToggle.tsx'
 import { MobileDrawerFooter } from './components/MobileDrawerFooter.tsx'
 import { ShellOverlay } from './components/ShellOverlay.tsx'
@@ -238,10 +238,15 @@ export function apply(ctx: ClientContext): void {
 }
 
 // Type-only augmentation imports: pull the layout / conversation / sidebar /
-// settings SlotMap merges and the sessionLogDownload service typing into this
-// program without any runtime import.
+// settings SlotMap merges, the renderer slots service, the session/workspace
+// service typings, the session global-standard props (useSessions), and the
+// sessionLogDownload service typing into this program without any runtime import.
+import type {} from '@deepseek-ai/dsh-api-session-controller/client'
+import type {} from '@deepseek-ai/dsh-api-workspace-controller/client'
 import type {} from '@deepseek-ai/dsh-client-ui-layout/client'
 import type {} from '@deepseek-ai/dsh-client-ui-conversation/client'
+import type {} from '@deepseek-ai/dsh-client-ui-renderer/client'
+import type {} from '@deepseek-ai/dsh-client-ui-session/client'
 import type {} from '@deepseek-ai/dsh-client-ui-sidebar/client'
 import type {} from '@deepseek-ai/dsh-client-ui-settings/client'
 import type {} from '@deepseek-ai/dsh-client-locale/client'

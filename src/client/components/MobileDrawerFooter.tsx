@@ -18,7 +18,9 @@ export interface MobileDrawerFooterProps extends PropsRuntime<'sidebar.footer.ac
  * Hidden entirely on wide screens (CSS media query).
  */
 export function MobileDrawerFooter({ useSessions, downloadSessionLog, t }: MobileDrawerFooterProps) {
-  const sessionId = useSessions((state) => state.current)
+  // 0.1.6 removed SessionListState.current: the open session is the one the
+  // main view retains (same derivation as the workspace tree's mainSessionId).
+  const sessionId = useSessions((state) => Object.values(state.byId).find((session) => (session.retainedBy.mainView ?? 0) > 0)?.id)
   return (
     <div data-mobile-nav="drawer-actions">
       <button
