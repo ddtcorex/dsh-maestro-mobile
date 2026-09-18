@@ -784,6 +784,13 @@ export const LAYOUT_CSS = `/* ---------- mobile-only layout ---------- */
     font-weight: 600 !important;
     text-align: center !important;
   }
+  /* Breathing room between the title ellipsis and the lineage badge: the
+     switcher's "…" ends exactly where the trigger begins, merging into
+     "…1" (measured live at 390px). A fixed margin separates them; the
+     switcher absorbs it via flex. */
+  [data-mobile-nav="frame"] [data-phase] [data-slot="conversation.session.header"] > header [class*="_crumbs"] [class*="_root"]:not([class*="_switcherRoot"]):has(> button[class*="_trigger"]) {
+    margin-left: 6px !important;
+  }
   /* Dock the job list under the session header. Upstream anchors this popover
      to the jobs root, but the header-crowding rule above sets that root to
      position: static, so the absolute panel resolved against a distant

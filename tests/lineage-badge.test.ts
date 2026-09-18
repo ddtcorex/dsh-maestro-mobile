@@ -64,3 +64,12 @@ test('the lineage control collapses to a 28px icon button with a count badge', (
   assert.match(badge, /top: 0 !important;/)
   assert.match(badge, /right: 0 !important;/)
 })
+
+test('the lineage root keeps a gap from the title ellipsis', () => {
+  // Measured live at 390px: the switcher's "…" ends exactly where the
+  // trigger begins, merging into "…1". A fixed margin separates them; the
+  // switcher absorbs it via flex.
+  const gap = /\[class\*="_crumbs"\] \[class\*="_root"\]:not\(\[class\*="_switcherRoot"\]\):has\(> button\[class\*="_trigger"\]\) \{([^}]*)\}/.exec(layout)?.[1]
+  assert.ok(gap, 'the lineage gap rule is missing from layout.css.ts')
+  assert.match(gap, /margin-left: 6px !important;/)
+})
