@@ -740,6 +740,46 @@ export const LAYOUT_CSS = `/* ---------- mobile-only layout ---------- */
     font-weight: 600 !important;
     text-align: center !important;
   }
+  /* --- Subagent lineage badge (dsh-client-ui-subagent) ---
+     Same treatment as the jobs control above: upstream's "N subagent(s)"
+     sentence pinned the trigger at 81px max-content and crushed the session
+     title. Collapse it to a 28px circle keeping its chevron, with the count
+     as a badge. The accessible name is untouched, so assistive tech still
+     hears the full sentence. */
+  [data-mobile-nav="lineage"] {
+    display: inline-grid !important;
+    place-items: center !important;
+    box-sizing: border-box !important;
+    position: relative !important;
+    width: 28px !important;
+    height: 28px !important;
+    min-height: 28px !important;
+    padding: 0 !important;
+    gap: 0 !important;
+    border-radius: 999px !important;
+  }
+  /* The sentence span is what made the control wide; the chevron stays as
+     the glyph (unlike jobs there is no live-dot variant to preserve). */
+  [data-mobile-nav="lineage"] > span {
+    display: none !important;
+  }
+  [data-mobile-nav="lineage"]::after {
+    content: attr(data-lineage-count) !important;
+    position: absolute !important;
+    top: -3px !important;
+    right: -4px !important;
+    box-sizing: border-box !important;
+    min-width: 15px !important;
+    height: 15px !important;
+    padding: 0 3px !important;
+    border-radius: 999px !important;
+    background: var(--dsw-alias-state-business-primary, #4f6ef7);
+    color: var(--dsw-alias-label-primary-foreground, #ffffff);
+    font-size: 10px !important;
+    line-height: 15px !important;
+    font-weight: 600 !important;
+    text-align: center !important;
+  }
   /* Dock the job list under the session header. Upstream anchors this popover
      to the jobs root, but the header-crowding rule above sets that root to
      position: static, so the absolute panel resolved against a distant
