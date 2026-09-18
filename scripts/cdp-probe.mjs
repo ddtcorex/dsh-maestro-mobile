@@ -545,8 +545,12 @@ async function runCoreScenario(client, config, signal, pageErrors) {
   pass('mobile.breakpoint-rearm', 'frame=present control=visible collapsed=true');
 
   // Surface captured page errors (deduplicated); a real-combination gate must
-  // fail on them.
-  const uniqueErrors = [...new Set(pageErrors)];
+  // fail on them. Known-upstream noise is allowlisted by URL substring, never
+  // by blanket: /open-in-app/icon/ 404s when the host ships no PNG for a
+  // catalog id (live 0.1.6: linux filemanager) and the upstream component
+  // falls back to a generic glyph after one fetch — not this plugin's breakage.
+  const upstreamNoise = [/\/open-in-app\/icon\//]
+  const uniqueErrors = [...new Set(pageErrors)].filter((text) => !upstreamNoise.some((re) => re.test(text)));
   check('page.errors', uniqueErrors.length === 0, uniqueErrors.length > 0
     ? `count=${uniqueErrors.length} first=${uniqueErrors[0].slice(0, 160)}`
     : 'count=0');
@@ -871,10 +875,18 @@ async function main() {
     await client.send('Page.enable');
     await client.send('Runtime.enable');
     await client.send('Log.enable');
+    await client.send('Network.enable');
 
     // Page-error capture: registered before any navigation so boot-time
     // exceptions, console errors, and log errors all land in the gate.
+    // Console "Failed to load resource" lines never name the URL, so keep a
+    // requestId → URL table to attribute them (used by the upstream-noise
+    // allowlist at the gate).
     const pageErrors = [];
+    const urlByRequestId = new Map();
+    client.on('Network.requestWillBeSent', ({ requestId, request }) => {
+      if (request?.url) urlByRequestId.set(requestId, request.url);
+    });
     client.on('Runtime.exceptionThrown', ({ exceptionDetails }) => {
       pageErrors.push(exceptionDetails.exception?.description || exceptionDetails.text);
     });
@@ -882,7 +894,9 @@ async function main() {
       if (type === 'error') pageErrors.push(args.map((arg) => arg.value ?? arg.description ?? '').join(' '));
     });
     client.on('Log.entryAdded', ({ entry }) => {
-      if (entry.level === 'error') pageErrors.push(entry.text);
+      if (entry.level !== 'error') return;
+      const url = (entry.networkRequestId !== undefined && urlByRequestId.get(entry.networkRequestId)) || entry.url || '';
+      pageErrors.push(url ? `${entry.text} :: ${url}` : entry.text);
     });
 
     // Inject the current session before the first navigation (no

@@ -91,7 +91,7 @@ The delete route is destructive; validate it in this order:
    DSH_PROBE_DELETE_SESSION_ID=<a disposable session id> pnpm probe:session-delete
    ```
 
-   On DSH 0.1.5-rc.2 a *live* session (one the process still holds) answers
+   On DSH 0.1.6-alpha.2 a *live* session (one the process still holds) answers
    `409 session-busy` by design: only sessions restored from disk and not opened
    in this process are deletable. Confirm the directory under the persistence
    root is gone afterwards.

@@ -558,8 +558,10 @@ export const LAYOUT_CSS = `/* ---------- mobile-only layout ---------- */
      is gone from the header row on mobile" — the utilities seat held only the
      session-log-export capsule). DSH now puts the right-sidebar toggle in that
      corner slot, so it is no longer hidden: the rule further up un-hides it
-     into the slot the redundant ⋯ menu vacated. Nothing else lives in the
-     corner (verified on 0.1.5: one slot, one button[data-sidebar-right-expand]). */
+     into the slot the redundant ⋯ menu vacated. 0.1.6 adds two more corner
+     residents (Open workspace in Files, open-in-app "Choose an app to open
+     in"): two visible icon buttons (x 287–337 at 390px, measured live) plus
+     the ⋯ still hidden above — re-measure if upstream adds a fourth. */
   /* Header crowding on narrow phones.
      A background-job trigger in the header actions, or the subagent lineage
      count ("N subagents") living inside the crumbs nav, consumes the width the

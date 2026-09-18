@@ -16,7 +16,7 @@
  * deleting the wrong session is unrecoverable and a positional guess is not
  * worth that risk.
  */
-import type { ClientContext } from '@deepseek-ai/dsh-client-runtime/client'
+import type { Context as ClientContext } from '@deepseek-ai/cordis'
 import { MOBILE_QUERY, TOUCH_QUERY, installMobileEffect } from './phone-chrome.ts'
 
 // The custom client bundler cannot resolve `../` requires from
@@ -46,13 +46,26 @@ export interface SessionEntryLike {
   cwd?: string
   blank?: boolean
   origin?: string
+  /** 0.1.6 selection signal: the open session is the one the main view retains. */
+  retainedBy?: { mainView?: number }
 }
 
 /** Minimal session-list snapshot face (`ctx.sessions.list.getSnapshot()`). */
 export interface SessionsSnapshotLike {
   ids: readonly string[]
   byId: Readonly<Record<string, SessionEntryLike | undefined>>
+  /** Removed upstream in 0.1.6 (always undefined at runtime); kept optional
+      so older snapshots still narrow. Use isCurrentSession() instead. */
   current?: string
+}
+
+/**
+ * Whether the session is the open one. 0.1.6 dropped
+ * `SessionListState.current`; the workspace tree derives it as the session
+ * the main view retains (mainSessionId), and so do we.
+ */
+export function isCurrentSession(sessions: SessionsSnapshotLike, sessionId: string): boolean {
+  return Object.values(sessions.byId).find((entry) => (entry?.retainedBy?.mainView ?? 0) > 0)?.id === sessionId
 }
 
 /** Minimal workspace row face. */
@@ -279,10 +292,11 @@ export function installSessionMenuDelete(ctx: ClientContext): void {
           error.hidden = true
           const sessions = ctx.sessions as unknown as {
             list: { getSnapshot(): SessionsSnapshotLike }
-            clear(): void
+            /** Removed upstream in 0.1.6; refresh() below covers list sync. */
+            clear?: () => void
             refresh?: () => Promise<void>
           }
-          const wasCurrent = sessions.list.getSnapshot().current === sessionId
+          const wasCurrent = isCurrentSession(sessions.list.getSnapshot(), sessionId)
           try {
             const response = await fetch(DELETE_ROUTE_PATH, {
               method: 'POST',
@@ -299,7 +313,7 @@ export function installSessionMenuDelete(ctx: ClientContext): void {
             return
           }
           closeDialog()
-          if (wasCurrent) sessions.clear()
+          if (wasCurrent) sessions.clear?.()
           // Must be called AS A METHOD on ctx.sessions: refresh() reads its own
           // manager, and an extracted reference would throw.
           await sessions.refresh?.()
