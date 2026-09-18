@@ -562,6 +562,15 @@ export const LAYOUT_CSS = `/* ---------- mobile-only layout ---------- */
      residents (Open workspace in Files, open-in-app "Choose an app to open
      in"): two visible icon buttons (x 287–337 at 390px, measured live) plus
      the ⋯ still hidden above — re-measure if upstream adds a fourth. */
+  /* Empty upstream leading box: 0.1.6 titleRow splits free space between
+     headerLeading (an unfilled leading slot in this deployment:
+     display:contents, zero occupants) and titleCluster, wasting ~113px at
+     390px and starving the session title. Collapse it only while the slot
+     has no element children, so a future upstream occupant reappears
+     without a plugin change. */
+  [data-mobile-nav="frame"] [data-phase] [data-slot="conversation.session.header"] > header [class*="_headerLeading"]:not(:has([data-slot="conversation.session.header.leading"] > *)) {
+    display: none !important;
+  }
   /* Header crowding on narrow phones.
      A background-job trigger in the header actions, or the subagent lineage
      count ("N subagents") living inside the crumbs nav, consumes the width the
@@ -586,12 +595,33 @@ export const LAYOUT_CSS = `/* ---------- mobile-only layout ---------- */
       padding-left: 18px;
       padding-right: 0 !important;
     }
+    /* Session title keeps priority over the subagent lineage: the pinned
+       max-content root took 81px and crushed the session switcher to 16px
+       at 390px (measured live with one running subagent). Hide the
+       decorative "/" and ellipsize the trigger so the count stays visible
+       ("1 sub…") while the switcher — now allowed to shrink — keeps every
+       remaining pixel for the title. */
+    [data-mobile-nav="frame"] [data-phase] [data-slot="conversation.session.header"] > header [class*="_crumbs"] [class*="_root"]:not([class*="_switcherRoot"]):has(> button[class*="_trigger"]) > [class*="_separator"] {
+      display: none !important;
+    }
+    [data-mobile-nav="frame"] [data-phase] [data-slot="conversation.session.header"] > header [class*="_crumbs"] [class*="_root"]:not([class*="_switcherRoot"]):has(> button[class*="_trigger"]) > button[class*="_trigger"]:not([data-mobile-nav]) {
+      min-width: 0 !important;
+      max-width: 56px !important;
+      overflow: hidden !important;
+      text-overflow: ellipsis !important;
+      white-space: nowrap !important;
+    }
+    [data-mobile-nav="frame"] [data-phase] [data-slot="conversation.session.header"] > header [class*="_crumbs"] [class*="_crumbCurrent"] {
+      min-width: 0 !important;
+      overflow: hidden !important;
+      text-overflow: ellipsis !important;
+    }
   }
   /* When the subagent lineage (any state) AND a background job are present
-     together, even the mode icon is not enough room by itself. Keep the full
-     subagent count (the reported-overwritten text) by compacting the job
-     trigger to its dot/chevron, and keep mode icon-only so the crumbs nav can
-     also hold a small right-hand gap — the subagent text should never sit
+     together, even the mode icon is not enough room by itself. The lineage
+     already yields above (compressed trigger), so compact the job trigger
+     to its dot/chevron as well, and keep mode icon-only so the crumbs nav can
+     also hold a small right-hand gap — the subagent count should never sit
      flush against the mode component. */
   @media (max-width: 559px) {
     [data-mobile-nav="frame"] [data-phase] [data-slot="conversation.session.header"] > header [class*="_crumbs"] {
@@ -709,6 +739,57 @@ export const LAYOUT_CSS = `/* ---------- mobile-only layout ---------- */
     line-height: 15px !important;
     font-weight: 600 !important;
     text-align: center !important;
+  }
+  /* --- Subagent lineage badge (dsh-client-ui-subagent) ---
+     Same treatment as the jobs control above: upstream's "N subagent(s)"
+     sentence pinned the trigger at 81px max-content and crushed the session
+     title. Collapse it to a 28px circle keeping its chevron, with the count
+     as a badge. The accessible name is untouched, so assistive tech still
+     hears the full sentence. */
+  [data-mobile-nav="lineage"] {
+    display: inline-grid !important;
+    place-items: center !important;
+    box-sizing: border-box !important;
+    position: relative !important;
+    width: 28px !important;
+    height: 28px !important;
+    min-height: 28px !important;
+    padding: 0 !important;
+    gap: 0 !important;
+    border-radius: 999px !important;
+  }
+  /* The sentence span is what made the control wide; the chevron stays as
+     the glyph (unlike jobs there is no live-dot variant to preserve). */
+  [data-mobile-nav="lineage"] > span {
+    display: none !important;
+  }
+  [data-mobile-nav="lineage"]::after {
+    content: attr(data-lineage-count) !important;
+    position: absolute !important;
+    /* Inside the border box, not hanging off the corner like the jobs
+       badge: the trigger keeps overflow:hidden for its own ellipsis, and
+       the crumbs nav clips too — anything outside is invisible. Overlapping
+       the chevron's top-right reads as the standard badge-over-icon. */
+    top: 0 !important;
+    right: 0 !important;
+    box-sizing: border-box !important;
+    min-width: 15px !important;
+    height: 15px !important;
+    padding: 0 3px !important;
+    border-radius: 999px !important;
+    background: var(--dsw-alias-state-business-primary, #4f6ef7);
+    color: var(--dsw-alias-label-primary-foreground, #ffffff);
+    font-size: 10px !important;
+    line-height: 15px !important;
+    font-weight: 600 !important;
+    text-align: center !important;
+  }
+  /* Breathing room between the title ellipsis and the lineage badge: the
+     switcher's "…" ends exactly where the trigger begins, merging into
+     "…1" (measured live at 390px). A fixed margin separates them; the
+     switcher absorbs it via flex. */
+  [data-mobile-nav="frame"] [data-phase] [data-slot="conversation.session.header"] > header [class*="_crumbs"] [class*="_root"]:not([class*="_switcherRoot"]):has(> button[class*="_trigger"]) {
+    margin-left: 6px !important;
   }
   /* Dock the job list under the session header. Upstream anchors this popover
      to the jobs root, but the header-crowding rule above sets that root to
