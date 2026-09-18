@@ -766,8 +766,12 @@ export const LAYOUT_CSS = `/* ---------- mobile-only layout ---------- */
   [data-mobile-nav="lineage"]::after {
     content: attr(data-lineage-count) !important;
     position: absolute !important;
-    top: -3px !important;
-    right: -4px !important;
+    /* Inside the border box, not hanging off the corner like the jobs
+       badge: the trigger keeps overflow:hidden for its own ellipsis, and
+       the crumbs nav clips too — anything outside is invisible. Overlapping
+       the chevron's top-right reads as the standard badge-over-icon. */
+    top: 0 !important;
+    right: 0 !important;
     box-sizing: border-box !important;
     min-width: 15px !important;
     height: 15px !important;

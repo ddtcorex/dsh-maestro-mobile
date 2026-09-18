@@ -59,4 +59,8 @@ test('the lineage control collapses to a 28px icon button with a count badge', (
   assert.ok(badge, 'the count badge rule is missing')
   assert.match(badge, /content: attr\(data-lineage-count\)/)
   assert.match(badge, /position: absolute !important;/)
+  // Inside the border box: the trigger's own ellipsis overflow:hidden and
+  // the crumbs nav clip anything hanging off the corner.
+  assert.match(badge, /top: 0 !important;/)
+  assert.match(badge, /right: 0 !important;/)
 })
