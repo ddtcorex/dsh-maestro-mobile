@@ -10,7 +10,11 @@ silently — the checks below are ordered cheapest first.
 - Stable markers: `[data-shell-overlay]`, `[data-composer-card]`,
   `[data-composer-input]`, `[data-composer-seat]`, `[data-phase]`,
   `[data-question-key]`, `[data-trigger-menu]`,
-  `[data-conversation-composer-overlay]`, `[data-ds-dark-theme]`.
+  `[data-conversation-composer-overlay]`, `[data-ds-dark-theme]`,
+  plus integration markers (all lazy, see the states in
+  `compat-contracts.json`): `[data-gitgraph-chip]` (git-repo session),
+  `[data-jobs-count]` (background job running),
+  `[data-aionui-explorer-col]` / `[data-aionui-preview-col]` (aionui suite).
 - Hashed class fragments (substring match only): `_composerStack`, `_modes`,
   `_tools`, `_trailing`, `_triggerLabel`, `_actions`, `_bubble`, `_sessionRow`,
   `_title`, `_groupSection`, `_projectRow`, `_itemLabel`, `_itemIcon`,

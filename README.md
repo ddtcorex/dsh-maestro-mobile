@@ -11,7 +11,7 @@ Mobile adaptation for the DeepSeek Harness (DSH) Web UI. On touch-primary device
 | Status-bar & safe areas | Status-bar / notch padding, light/dark `theme-color`, and `touch-action: manipulation` + `gesturestart` guard against double-tap zoom |
 | Composer stays clean | Permission capsule, model name, and switch menus use fixed-size pinning so they never squeeze or overlap on narrow screens |
 | Tablet friendly | 768–1023px centered, width-constrained sheets; phone and tablet geometries are verified separately |
-| Easy diagnostics | Append `?dsh-maestro-mobile-debug=1` (legacy `?mobile-nav-debug=1`) for a floating bar with viewport / frame / floating-panel / JS-error state |
+| Easy diagnostics | Append `?dsh-maestro-mobile-debug=1` (legacy `?mobile-nav-debug=1`, still honoured) for a floating bar with viewport / frame / floating-panel / JS-error state |
 
 ## Requirements
 
@@ -51,7 +51,7 @@ pnpm build          # tsc host + client && node scripts/build-client.mjs -> lib/
 
 `pnpm build` is the required gate after any source change; `lib/` is gitignored build output, so a change is incomplete until the build refreshes it locally.
 
-Optional CDP regression probe (requires a live DSH Web on `:3080`):
+Optional CDP regression probe (requires a live DSH Web on `:3080`, PIN cookie; to probe the raw server instead, set `DSH_PROBE_URL=http://127.0.0.1:3082/?token=<launch-token>` as in `docs/upstream/upgrade-runbook.md` §2):
 
 ```sh
 DSH_PROBE_SESSION_ID=<id> pnpm smoke:cdp
@@ -59,8 +59,8 @@ DSH_PROBE_SESSION_ID=<id> pnpm smoke:cdp
 
 ## Architecture
 
-- Host / client split is load-bearing: `src/index.ts` is the intentionally empty host `apply()`; all browser behavior lives in `src/client/`.
-- `src/client/index.tsx` injects `['slots','layout','locale','sessionLogDownload']`, registers locale dictionaries, injects one `<style data-plugin>` tag, and registers two slots (`MobileNavToggle` and `MobileDrawerFooter`).
+- Host / client split is load-bearing: `src/index.ts` owns transparent response compression plus the session-delete route (`POST /api/mobile-nav.session.delete`); all browser behavior lives in `src/client/`.
+- `src/client/index.tsx` injects `['slots','layout','locale','sessionLogDownload','sessions','workspaces']`, registers locale dictionaries, injects one `<style data-plugin>` tag, and registers three slots (`MobileNavToggle` in the session header, `MobileDrawerFooter` in the sidebar foot, `ShellOverlay` backdrop + FAB).
 - Shared full-tree reconciler: `reconciler-core.ts` (zero-import engine) + `phone-chrome.ts` (a single `MutationObserver` driving `installMobileEffect`).
 - Styles are concatenated `tokens → base → layout → sheet → explorer-sheet → composer → settings-sheet → misc` into one tag; mobile rules target `(max-width: 1023px) and (pointer: coarse)`.
 
