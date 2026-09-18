@@ -45,3 +45,33 @@ test('the directory drawer toggle stays at the far left', () => {
   assert.match(rule, /left: 8px !important;/)
   assert.doesNotMatch(rule, /right: 8px !important;/)
 })
+
+test('the empty upstream leading box collapses so the title cluster takes the row', () => {
+  // 0.1.6 titleRow splits free space between headerLeading (an unfilled
+  // leading slot in this deployment) and titleCluster: 113px of dead space
+  // at 390px, starving the session title. Collapse it only while the slot
+  // has no occupants, so a future upstream entry reappears without change.
+  const leading = /\/\* Empty upstream leading box[\s\S]*?\*\/\s*(\[data-mobile-nav="frame"\] \[data-phase\] \[data-slot="conversation\.session\.header"\] > header \[class\*="_headerLeading"\][^{]*)\{([\s\S]*?)\n  \}/.exec(layout)
+  assert.ok(leading, 'headerLeading collapse rule is missing from layout.css.ts')
+  assert.match(leading[2], /display: none !important;/)
+  assert.match(leading[1], /:not\(:has\(\[data-slot="conversation\.session\.header\.leading"\] > \*\)\)/, 'must only collapse while the leading slot is empty')
+})
+
+test('the subagent lineage yields to the session title on narrow phones', () => {
+  // Measured live at 390px with one running subagent: the pinned
+  // max-content lineage root took 81px and crushed the session switcher to
+  // 16px (title invisible). On narrow phones the decorative "/" hides and
+  // the trigger ellipsizes (count stays visible) while the switcher is
+  // allowed to shrink, so the title keeps every remaining pixel.
+  const sep = /\[class\*="_crumbs"\] \[class\*="_root"\]:not\(\[class\*="_switcherRoot"\]\):has\(> button\[class\*="_trigger"\]\) > \[class\*="_separator"\]\s*\{([^}]*)\}/.exec(layout)?.[1]
+  assert.ok(sep, 'lineage separator rule is missing from layout.css.ts')
+  assert.match(sep, /display: none !important;/)
+  const trigger = /\[class\*="_crumbs"\] \[class\*="_root"\]:not\(\[class\*="_switcherRoot"\]\):has\(> button\[class\*="_trigger"\]\) > button\[class\*="_trigger"\]\s*\{([^}]*)\}/.exec(layout)?.[1]
+  assert.ok(trigger, 'lineage trigger cap rule is missing from layout.css.ts')
+  assert.match(trigger, /max-width: 56px !important;/)
+  assert.match(trigger, /text-overflow: ellipsis !important;/)
+  assert.match(trigger, /min-width: 0 !important;/)
+  const switcher = /\[class\*="_crumbs"\] \[class\*="_crumbCurrent"\]\s*\{([^}]*)\}/.exec(layout)?.[1]
+  assert.ok(switcher, 'switcher shrink rule is missing from layout.css.ts')
+  assert.match(switcher, /min-width: 0 !important;/)
+})

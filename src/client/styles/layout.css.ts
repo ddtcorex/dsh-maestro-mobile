@@ -562,6 +562,15 @@ export const LAYOUT_CSS = `/* ---------- mobile-only layout ---------- */
      residents (Open workspace in Files, open-in-app "Choose an app to open
      in"): two visible icon buttons (x 287–337 at 390px, measured live) plus
      the ⋯ still hidden above — re-measure if upstream adds a fourth. */
+  /* Empty upstream leading box: 0.1.6 titleRow splits free space between
+     headerLeading (an unfilled leading slot in this deployment:
+     display:contents, zero occupants) and titleCluster, wasting ~113px at
+     390px and starving the session title. Collapse it only while the slot
+     has no element children, so a future upstream occupant reappears
+     without a plugin change. */
+  [data-mobile-nav="frame"] [data-phase] [data-slot="conversation.session.header"] > header [class*="_headerLeading"]:not(:has([data-slot="conversation.session.header.leading"] > *)) {
+    display: none !important;
+  }
   /* Header crowding on narrow phones.
      A background-job trigger in the header actions, or the subagent lineage
      count ("N subagents") living inside the crumbs nav, consumes the width the
@@ -586,12 +595,33 @@ export const LAYOUT_CSS = `/* ---------- mobile-only layout ---------- */
       padding-left: 18px;
       padding-right: 0 !important;
     }
+    /* Session title keeps priority over the subagent lineage: the pinned
+       max-content root took 81px and crushed the session switcher to 16px
+       at 390px (measured live with one running subagent). Hide the
+       decorative "/" and ellipsize the trigger so the count stays visible
+       ("1 sub…") while the switcher — now allowed to shrink — keeps every
+       remaining pixel for the title. */
+    [data-mobile-nav="frame"] [data-phase] [data-slot="conversation.session.header"] > header [class*="_crumbs"] [class*="_root"]:not([class*="_switcherRoot"]):has(> button[class*="_trigger"]) > [class*="_separator"] {
+      display: none !important;
+    }
+    [data-mobile-nav="frame"] [data-phase] [data-slot="conversation.session.header"] > header [class*="_crumbs"] [class*="_root"]:not([class*="_switcherRoot"]):has(> button[class*="_trigger"]) > button[class*="_trigger"] {
+      min-width: 0 !important;
+      max-width: 56px !important;
+      overflow: hidden !important;
+      text-overflow: ellipsis !important;
+      white-space: nowrap !important;
+    }
+    [data-mobile-nav="frame"] [data-phase] [data-slot="conversation.session.header"] > header [class*="_crumbs"] [class*="_crumbCurrent"] {
+      min-width: 0 !important;
+      overflow: hidden !important;
+      text-overflow: ellipsis !important;
+    }
   }
   /* When the subagent lineage (any state) AND a background job are present
-     together, even the mode icon is not enough room by itself. Keep the full
-     subagent count (the reported-overwritten text) by compacting the job
-     trigger to its dot/chevron, and keep mode icon-only so the crumbs nav can
-     also hold a small right-hand gap — the subagent text should never sit
+     together, even the mode icon is not enough room by itself. The lineage
+     already yields above (compressed trigger), so compact the job trigger
+     to its dot/chevron as well, and keep mode icon-only so the crumbs nav can
+     also hold a small right-hand gap — the subagent count should never sit
      flush against the mode component. */
   @media (max-width: 559px) {
     [data-mobile-nav="frame"] [data-phase] [data-slot="conversation.session.header"] > header [class*="_crumbs"] {
