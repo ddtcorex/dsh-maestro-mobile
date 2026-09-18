@@ -604,7 +604,7 @@ export const LAYOUT_CSS = `/* ---------- mobile-only layout ---------- */
     [data-mobile-nav="frame"] [data-phase] [data-slot="conversation.session.header"] > header [class*="_crumbs"] [class*="_root"]:not([class*="_switcherRoot"]):has(> button[class*="_trigger"]) > [class*="_separator"] {
       display: none !important;
     }
-    [data-mobile-nav="frame"] [data-phase] [data-slot="conversation.session.header"] > header [class*="_crumbs"] [class*="_root"]:not([class*="_switcherRoot"]):has(> button[class*="_trigger"]) > button[class*="_trigger"] {
+    [data-mobile-nav="frame"] [data-phase] [data-slot="conversation.session.header"] > header [class*="_crumbs"] [class*="_root"]:not([class*="_switcherRoot"]):has(> button[class*="_trigger"]) > button[class*="_trigger"]:not([data-mobile-nav]) {
       min-width: 0 !important;
       max-width: 56px !important;
       overflow: hidden !important;

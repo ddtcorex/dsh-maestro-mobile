@@ -66,7 +66,7 @@ test('the subagent lineage yields to the session title on narrow phones', () => 
   const sep = /\[class\*="_crumbs"\] \[class\*="_root"\]:not\(\[class\*="_switcherRoot"\]\):has\(> button\[class\*="_trigger"\]\) > \[class\*="_separator"\]\s*\{([^}]*)\}/.exec(layout)?.[1]
   assert.ok(sep, 'lineage separator rule is missing from layout.css.ts')
   assert.match(sep, /display: none !important;/)
-  const trigger = /\[class\*="_crumbs"\] \[class\*="_root"\]:not\(\[class\*="_switcherRoot"\]\):has\(> button\[class\*="_trigger"\]\) > button\[class\*="_trigger"\]\s*\{([^}]*)\}/.exec(layout)?.[1]
+  const trigger = /\[class\*="_crumbs"\] \[class\*="_root"\]:not\(\[class\*="_switcherRoot"\]\):has\(> button\[class\*="_trigger"\]\) > button\[class\*="_trigger"\]:not\(\[data-mobile-nav\]\)\s*\{([^}]*)\}/.exec(layout)?.[1]
   assert.ok(trigger, 'lineage trigger cap rule is missing from layout.css.ts')
   assert.match(trigger, /max-width: 56px !important;/)
   assert.match(trigger, /text-overflow: ellipsis !important;/)
