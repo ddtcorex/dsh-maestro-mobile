@@ -65,9 +65,10 @@ pnpm smoke:cdp            # drawer / backdrop / FAB / breakpoints / pointer gate
 pnpm probe:pointer-gating # narrow touch = mobile, narrow mouse = no-op, re-arm on crossing
 pnpm probe:swipe          # swipe control, overlay / selection / drag / pinch yields
 pnpm probe:session-delete # item injection, dialog, Escape-cancel, route liveness
+pnpm probe:panel-font     # panel row collapses the drawer; prose follows the content font axis
 ```
 
-All four need `DSH_PROBE_URL` (with the current launch token when probing
+All five need `DSH_PROBE_URL` (with the current launch token when probing
 `:3082`), `DSH_PROBE_SESSION_ID`, and `DSH_PROBE_CHROME`. Add
 `DSH_PROBE_WORKSPACE=<title>` when the cold-start picker must select a specific
 workspace.

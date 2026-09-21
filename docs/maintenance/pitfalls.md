@@ -11,6 +11,10 @@ wrong, how it presented, and the rule that prevents it.
 
 **A yield probe must assert its precondition.** The swipe-yield probe passed falsely while the drawer was already open: an edge swipe *closes* an open drawer, which reads exactly like "the yield worked". Assert the drawer is closed before each scenario, and treat a failed reset as a scenario failure.
 
+**The default probe Chrome binary is a snap stub that never launches.** `DSH_PROBE_CHROME` defaults to `chromium`, which on this machine resolves to `/snap/bin/chromium`; the probe then dies in `timeout waiting for chrome target` before it asserts anything. Pass the real binary — `DSH_PROBE_CHROME=/opt/google/chrome/chrome` — when a probe times out on its very first step rather than on a check.
+
+**A probe that would also pass on the old code is not evidence.** Both checks added by `probe:panel-font` were validated by re-implementing the pre-fix behaviour and showing the probe lands somewhere different: at a 22px axis the old `15px!important` resolves to 15px while the new `max(15px, var(…))` resolves to 22px, and the old drawer whitelist matches no `panelRow` class while the new one does. Note the discriminating axis matters — at 14px and 8px both implementations agree, so only the above-floor assertion proves anything.
+
 **Injection happens on the next animation frame.** The session-row menu is a React portal; the plugin appends its item in an rAF after the portal mounts. A probe that snapshots the menu immediately reads `injected=0`. Wait for the marker, not for the menu.
 
 **The selected session row has no action button.** `[class*="_sessionRow"]` covers both the selected row (no `_rowActions`) and ordinary rows (one `aria-label="Session actions for …"` button). Pick the first row that actually has a button.
