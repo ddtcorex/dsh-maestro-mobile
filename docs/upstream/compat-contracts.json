@@ -287,6 +287,23 @@
    "lazy": true,
    "state": "trigger an ask_user_question card",
    "note": "iOS focus-zoom guard mirror measurement"
+  },
+  {
+   "id": "sidebar-panel-row",
+   "kind": "hash",
+   "needle": "panelRow",
+   "owner": "dsh-client-ui-sidebar",
+   "lazy": true,
+   "state": "open the drawer on a host with a registered global panel",
+   "note": "drawer tap-close whitelist: a global panel row swaps the main column, so its tap must collapse the drawer"
+  },
+  {
+   "id": "content-font-size-axis",
+   "kind": "variable",
+   "needle": "--dsh-content-font-size",
+   "owner": "dsh-client-ui-layout",
+   "lazy": false,
+   "note": "message prose reads this axis instead of a bare px; set by ThemePresenter.apply on <body>"
   }
  ]
 }

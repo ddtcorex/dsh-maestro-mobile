@@ -4,7 +4,9 @@
 // armed), reads docs/upstream/compat-contracts.json, and reports HIT / MISS /
 // SKIP for every contract:
 //   - kind "marker": the selector must match at least one element;
-//   - kind "hash":   the fragment must appear in some element's class list.
+//   - kind "hash":   the fragment must appear in some element's class list;
+//   - kind "variable": the CSS custom property must resolve to a non-empty
+//     value on <body>, where the theme presenter publishes the content axis.
 // A MISS on a contract with lazy:false fails the run (exit 1). A MISS on a
 // lazy contract is reported as SKIP with the manual state that would reveal it,
 // because that markup only exists in some states.
@@ -143,10 +145,20 @@ async function main() {
     const fragmentBlob = fragments.join(' ')
 
     for (const contract of manifest.contracts) {
-      const isMarker = contract.kind === 'marker'
-      const hit = isMarker
-        ? await client.evaluate(`document.querySelector(${JSON.stringify(contract.needle)}) !== null`)
-        : fragmentBlob.includes(contract.needle)
+      let hit
+      if (contract.kind === 'marker') {
+        hit = await client.evaluate(`document.querySelector(${JSON.stringify(contract.needle)}) !== null`)
+      } else if (contract.kind === 'variable') {
+        // Read the computed value off <body>: that is where ThemePresenter
+        // writes the content axis, and an unresolved var() would come back
+        // empty — exactly the state that silently dead-ends the rule.
+        const value = await client.evaluate(
+          `getComputedStyle(document.body).getPropertyValue(${JSON.stringify(contract.needle)}).trim()`,
+        )
+        hit = typeof value === 'string' && value.length > 0
+      } else {
+        hit = fragmentBlob.includes(contract.needle)
+      }
       if (hit) results.push({ status: 'HIT', contract })
       else results.push({ status: contract.lazy ? 'SKIP' : 'MISS', contract })
     }

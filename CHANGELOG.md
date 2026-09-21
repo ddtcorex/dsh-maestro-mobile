@@ -4,6 +4,17 @@ All notable changes to this project are documented in this file. Format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); this project uses
 [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Fixed
+
+- **The drawer no longer stays open over a sidebar panel** — tapping a global-panel row (Plugins, Skills, …) swapped the main column but left the drawer open on top of the panel it had just opened. The host exposes `layout.selectPanel(null)` on the service but no UI affordance ever calls it, so the drawer was the only element with a way out. The drawer tap whitelist now carries the `panelRow` fragment alongside session rows, search results, task board and ssh entries; the selector moved into an exported fragment list so the decision table is unit-testable without a DOM, and it stays narrow on purpose — a tap that opens a menu or mutates in place must still leave the drawer mounted.
+- **Message text follows the host content font-size setting** — message prose was pinned at `15px !important`, which made the host typography setting a dead control on every touch device. The host publishes the user's choice as `--dsh-content-font-size` on `<body>` (ui-layout `ThemePresenter.apply`) and derives its own `--dsw-font-markdown-base` from it; the plugin now reads that axis via `max(15px, var(--dsh-content-font-size, 14px))`. The default setting is 14px, so phones render exactly as before, a larger setting now reaches the text, and the 15px floor stays independent of the iOS focus-zoom guarantee the composer field owns. Control geometry (buttons, chips, sheet titles) keeps its fixed sizes — the axis governs prose, not chrome.
+
+### Changed
+
+- **The upstream contract scan understands CSS variables** — `docs/upstream/compat-contracts.json` gains a third contract kind, `variable`, which asserts a custom property resolves to a non-empty value on `<body>` (the live check behind the font-size axis, where a grep for the variable would not prove the setting reaches the text). The sidebar panel row is registered as a `hash` contract.
+
 ## [1.4.0] - 2026-09-12
 
 ### Added
