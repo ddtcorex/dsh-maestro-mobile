@@ -186,6 +186,24 @@ async function main() {
       }
     }
 
+    // ------------------------------------------------- fix C: FAB on a panel
+    // A global panel replaces the conversation, so it carries no [data-phase]
+    // and heroPhase was true there: the drawer FAB mounted over the panel's own
+    // content at 10,72 with pointer-events auto, covering its subtitle and
+    // swallowing taps. It must be absent while the panel is open.
+    const fabState = await client.evaluate(`(() => ({
+      fab: document.querySelector('[data-mobile-nav="fab"]') !== null,
+      panelOpen: document.querySelector('[data-plugin-panel]') !== null
+        || document.querySelector('nav[aria-label] button[aria-current="page"]') !== null,
+    }))()`)
+    if (!fabState.panelOpen) {
+      fail('panel-fab.panel-open', 'no panel detected after the tap')
+    } else if (fabState.fab) {
+      fail('panel-fab.hidden', 'drawer FAB still floats over the open panel')
+    } else {
+      pass('panel-fab.hidden', 'no FAB over the panel')
+    }
+
     // ---------------------------------------------------------------- fix B
     // Open a session so real message prose exists, then raise the host axis
     // above the floor and read the COMPUTED size of the prose.

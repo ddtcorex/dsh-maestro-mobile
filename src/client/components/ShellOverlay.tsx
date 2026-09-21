@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import type { PropsLocale, PropsRuntime } from '@deepseek-ai/dsh-client-ui-slots'
 import { NS } from '../i18n/locales.ts'
 import { getFrame, MOBILE_QUERY } from '../effects/phone-chrome.ts'
+import { isPanelOpen, shouldShowFab, PANEL_MUTATION_ATTRIBUTE_FILTER } from '../effects/panel-presence.ts'
 
 export interface ShellOverlayProps extends PropsRuntime<'shell.overlay'>, PropsLocale<typeof NS> {
   toggleSidebar: () => void
@@ -17,6 +18,7 @@ export interface ShellOverlayProps extends PropsRuntime<'shell.overlay'>, PropsL
 export function ShellOverlay({ toggleSidebar, t }: ShellOverlayProps) {
   const [drawerOpen, setDrawerOpen] = useState(false)
   const [heroPhase, setHeroPhase] = useState(false)
+  const [panelOpen, setPanelOpen] = useState(false)
   const [narrow, setNarrow] = useState(() => window.matchMedia(MOBILE_QUERY).matches)
 
   useEffect(() => {
@@ -28,6 +30,9 @@ export function ShellOverlay({ toggleSidebar, t }: ShellOverlayProps) {
       const frame = getFrame()
       setDrawerOpen(frame !== null && !frame.hasAttribute('data-sidebar-collapsed'))
       setHeroPhase(document.querySelector('[data-phase="active"]') === null)
+      // A global panel also has no active phase, so heroPhase alone would mount
+      // the FAB on top of the panel's own content. Ask the positive question.
+      setPanelOpen(isPanelOpen())
     }
     read()
     const mo = new MutationObserver(read)
@@ -35,7 +40,9 @@ export function ShellOverlay({ toggleSidebar, t }: ShellOverlayProps) {
       childList: true,
       subtree: true,
       attributes: true,
-      attributeFilter: ['data-sidebar-collapsed', 'data-phase'],
+      // data-sidebar-collapsed is absent entirely while a panel occupies the
+      // frame, and aria-current flips as the selected panel row changes.
+      attributeFilter: [...PANEL_MUTATION_ATTRIBUTE_FILTER],
     })
     return () => {
       mq.removeEventListener('change', onMq)
@@ -57,7 +64,7 @@ export function ShellOverlay({ toggleSidebar, t }: ShellOverlayProps) {
           style={{ pointerEvents: 'auto' }}
         />
       )}
-      {heroPhase && !drawerOpen && (
+      {shouldShowFab({ heroPhase, drawerOpen, panelOpen }) && (
         <button
           type="button"
           data-mobile-nav="fab"

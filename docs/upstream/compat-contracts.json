@@ -304,6 +304,24 @@
    "owner": "dsh-client-ui-layout",
    "lazy": false,
    "note": "message prose reads this axis instead of a bare px; set by ThemePresenter.apply on <body>"
+  },
+  {
+   "id": "plugin-panel-page",
+   "kind": "marker",
+   "needle": "[data-plugin-panel]",
+   "owner": "dsh-client-ui-plugin-manager",
+   "lazy": true,
+   "state": "open the Plugins panel",
+   "note": "positive panel-open signal for the shell overlay: hides the drawer FAB over panel content"
+  },
+  {
+   "id": "active-panel-row",
+   "kind": "marker",
+   "needle": "nav[aria-label] button[aria-current=\"page\"]",
+   "owner": "dsh-client-ui-sidebar",
+   "lazy": true,
+   "state": "open any global panel",
+   "note": "second panel-open signal, covers a panel whose page ships no marker of its own"
   }
  ]
 }
