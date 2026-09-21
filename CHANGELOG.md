@@ -4,6 +4,18 @@ All notable changes to this project are documented in this file. Format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); this project uses
 [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Fixed
+
+- **The drawer button no longer floats over an open panel** — a global panel (Plugins, …) replaces the conversation, so it carries no `[data-phase]` element either. The shell defined `heroPhase` as "no active phase" and mounted the floating drawer button on it, so on a panel page the button rendered at `10,72` with `z-index: 21` and `pointer-events: auto` — covering the panel's own subtitle and swallowing taps aimed at the panel. The overlay now asks a positive question instead (`src/client/effects/panel-presence.ts`): a panel is open when the host marks a panel page (`[data-plugin-panel]`) or a sidebar panel row reports `aria-current="page"`. Keying on the presence of a panel rather than the absence of a conversation is the point — absence is what made the original inference wrong.
+- **The drawer no longer stays open over a sidebar panel** — tapping a global-panel row (Plugins, Skills, …) swapped the main column but left the drawer open on top of the panel it had just opened. The host exposes `layout.selectPanel(null)` on the service but no UI affordance ever calls it, so the drawer was the only element with a way out. The drawer tap whitelist now carries the `panelRow` fragment alongside session rows, search results, task board and ssh entries; the selector moved into an exported fragment list so the decision table is unit-testable without a DOM, and it stays narrow on purpose — a tap that opens a menu or mutates in place must still leave the drawer mounted.
+- **Message text follows the host content font-size setting** — message prose was pinned at `15px !important`, which made the host typography setting a dead control on every touch device. The host publishes the user's choice as `--dsh-content-font-size` on `<body>` (ui-layout `ThemePresenter.apply`) and derives its own `--dsw-font-markdown-base` from it; the plugin now reads that axis via `max(15px, var(--dsh-content-font-size, 14px))`. The default setting is 14px, so phones render exactly as before, a larger setting now reaches the text, and the 15px floor stays independent of the iOS focus-zoom guarantee the composer field owns. Control geometry (buttons, chips, sheet titles) keeps its fixed sizes — the axis governs prose, not chrome.
+
+### Changed
+
+- **The upstream contract scan understands CSS variables** — `docs/upstream/compat-contracts.json` gains a third contract kind, `variable`, which asserts a custom property resolves to a non-empty value on `<body>` (the live check behind the font-size axis, where a grep for the variable would not prove the setting reaches the text). The sidebar panel row is registered as a `hash` contract.
+
 ## [1.4.0] - 2026-09-12
 
 ### Added

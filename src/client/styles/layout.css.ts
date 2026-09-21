@@ -286,16 +286,25 @@ export const LAYOUT_CSS = `/* ---------- mobile-only layout ---------- */
   [data-phase] [class*="_scroll"]:not([class*="_scrollBody"]):has(p) {
     padding-left: 20px;
     padding-right: 20px;
-    font-size: 15px !important;
+    font-size: max(15px, var(--dsh-content-font-size, 14px)) !important;
   }
   /* The official markdown styles set an explicit 16px on paragraphs and
-     list items, so the container's inherited 15px is not enough. User
+     list items, so the container's inherited size is not enough. User
      messages render their text in a div whose class carries _text_
-     (16px too) — cover it as well. */
+     (16px too) — cover it as well.
+
+     The size comes from the host's own content axis, never a bare px. The
+     host publishes the user's setting as --dsh-content-font-size on <body>
+     (ui-layout ThemePresenter.apply) and derives --dsw-font-markdown-base
+     from it, so a hardcoded !important would make the typography setting a
+     dead control on every touch device. max() keeps 15px as the phone
+     floor: the default setting is 14px, so nothing moves today, while a
+     user who picks 17px actually gets 17px. The floor also preserves the
+     iOS focus-zoom guarantee for the composer field, which is separate. */
   [data-phase] [class*="_scroll"]:not([class*="_scrollBody"]):has(p) p,
   [data-phase] [class*="_scroll"]:not([class*="_scrollBody"]):has(p) li,
   [data-phase] [class*="_scroll"]:not([class*="_scrollBody"]):has(p) [class*="_text_"] {
-    font-size: 15px !important;
+    font-size: max(15px, var(--dsh-content-font-size, 14px)) !important;
   }
 
   /* Markdown tables: the official table uses width:max-content, so on a phone

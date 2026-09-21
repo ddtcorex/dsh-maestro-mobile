@@ -11,6 +11,10 @@ wrong, how it presented, and the rule that prevents it.
 
 **A yield probe must assert its precondition.** The swipe-yield probe passed falsely while the drawer was already open: an edge swipe *closes* an open drawer, which reads exactly like "the yield worked". Assert the drawer is closed before each scenario, and treat a failed reset as a scenario failure.
 
+**The default probe Chrome binary is a snap stub that never launches.** `DSH_PROBE_CHROME` defaults to `chromium`, which on this machine resolves to `/snap/bin/chromium`; the probe then dies in `timeout waiting for chrome target` before it asserts anything. Pass the real binary — `DSH_PROBE_CHROME=/opt/google/chrome/chrome` — when a probe times out on its very first step rather than on a check.
+
+**A probe that would also pass on the old code is not evidence.** Both checks added by `probe:panel-font` were validated by re-implementing the pre-fix behaviour and showing the probe lands somewhere different: at a 22px axis the old `15px!important` resolves to 15px while the new `max(15px, var(…))` resolves to 22px, and the old drawer whitelist matches no `panelRow` class while the new one does. Note the discriminating axis matters — at 14px and 8px both implementations agree, so only the above-floor assertion proves anything.
+
 **Injection happens on the next animation frame.** The session-row menu is a React portal; the plugin appends its item in an rAF after the portal mounts. A probe that snapshots the menu immediately reads `injected=0`. Wait for the marker, not for the menu.
 
 **The selected session row has no action button.** `[class*="_sessionRow"]` covers both the selected row (no `_rowActions`) and ordinary rows (one `aria-label="Session actions for …"` button). Pick the first row that actually has a button.
@@ -20,6 +24,8 @@ wrong, how it presented, and the rule that prevents it.
 **Live checks are meaningless against a stale `lib/`.** The client bundle is served from disk, so a client change is live after a rebuild — but host changes need a `dsh web` restart, and a `pnpm build` that was skipped leaves the browser running old code. Rebuild before every live validation; restart before validating a host capability.
 
 ## Host contract traps
+
+**Never infer a panel from the absence of a conversation.** A global panel page replaces the conversation, so it also has no `[data-phase]` element — which made `heroPhase` ("no active phase") true on a panel page and mounted the drawer FAB over the panel's own content (`10,72`, `z-index: 21`, `pointer-events: auto`: it covered the subtitle *and* swallowed taps, so a screenshot was needed to see it). Ask the positive question instead: `[data-plugin-panel]` on the panel page root, or `aria-current="page"` on the selected sidebar panel row. This is the second bug in this package traced to the same absence-based inference (the drawer close whitelist was the first), so treat "X is missing, therefore state Y" as a smell in any new reconcile task. Note also that `data-sidebar-collapsed` is *absent entirely* while a panel occupies the frame, so that attribute alone cannot report drawer state during a panel.
 
 **The plugin-facing session snapshot is not the one the source implies.** `ctx.sessions.list.getSnapshot()` was expected to expose `ids` + `byId` (the controller's own store shape), but the strict reader threw `Cannot read properties of undefined (reading 'filter')` against this host. `session-menu.ts` now reads both generations (`ids`/`byId` and a manager-style `items`); do the same for any new consumer, and never assume a snapshot shape from source alone — probe it.
 

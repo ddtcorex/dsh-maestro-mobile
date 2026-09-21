@@ -9,6 +9,7 @@ import { createSettingsToolbarTask } from './settings-toolbar-reparent.ts'
 import { createJobsIndicatorTask } from './jobs-indicator.ts'
 import { createLineageBadgeTask } from './lineage-badge.ts'
 import { consumeIfGestured, isStrokeLocked } from './gesture-guard.ts'
+import { DRAWER_NAV_TAP_SELECTOR } from './drawer-navigation.ts'
 
 // The custom client bundler cannot resolve `../` requires from src/client/effects,
 // so this mirrors the namespace id from src/client/locales.ts. Keep in sync.
@@ -400,10 +401,10 @@ export function installPhoneChrome(ctx: ClientContext): void {
  * reconciliation:
  * - Escape closes the drawer (yielding to any open modal dialog, which owns
  *   its own Escape handling).
- * - Tapping a navigation target inside the drawer (session row, task board /
- *   ssh takeover entries, search results) closes the drawer so the content
- *   it opened gets the whole screen. Session-row action buttons (kebab) are
- *   excluded — they open a menu that must survive the tap.
+ * - Tapping a navigation target inside the drawer (session row, global panel
+ *   entry, task board / ssh takeover entries, search results) closes the
+ *   drawer so the content it opened gets the whole screen. Session-row action
+ *   buttons (kebab) are excluded — they open a menu that must survive the tap.
  */
 export function installOverlayInteractions(ctx: ClientContext): void {
   installMobileEffect(ctx, 'dsh-maestro-mobile: drawer close (Escape + navigate)', () => {
@@ -432,9 +433,7 @@ export function installOverlayInteractions(ctx: ClientContext): void {
       const drawer = drawerRoot()
       if (drawer === null || !drawer.contains(target)) return false
       if (target.closest('[class*="sessionRow"] button') !== null) return false
-      return target.closest(
-        'button[data-dsh-taskboard-entry], button[data-dsh-ssh-entry], [class*="newSession"], [class*="sessionRow"], [class*="searchResultRow"], [class*="searchResultWorkspace"]',
-      ) !== null
+      return target.closest(DRAWER_NAV_TAP_SELECTOR) !== null
     }
     // Touch path for session/search rows: never close the drawer from pointer
     // events. Closing at pointerup (or deferring the close) races the browser's
