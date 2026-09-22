@@ -307,6 +307,42 @@ async function main() {
     if (widgetAfter) fail('swipe.floating-widget-yields', `drawer opened (before=${widgetBefore} after=${widgetAfter})`)
     else pass('swipe.floating-widget-yields', `drawer stayed closed (before=${widgetBefore})`)
 
+    // Overlay option list: a body-portalled menu that overlaps the start zone
+    // owns the pointers on it. The composer model picker is the reported case —
+    // its rows span x=84..324 on a 390px phone, so their left third sits inside
+    // the 45% zone; without this yield a row tap whose finger drifts past
+    // LOCK_PX arms the drawer open and the release consumes the tap, so the row
+    // reads as dead ("the model list appears but choosing one does nothing").
+    //
+    // The probe host is deliberately 220px TALL: above FLOATING_WIDGET_MAX_PX,
+    // so it cannot pass through the floating-widget heuristic and the scenario
+    // only goes green on the overlay-menu yield itself.
+    await resetScenario(client)
+    await client.evaluate(`(() => {
+      const host = document.createElement('div');
+      host.id = 'probe-yield-host';
+      host.setAttribute('role', 'menu');
+      host.style.cssText = 'position:fixed;left:0;top:300px;width:200px;height:220px;z-index:9999';
+      document.body.appendChild(host);
+      return true;
+    })()`)
+    // Precondition: the probe menu must actually own the swipe's start point,
+    // or the scenario would pass by swiping at nothing.
+    const menuOwnsStart = await client.evaluate(`(() => {
+      const hit = document.elementFromPoint(12, 420);
+      const host = document.getElementById('probe-yield-host');
+      return hit !== null && host !== null && (hit === host || host.contains(hit));
+    })()`)
+    if (!menuOwnsStart) fail('swipe.overlay-menu-yields', 'precondition: the probe menu does not own the swipe start point')
+    else {
+      const menuBefore = await drawerOpen(client)
+      await touchSwipe(client, [{ x: 12, y: 420, toX: Math.round(width * 0.7), toY: 420 }])
+      await sleep(700)
+      const menuAfter = await drawerOpen(client)
+      if (menuAfter) fail('swipe.overlay-menu-yields', `drawer opened (before=${menuBefore} after=${menuAfter})`)
+      else pass('swipe.overlay-menu-yields', `drawer stayed closed (before=${menuBefore})`)
+    }
+
     // Pinch: two fingers inside the start zone must not open the drawer and
     // must not have their touchmoves prevented.
     await resetScenario(client)

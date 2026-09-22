@@ -3,6 +3,12 @@
 Traps that cost real debugging time in this package. Each entry says what went
 wrong, how it presented, and the rule that prevents it.
 
+## Gesture traps
+
+**A body-portalled menu can sit inside the 45% drawer start zone.** The composer model picker is 248px wide with rows at x=84..324 on a 390px phone, so the left third of every row is inside the swipe-in zone. A finger's ordinary horizontal jitter reaches LOCK_PX there: the stroke axis-locks, `armOpenFollow` flips the drawer open, the release classifies to `none`, and the release's consume mark swallows the row's click — the list opens but the row reads as dead. Zero-drift CDP taps never reproduce it; a jitter probe (same point, +12px rightward drift) does. New pointer-owning overlay surfaces must be added to `OVERLAY_MENU_SELECTOR` in `sidebar-swipe.ts`.
+
+**iOS Safari does not focus a tapped button, and the host menus dismiss on blur.** Chrome focuses the tapped row, so the `focusout` carries that row as `relatedTarget` and the card survives; Safari produces `focusout` with `relatedTarget: null`, no following `focusin`, and the host's `onBlur` closes the card before the tap's `click` reaches the row — the list opens, the tap closes it, and nothing is selected. A CDP probe on Chrome therefore passes on broken-for-iOS code. `overlay-menu-tap-guard.ts` stops that one focusout inside a touch tap window; verify with the iOS-shaped sequence (pointerdown inside the menu, then `activeElement.blur()` with no refocus, then the click) and confirm it fails with the guard's listener removed.
+
 ## CDP / probe traps
 
 **Headless Chrome has no pointer unless you emulate one.** `Emulation.setDeviceMetricsOverride {mobile: true}` alone reports `(pointer: none)` with `maxTouchPoints: 0`, so a `(pointer: coarse)`-gated mobile branch never arms. Every probe must call `Emulation.setTouchEmulationEnabled {enabled: true, maxTouchPoints: 5}` and assert the query. `maxTouchPoints: 0` is rejected with `-32602` even while disabling, so only send the field when enabling.

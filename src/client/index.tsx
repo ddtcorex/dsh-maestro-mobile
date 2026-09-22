@@ -10,9 +10,11 @@ import { installAionuiCompat } from './effects/aionui-compat.ts'
 import { installLayoutBridge } from './effects/layout-bridge.ts'
 import { installViewportBridge } from './effects/viewport.ts'
 import { installSidebarSwipe } from './effects/sidebar-swipe.ts'
+import { installOverlayMenuTapGuard } from './effects/overlay-menu-tap-guard.ts'
 import { installHeroPresetMenuFix } from './effects/preset-menu-fix.ts'
 import { installComposerKeyboardTouch } from './effects/composer-keyboard-touch.ts'
 import { installSessionMenuDelete } from './effects/session-menu.ts'
+import { installDebugBadge } from './debug.ts'
 import { NS, en, zh } from './i18n/locales.ts'
 import type { MobileNavKey } from './i18n/locales.ts'
 
@@ -50,6 +52,12 @@ export function apply(ctx: ClientContext): void {
       tag.remove()
     }
   }, 'dsh-maestro-mobile: styles')
+
+  // Opt-in diagnostics (?dsh-maestro-mobile-debug=1): live state overlay plus
+  // the captured-event trace used to diagnose touch behaviour on a platform
+  // that cannot be emulated locally. Registered before every other effect so
+  // its document listeners observe each event ahead of any that might stop it.
+  installDebugBadge(ctx)
 
   // Hard-fix the installed-plugins list text layout: the host market UI
   // injects its own CSS after this plugin's stylesheet, so CSS overrides can
@@ -158,6 +166,7 @@ export function apply(ctx: ClientContext): void {
 
   // Sidebar drawer swipe gestures (edge swipe-in / content swipe-out with B-hybrid follow)
   installSidebarSwipe(ctx)
+  installOverlayMenuTapGuard(ctx)
 
   // DSH-native bridges (reuse AppFrame breakpoint + ThemePresenter)
   installLayoutBridge(ctx)

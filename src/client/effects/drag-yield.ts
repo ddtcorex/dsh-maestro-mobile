@@ -39,12 +39,19 @@ export interface DragMarkScope {
   body: { hasAttribute(name: string): boolean } | null
 }
 
-/** Minimal element face the mark check needs. */
-interface ClosestLike {
+/** Minimal element face a `closest()`-based yield check needs. */
+export interface ClosestLike {
   closest(selector: string): unknown
 }
 
-const isClosestLike = (value: unknown): value is ClosestLike =>
+/**
+ * Whether a value can answer `closest()`: real Elements, but also the
+ * structural fakes the node:test suite passes, and SVG/foreign nodes that are
+ * not HTMLElement instances.
+ * @param value - the candidate (typically an event target).
+ * @returns true when `closest` may be called on it.
+ */
+export const isClosestLike = (value: unknown): value is ClosestLike =>
   typeof value === 'object' && value !== null && typeof (value as ClosestLike).closest === 'function'
 
 /**
