@@ -4,17 +4,44 @@ All notable changes to this project are documented in this file. Format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); this project uses
 [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [Unreleased]
+## [1.5.0] - 2026-09-22
 
 ### Fixed
 
+- **The hero header corner keeps the right gutter** — on a blank (hero)
+  session `hideChrome` removes the title cluster, so the corner seat became
+  the title row's `:first-child` and the structural cluster rules restyled
+  it: `width: 100%` stretched the absolutely-positioned corner across the
+  row and parked the "Open right sidebar" button at the row start (x=50)
+  instead of the right gutter. The cluster selectors now exclude the corner
+  and the corner shrink-wraps its own 28px button (#49).
+- **The session title clears the drawer toggle by one rhythm** — row padding
+  (16) plus cluster padding (20) left a 16px hole between the toggle's edge
+  and the title, twice the header's 8px rhythm; 12px lands the title just
+  past the toggle (#49).
+- **The header's Open-in-Files group is gone on mobile** — the
+  `ui-open-in-app` split button deep-links into a desktop app, is useless on
+  a phone and ate ~50px of session-title room; the whole group hides at
+  every mobile width instead of only its chevron below 480px (#49).
+- **Trailing header buttons dock one rhythm from the corner toggle** — with
+  the utilities cluster emptied, the shrink-only title cluster stranded its
+  trailing controls mid-row, 44px from the corner at 402px. The cluster now
+  grows to fill the row and the emptied utilities box leaves it outright
+  (#49).
 - **The drawer button no longer floats over an open panel** — a global panel (Plugins, …) replaces the conversation, so it carries no `[data-phase]` element either. The shell defined `heroPhase` as "no active phase" and mounted the floating drawer button on it, so on a panel page the button rendered at `10,72` with `z-index: 21` and `pointer-events: auto` — covering the panel's own subtitle and swallowing taps aimed at the panel. The overlay now asks a positive question instead (`src/client/effects/panel-presence.ts`): a panel is open when the host marks a panel page (`[data-plugin-panel]`) or a sidebar panel row reports `aria-current="page"`. Keying on the presence of a panel rather than the absence of a conversation is the point — absence is what made the original inference wrong.
 - **The drawer no longer stays open over a sidebar panel** — tapping a global-panel row (Plugins, Skills, …) swapped the main column but left the drawer open on top of the panel it had just opened. The host exposes `layout.selectPanel(null)` on the service but no UI affordance ever calls it, so the drawer was the only element with a way out. The drawer tap whitelist now carries the `panelRow` fragment alongside session rows, search results, task board and ssh entries; the selector moved into an exported fragment list so the decision table is unit-testable without a DOM, and it stays narrow on purpose — a tap that opens a menu or mutates in place must still leave the drawer mounted.
 - **Message text follows the host content font-size setting** — message prose was pinned at `15px !important`, which made the host typography setting a dead control on every touch device. The host publishes the user's choice as `--dsh-content-font-size` on `<body>` (ui-layout `ThemePresenter.apply`) and derives its own `--dsw-font-markdown-base` from it; the plugin now reads that axis via `max(15px, var(--dsh-content-font-size, 14px))`. The default setting is 14px, so phones render exactly as before, a larger setting now reaches the text, and the 15px floor stays independent of the iOS focus-zoom guarantee the composer field owns. Control geometry (buttons, chips, sheet titles) keeps its fixed sizes — the axis governs prose, not chrome.
+- **The iOS 16px field floor holds at every viewport** rather than only on the widths the original rule covered (#41).
+- **The session title wins the header row over the lineage badge** — a pinned max-content lineage trigger crushed the switcher to 16px on narrow phones; the separator hides and the trigger ellipsizes while the count stays visible (#43).
+- **Overlay option-list taps select on touch devices** (#45).
+- **The Files glyph is optically centered in its button** — the arrow ink masses toward the arrowhead and read low-left at phone sizes; a 2px nudge balances it (#48).
 
 ### Changed
 
-- **The upstream contract scan understands CSS variables** — `docs/upstream/compat-contracts.json` gains a third contract kind, `variable`, which asserts a custom property resolves to a non-empty value on `<body>` (the live check behind the font-size axis, where a grep for the variable would not prove the setting reaches the text). The sidebar panel row is registered as a `hash` contract.
+- **The session header is rebuilt for the DSH 0.1.7 div structure** — 0.1.7 removed the `<header>` element from the session-header seat, so the pre-0.1.7 rules matched nothing and the title/lane geometry collapsed; the block re-anchors on `div.titleRow` and `div.tabs` and the old selectors stay for ≤0.1.6 (#47).
+- **DSH 0.1.6-alpha.2 client contracts are supported** (#42).
+- **The upstream contract scan understands CSS variables** — `docs/upstream/compat-contracts.json` gains a third contract kind, `variable`, which asserts a custom property resolves to a non-empty value on `<body>` (the live check behind the font-size axis, where a grep for the variable would not prove the setting reaches the text). The sidebar panel row is registered as a `hash` contract, and the open-in-app split group as a `fragment`.
+- Declare package license, repository and Node engine range in the manifest (#40); correct the `lib/` build-output claim in the docs (#39).
 
 ## [1.4.0] - 2026-09-12
 
