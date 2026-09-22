@@ -866,7 +866,13 @@ export const LAYOUT_CSS = `/* ---------- mobile-only layout ---------- */
   [data-mobile-nav="frame"] [data-phase] [data-slot="conversation.session.header"] > div:first-child > :first-child:not([data-conversation-header-corner]) {
     display: flex !important;
     align-items: center;
-    flex: 0 1 auto !important;
+    /* Grow to fill the row: the trailing controls (jobs badge, lineage)
+       dock flush right against the corner reservation. Shrink-only left
+       them stranded mid-row once the utilities cluster emptied (Files
+       split + ⋯ menu both hidden on mobile): 44px from the corner at
+       402px (mobile report 2026-09-22). The crumbs lane inside stays the
+       flexible one, so a long title ellipsizes instead of pushing out. */
+    flex: 1 1 auto !important;
     min-width: 0;
     gap: 2px;
     box-sizing: border-box;
@@ -1090,13 +1096,25 @@ export const LAYOUT_CSS = `/* ---------- mobile-only layout ---------- */
   }
   /* Utilities cluster on 0.1.7 held the Files split + ⋯ menu; both now
      hide on mobile (split group above, menu below), so the cluster
-     collapses to zero width and its auto margin docks it flush right with
-     no dead space. (Its menuAnchor span carries a "menu" substring —
-     keep the popover clamp above scoped to ul so the anchor never matches.) */
+     collapses to zero width. (Its menuAnchor span carries a "menu"
+     substring — keep the popover clamp above scoped to ul so the anchor
+     never matches.) */
   [data-mobile-nav="frame"] [data-phase] [data-slot="conversation.session.header"] [class*="headerUtilities"] {
     flex: 0 1 auto !important;
     min-width: 0 !important;
     margin-left: auto !important;
+  }
+  /* ...but an emptied cluster must leave the row entirely, not even a
+     zero-width box: its 8px gap slice plus the corner clearance stacked a
+     24px hole between the trailing buttons and the corner toggle (measured
+     live at 402px, mobile report 2026-09-22). display:none also drops the
+     row gap's orphan slice, so the grown cluster fills to the reservation
+     and the buttons land one rhythm from the corner. Guarded on the hidden
+     split group: if upstream ever removes that markup — or ships another
+     visible utilities entry — the guard stops matching and the cluster
+     comes back on its own. */
+  [data-mobile-nav="frame"] [data-phase] [data-slot="conversation.session.header"] [class*="headerUtilities"]:has([class*="_split"]) {
+    display: none !important;
   }
   /* Trigger roots pin at max-content (jobs 28px circle, lineage 28px badge):
      without this the cluster crushes them to zero against the utilities. */

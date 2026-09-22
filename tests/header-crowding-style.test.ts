@@ -132,6 +132,23 @@ test('the header Open-in-Files group stays off mobile', () => {
   )
 })
 
+test('the emptied utilities cluster yields the row to the actions', () => {
+  // Measured live at 402px: with the split group + ⋯ menu both hidden, the
+  // utilities cluster kept an 8px gap slice that stacked with the row gap
+  // and the corner clearance into a 24px hole between the trailing buttons
+  // and the corner toggle (mobile report 2026-09-22). Remove the emptied
+  // cluster from the row outright while its only content is the hidden
+  // split group; the grown title cluster then fills to the reservation and
+  // the buttons land one rhythm from the corner. If upstream ever removes
+  // the split markup — or ships another visible utilities entry — the
+  // guard stops matching and the cluster comes back on its own.
+  assert.match(
+    layout,
+    /\[class\*="headerUtilities"\]:has\(\[class\*="_split"\]\)\s*\{[^}]*display:\s*none\s*!important;/s,
+    'emptied utilities cluster must leave the row entirely',
+  )
+})
+
 test('0.1.7 header row anchors on the titleRow div, not <header>', () => {
   // 0.1.7 removed the <header> element: seat children are div.titleRow
   // (first) and div.tabs (last). Pre-0.1.7 `> header` rules match nothing,
@@ -200,15 +217,16 @@ test('0.1.7 header controls share one vertical center line', () => {
 })
 
 test('0.1.7 trailing actions form one tight right group', () => {
-  // Measured live at 390px: free space scattered as a 43px hole between the
-  // subagents trigger and Files plus 31px between Files and the corner,
-  // against 8px elsewhere. The title cluster is shrink-only (flex 0 1 auto)
-  // so it never donates space right; the utilities cluster carries
-  // margin-left auto and docks flush against the corner reservation, leaving
-  // exactly one flexible gap mid-row and an 8px rhythm everywhere else.
+  // The title cluster grows (flex 1 1 auto) so its trailing controls (jobs
+  // badge, lineage) dock flush right against the corner reservation: with
+  // the utilities cluster emptied (Files split + ⋯ menu both hidden), a
+  // shrink-only cluster would strand them mid-row, 44px from the corner
+  // toggle (measured live at 402px, mobile report 2026-09-22). The crumbs
+  // lane inside stays the flexible one, so a long title still ellipsizes
+  // instead of pushing the group.
   const cluster = /\[data-slot="conversation\.session\.header"\] > div:first-child > :first-child:not\(\[data-conversation-header-corner\]\) \{([\s\S]*?)\n  \}/.exec(layout)?.[1]
   assert.ok(cluster, '0.1.7 titleCluster rule is missing')
-  assert.match(cluster, /flex: 0 1 auto !important;/)
+  assert.match(cluster, /flex: 1 1 auto !important;/)
   const row = /\[data-slot="conversation\.session\.header"\] > div:first-child \{([\s\S]*?)\n  \}/.exec(layout)?.[1]
   assert.ok(row, '0.1.7 titleRow rule is missing')
   assert.match(row, /gap: 8px;/)
