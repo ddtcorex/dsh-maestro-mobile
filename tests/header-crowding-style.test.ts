@@ -184,3 +184,12 @@ test('0.1.7 side toggles read as a matched pair', () => {
     /\[data-conversation-header-corner\] button svg\s*\{[^}]*width: 16px !important;[^}]*height: 16px !important;/s,
   )
 })
+
+test('0.1.7 title row sits symmetric in the viewport', () => {
+  // Measured live at 390px: the row itself offsets 20px left / 28px right,
+  // so with symmetric 8px control insets the content gutters read 28 left
+  // vs 36 right. A 4px row shift balances both gutters at 32px.
+  const row = /\[data-slot="conversation\.session\.header"\] > div:first-child \{([\s\S]*?)\n  \}/.exec(layout)?.[1]
+  assert.ok(row, '0.1.7 titleRow rule is missing')
+  assert.match(row, /margin-left: 4px/)
+})

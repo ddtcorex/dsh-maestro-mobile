@@ -838,6 +838,10 @@ export const LAYOUT_CSS = `/* ---------- mobile-only layout ---------- */
     width: 100%;
     min-width: 0;
     gap: 8px;
+    /* The row itself offsets 20px left / 28px right in the viewport, so
+       symmetric control insets read 28 left vs 36 right. Shift 4px to
+       balance both content gutters. */
+    margin-left: 4px !important;
     padding-left: 16px;
     padding-right: 36px;
   }
