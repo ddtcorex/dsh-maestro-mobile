@@ -22,12 +22,26 @@ test('the session-header rules never reach a nested <header> such as the Ask car
 
 test('every session-header rule in the block carries the seat anchor', () => {
   // Regression guard for the whole block: an unanchored addition re-breaks the
-  // Ask card without failing any geometry test.
+  // Ask card without failing any geometry test. 0.1.7 removed the <header>
+  // element (seat children are div.titleRow + div.tabs), so row rules anchor
+  // on `> div...` now — the invariant is the SEAT, not the element: a rule
+  // is safe iff it carries [data-slot="conversation.session.header"] as an
+  // ancestor and names no bare `header` element of its own.
   const block = layout.slice(layout.indexOf('--- Session header on mobile ---'))
   const selectors = block.split('\n').filter(line => /header\b/.test(line) && line.trim().endsWith('{'))
   assert.ok(selectors.length >= 20, `expected the session-header block, saw ${String(selectors.length)} selectors`)
+  const compounds = /conversation\.session\.header|_headerActions|_headerUtilities|_headerLeading|_headerCorner|conversation-header-corner/g
   for (const selector of selectors) {
-    assert.match(selector, SESSION_HEADER, `unanchored session-header rule: ${selector.trim()}`)
+    assert.match(selector, /\[data-slot="conversation\.session\.header"\]/, `seat anchor missing: ${selector.trim()}`)
+    // Directly seat-anchored rows (`> header` on ≤0.1.6, `> div...` on 0.1.7+)
+    // cannot leak by construction.
+    if (/conversation\.session\.header"\] > (header|div)/.test(selector)) continue
+    const stripped = selector.replace(compounds, '')
+    assert.doesNotMatch(
+      stripped,
+      /(^|[\s>+~])header([\s.{:#\[]|$)/,
+      `unanchored header element (Ask card leak): ${selector.trim()}`,
+    )
   }
 })
 

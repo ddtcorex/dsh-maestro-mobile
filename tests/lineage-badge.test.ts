@@ -22,14 +22,16 @@ test('the lineage badge count comes from the trigger accessible name', () => {
   assert.equal(lineageCountFromLabel(undefined), 0)
 })
 
-test('the reconciler marks only the crumbs lineage trigger', () => {
-  // The lineage trigger is the only accordion in the header crumbs with
-  // aria-haspopup="tree": the session switcher beside it carries no popup
-  // attributes, and the plugin's own drawer toggle lives in the header
-  // actions slot — so the marker lands on the lineage trigger and never on
-  // either control.
+test('the reconciler marks only the header lineage trigger', () => {
+  // 0.1.7 moved the triggers out of the crumbs nav into the title cluster
+  // (measured live: no header button has a [class*="_crumbs"] ancestor), so
+  // the old crumbs scope misses and the trigger never collapses. Scope to
+  // the header seat instead. Uniqueness still holds: the lineage trigger is
+  // the only accordion in the seat with aria-haspopup="tree" — the session
+  // switcher beside it carries no popup attributes, and the plugin's own
+  // drawer toggle lives in the header actions slot.
   assert.match(effect, /\[data-slot="conversation\.session\.header"\]/)
-  assert.match(effect, /\[class\*="_crumbs"\]/)
+  assert.doesNotMatch(effect, /\[class\*="_crumbs"\]/)
   assert.match(effect, /button\[class\*="_trigger"\]\[aria-haspopup="tree"\]/)
 })
 

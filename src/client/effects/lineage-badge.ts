@@ -8,12 +8,15 @@ import type { ReconcilerTask } from '../core/reconciler-core.ts'
 // Both the count and the trigger identity live behind hashed classes, so
 // this task owns the stable markers instead (see layout.css.ts).
 //
-// The lineage trigger is the only accordion in the header crumbs with
+// The lineage trigger is the only accordion in the session header with
 // aria-haspopup="tree": the session switcher beside it carries no popup
 // attributes, and the plugin's own drawer toggle lives in the header
-// actions slot, so the marker cannot land on either.
+// actions slot, so the marker cannot land on either. Scoped to the header
+// seat, not the crumbs nav: 0.1.7 moved the triggers out of the crumbs
+// into the title cluster (no header button has a _crumbs ancestor there),
+// and the old crumbs scope silently missed (measured live 2026-09-22).
 const LINEAGE_TRIGGER =
-  '[data-mobile-nav="frame"] [data-slot="conversation.session.header"] [class*="_crumbs"] button[class*="_trigger"][aria-haspopup="tree"]'
+  '[data-mobile-nav="frame"] [data-slot="conversation.session.header"] button[class*="_trigger"][aria-haspopup="tree"]'
 
 /**
  * Read the lineage count out of the trigger's accessible name. Upstream

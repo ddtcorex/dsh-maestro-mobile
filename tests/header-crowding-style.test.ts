@@ -75,3 +75,43 @@ test('the subagent lineage yields to the session title on narrow phones', () => 
   assert.ok(switcher, 'switcher shrink rule is missing from layout.css.ts')
   assert.match(switcher, /min-width: 0 !important;/)
 })
+
+test('0.1.7 header row anchors on the titleRow div, not <header>', () => {
+  // 0.1.7 removed the <header> element: seat children are div.titleRow
+  // (first) and div.tabs (last). Pre-0.1.7 `> header` rules match nothing,
+  // so the row box, cluster flex and ellipsis chain re-anchor here.
+  const row = /\[data-slot="conversation\.session\.header"\] > div:first-child \{([\s\S]*?)\n  \}/.exec(layout)?.[1]
+  assert.ok(row, '0.1.7 titleRow rule is missing from layout.css.ts')
+  assert.match(row, /display: flex !important;/)
+  assert.match(row, /padding-right: 36px;/)
+  const chain = /\[class\*="_crumbs"\] \{([\s\S]*?)\n  \}/.exec(layout)?.[1]
+  assert.ok(chain, '0.1.7 crumbs ellipsis rule is missing')
+  assert.match(chain, /min-width: 0;/)
+  assert.match(chain, /text-overflow: ellipsis;/)
+})
+
+test('0.1.7 unmarked lineage trigger stays one line until the effect marks it', () => {
+  // The reconciler collapses the marked trigger to a 28px badge circle;
+  // before the mark lands (or with effects off) the tall badge-over-caption
+  // stack invaded the tab row at 390px. The fallback caps the unmarked
+  // trigger to one 28px line and must not touch the marked state.
+  const fallback = /button\[class\*="_trigger"\]\[aria-haspopup="tree"\]:not\(\[data-mobile-nav\]\) \{([\s\S]*?)\n  \}/.exec(layout)?.[1]
+  assert.ok(fallback, 'unmarked trigger fallback rule is missing')
+  assert.match(fallback, /flex-direction: row !important;/)
+  assert.match(fallback, /max-height: 28px !important;/)
+})
+
+test('0.1.7 Files chevron hides on narrow phones, tabs scroll one line', () => {
+  // The split-button chevron ("More ways to open") costs ~30px the title
+  // needs at 390px; the primary Files action keeps its hit area.
+  assert.match(
+    layout,
+    /\[class\*="headerUtilities"\] \[class\*="chevron"\]\s*\{\s*display:\s*none\s*!important;\s*\}/s,
+  )
+  // Tabs are direct seat children on 0.1.7 (div[class*="tabs"]), not nested
+  // in the header: same one-line horizontal scroll contract as before.
+  const tabs = /> div\[class\*="tabs"\] \{([\s\S]*?)\n  \}/.exec(layout)?.[1]
+  assert.ok(tabs, '0.1.7 direct-tabs rule is missing')
+  assert.match(tabs, /overflow-x: auto !important;/)
+  assert.match(tabs, /white-space: nowrap !important;/)
+})
