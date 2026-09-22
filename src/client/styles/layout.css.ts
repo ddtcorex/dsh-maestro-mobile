@@ -853,7 +853,9 @@ export const LAYOUT_CSS = `/* ---------- mobile-only layout ---------- */
     gap: 2px;
     box-sizing: border-box;
     width: 100%;
-    padding-left: 28px;
+    /* Just clears the jutting toggle (16..44 abs against row at 24):
+       anything more eats title room for nothing on 390px phones. */
+    padding-left: 20px;
   }
   [data-mobile-nav="frame"] [data-phase] [data-slot="conversation.session.header"] > div:first-child > :first-child > :first-child {
     display: flex !important;
