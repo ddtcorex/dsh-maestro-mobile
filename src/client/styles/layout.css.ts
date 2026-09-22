@@ -838,12 +838,12 @@ export const LAYOUT_CSS = `/* ---------- mobile-only layout ---------- */
     width: 100%;
     min-width: 0;
     gap: 8px;
-    /* The row itself offsets 20px left / 28px right in the viewport, so
-       symmetric control insets read 28 left vs 36 right. Shift 4px to
-       balance both content gutters. */
+    /* The row itself offsets 20px left / 28px right in the viewport.
+       The toggle/corner jut past it to the composer lines (x=16/372),
+       so the row keeps its shift with a tighter right padding. */
     margin-left: 4px !important;
     padding-left: 16px;
-    padding-right: 36px;
+    padding-right: 30px;
   }
   [data-mobile-nav="frame"] [data-phase] [data-slot="conversation.session.header"] > div:first-child > :first-child {
     display: flex !important;
@@ -853,7 +853,7 @@ export const LAYOUT_CSS = `/* ---------- mobile-only layout ---------- */
     gap: 2px;
     box-sizing: border-box;
     width: 100%;
-    padding-left: 20px;
+    padding-left: 28px;
   }
   [data-mobile-nav="frame"] [data-phase] [data-slot="conversation.session.header"] > div:first-child > :first-child > :first-child {
     display: flex !important;
@@ -966,11 +966,16 @@ export const LAYOUT_CSS = `/* ---------- mobile-only layout ---------- */
   [data-mobile-nav="frame"] [data-phase] [data-slot="conversation.session.header"] [data-mobile-nav="toggle"] {
     top: 50% !important;
     transform: translateY(-50%) !important;
+    /* Gutter match with the composer (x=16): the toggle juts 8px left of
+       the row edge to land on the composer line. */
+    left: -8px !important;
   }
   [data-mobile-nav="frame"] [data-phase] [data-slot="conversation.session.header"] [data-conversation-header-corner] {
     display: block !important;
     position: absolute !important;
-    right: 8px !important;
+    /* Gutter match with the composer (ends x=372): the corner juts 6px
+       right of the row edge. */
+    right: -6px !important;
     top: 50% !important;
     transform: translateY(-50%) !important;
     margin-inline: 0 !important;

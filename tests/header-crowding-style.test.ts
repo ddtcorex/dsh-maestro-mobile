@@ -83,7 +83,7 @@ test('0.1.7 header row anchors on the titleRow div, not <header>', () => {
   const row = /\[data-slot="conversation\.session\.header"\] > div:first-child \{([\s\S]*?)\n  \}/.exec(layout)?.[1]
   assert.ok(row, '0.1.7 titleRow rule is missing from layout.css.ts')
   assert.match(row, /display: flex !important;/)
-  assert.match(row, /padding-right: 36px;/)
+  assert.match(row, /padding-right: 30px;/)
   const chain = /\[class\*="_crumbs"\] \{([\s\S]*?)\n  \}/.exec(layout)?.[1]
   assert.ok(chain, '0.1.7 crumbs ellipsis rule is missing')
   assert.match(chain, /min-width: 0;/)
@@ -192,4 +192,20 @@ test('0.1.7 title row sits symmetric in the viewport', () => {
   const row = /\[data-slot="conversation\.session\.header"\] > div:first-child \{([\s\S]*?)\n  \}/.exec(layout)?.[1]
   assert.ok(row, '0.1.7 titleRow rule is missing')
   assert.match(row, /margin-left: 4px/)
+})
+
+test('0.1.7 header gutters match the composer', () => {
+  // Measured live at 390px: the composer sits at x=16 w=356 (gutters
+  // 16/18) while header content read 32/32. The row box cannot widen to
+  // the composer span, so the controls jut inside it: toggle 8px left of
+  // the row edge lands at x=16, corner 6px right of it ends at 372, with
+  // the cluster/corner paddings clearing both.
+  const toggle = /\[data-slot="conversation\.session\.header"\][^{]*\[data-mobile-nav="toggle"\]\s*\{([^}]*)\}/.exec(layout)?.[1]
+  assert.ok(toggle, 'header toggle centering rule is missing')
+  assert.match(toggle, /left: -8px !important;/)
+  // (pre-0.1.7 twin uses right:8px; take the last match = the 0.1.7 rule).
+  const cornerMatches = [...layout.matchAll(/\[data-conversation-header-corner\]\s*\{([^}]*)\}/g)]
+  const corner = cornerMatches[cornerMatches.length - 1]?.[1]
+  assert.ok(corner, 'header corner rule is missing')
+  assert.match(corner, /right: -6px !important;/)
 })
