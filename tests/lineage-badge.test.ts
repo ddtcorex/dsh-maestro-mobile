@@ -61,10 +61,13 @@ test('the lineage control collapses to a 28px icon button with a count badge', (
   assert.ok(badge, 'the count badge rule is missing')
   assert.match(badge, /content: attr\(data-lineage-count\)/)
   assert.match(badge, /position: absolute !important;/)
-  // Inside the border box: the trigger's own ellipsis overflow:hidden and
-  // the crumbs nav clip anything hanging off the corner.
-  assert.match(badge, /top: 0 !important;/)
-  assert.match(badge, /right: 0 !important;/)
+  // Same outside-corner seat as the jobs badge (top -3px, right -4px): the
+  // two 28px controls must read as twins. 0.1.6 docked this badge inside
+  // because the trigger's own ellipsis overflow and the crumbs nav clipped
+  // anything outside; on 0.1.7 the trigger lives in the title cluster with
+  // no clipping ancestor, so the outside seat paints fine (verified live).
+  assert.match(badge, /top: -3px !important;/)
+  assert.match(badge, /right: -4px !important;/)
 })
 
 test('the lineage root keeps a gap from the title ellipsis', () => {

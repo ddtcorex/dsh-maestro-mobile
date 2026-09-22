@@ -775,12 +775,13 @@ export const LAYOUT_CSS = `/* ---------- mobile-only layout ---------- */
   [data-mobile-nav="lineage"]::after {
     content: attr(data-lineage-count) !important;
     position: absolute !important;
-    /* Inside the border box, not hanging off the corner like the jobs
-       badge: the trigger keeps overflow:hidden for its own ellipsis, and
-       the crumbs nav clips too — anything outside is invisible. Overlapping
-       the chevron's top-right reads as the standard badge-over-icon. */
-    top: 0 !important;
-    right: 0 !important;
+    /* Same outside-corner seat as the jobs badge so the two 28px controls
+       read as twins. (On ≤0.1.6 this hung inside because the trigger's own
+       ellipsis overflow and the crumbs nav clipped anything outside; on
+       0.1.7 the trigger lives in the title cluster with no clipping
+       ancestor, verified live.) */
+    top: -3px !important;
+    right: -4px !important;
     box-sizing: border-box !important;
     min-width: 15px !important;
     height: 15px !important;
