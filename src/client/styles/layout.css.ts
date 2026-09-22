@@ -986,10 +986,11 @@ export const LAYOUT_CSS = `/* ---------- mobile-only layout ---------- */
   /* Optical centering for the Files glyph: the arrow path is centered in
      its viewBox by the numbers, but the ink bbox sits low-left of the
      button center at phone sizes (zoomed CDP shots, 2026-09-22). Shift
-     right-up so the four ink gaps equalize. Scoped to utilities buttons
+     right-up so the four ink gaps equalize; tuned live to (1px, -2px)
+     after (2px, -2px) read a touch right. Scoped to utilities buttons
      so no other glyph moves. */
   [data-mobile-nav="frame"] [data-phase] [data-slot="conversation.session.header"] [class*="headerUtilities"] button:not([class*="moreButton"]):not([class*="chevron"]) > svg {
-    transform: translate(2px, -2px) !important;
+    transform: translate(1px, -2px) !important;
   }
   [data-mobile-nav="frame"] [data-phase] [data-slot="conversation.session.header"] [class*="moreButton"] {
     display: none !important;

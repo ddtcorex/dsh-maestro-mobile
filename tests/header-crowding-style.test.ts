@@ -170,6 +170,6 @@ test('0.1.7 Files glyph is optically centered in its button', () => {
   // visual mass. Scoped to utilities buttons so no other glyph moves.
   assert.match(
     layout,
-    /\[class\*="headerUtilities"\] button:not\(\[class\*="moreButton"\]\):not\(\[class\*="chevron"\]\) > svg\s*\{[^}]*transform: translate\(2px, -2px\) !important;/s,
+    /\[class\*="headerUtilities"\] button:not\(\[class\*="moreButton"\]\):not\(\[class\*="chevron"\]\) > svg\s*\{[^}]*transform: translate\(1px, -2px\) !important;/s,
   )
 })
