@@ -983,13 +983,13 @@ export const LAYOUT_CSS = `/* ---------- mobile-only layout ---------- */
     align-items: center !important;
     justify-content: center !important;
   }
-  /* Optical centering for the Files glyph: the north-east arrow path is
-     centered in its viewBox by the numbers, but its ink masses toward the
-     arrowhead (top-right), so it reads low-left of center at phone sizes.
-     Nudge the svg 1px down-left so the visual mass sits centered. Scoped
-     to the utilities cluster so no other svg is touched. */
+  /* Optical centering for the Files glyph: the arrow path is centered in
+     its viewBox by the numbers, but the ink bbox sits low-left of the
+     button center at phone sizes (zoomed CDP shots, 2026-09-22). Shift
+     right-up so the four ink gaps equalize. Scoped to utilities buttons
+     so no other glyph moves. */
   [data-mobile-nav="frame"] [data-phase] [data-slot="conversation.session.header"] [class*="headerUtilities"] button:not([class*="moreButton"]):not([class*="chevron"]) > svg {
-    transform: translate(-2px, 2px) !important;
+    transform: translate(2px, -2px) !important;
   }
   [data-mobile-nav="frame"] [data-phase] [data-slot="conversation.session.header"] [class*="moreButton"] {
     display: none !important;
