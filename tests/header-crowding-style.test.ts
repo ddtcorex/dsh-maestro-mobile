@@ -161,3 +161,15 @@ test('0.1.7 trailing actions form one tight right group', () => {
     'utilities must dock right via auto margin',
   )
 })
+
+test('0.1.7 Files glyph is optically centered in its button', () => {
+  // Geometry lies here: the arrow path is centered in its viewBox and the
+  // svg box is centered in the button, yet the ink masses toward the
+  // arrowhead (top-right) and reads low-left at phone sizes (zoomed CDP
+  // shots, 2026-09-22). A 2px down-left nudge on the svg balances the
+  // visual mass. Scoped to utilities buttons so no other glyph moves.
+  assert.match(
+    layout,
+    /\[class\*="headerUtilities"\] button:not\(\[class\*="moreButton"\]\):not\(\[class\*="chevron"\]\) > svg\s*\{[^}]*transform: translate\(-2px, 2px\) !important;/s,
+  )
+})
