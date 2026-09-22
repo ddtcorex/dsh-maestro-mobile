@@ -833,6 +833,7 @@ export const LAYOUT_CSS = `/* ---------- mobile-only layout ---------- */
     display: flex !important;
     align-items: center;
     box-sizing: border-box;
+    position: relative !important;
     width: 100%;
     min-width: 0;
     gap: 2px;
@@ -952,13 +953,34 @@ export const LAYOUT_CSS = `/* ---------- mobile-only layout ---------- */
   }
   /* Corner toggle + redundant ⋯ menu, re-anchored (see the pre-0.1.7 rules
      above for the rationale). */
+  /* Absolute header controls center on the row itself (which is now the
+     positioning context), not on a fixed top pixel: in-flow 28px controls
+     sit at row-top + (rowH - 28) / 2 and any fixed top drifts when the row
+     offset moves (measured 1px low at 390px). The hero fallback toggle
+     outside any header keeps the fixed top from the rule further up. */
+  [data-mobile-nav="frame"] [data-phase] [data-slot="conversation.session.header"] [data-mobile-nav="toggle"] {
+    top: 50% !important;
+    transform: translateY(-50%) !important;
+  }
   [data-mobile-nav="frame"] [data-phase] [data-slot="conversation.session.header"] [data-conversation-header-corner] {
     display: block !important;
     position: absolute !important;
     right: 8px !important;
-    top: 12px !important;
+    top: 50% !important;
+    transform: translateY(-50%) !important;
     margin-inline: 0 !important;
     z-index: 2 !important;
+  }
+  /* Utilities buttons match the 28px control rhythm (upstream Files action
+     ships 22px tall and centers 1px off the 28px controls). The :not() guards
+     keep this below the hidden menu/chevron rules in specificity-neutral
+     order: without them this later, more-specific rule re-shows the ⋯ menu
+     its own earlier display:none hides. */
+  [data-mobile-nav="frame"] [data-phase] [data-slot="conversation.session.header"] [class*="headerUtilities"] button:not([class*="moreButton"]):not([class*="chevron"]) {
+    height: 28px !important;
+    display: inline-flex !important;
+    align-items: center !important;
+    justify-content: center !important;
   }
   [data-mobile-nav="frame"] [data-phase] [data-slot="conversation.session.header"] [class*="moreButton"] {
     display: none !important;

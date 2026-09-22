@@ -115,3 +115,29 @@ test('0.1.7 Files chevron hides on narrow phones, tabs scroll one line', () => {
   assert.match(tabs, /overflow-x: auto !important;/)
   assert.match(tabs, /white-space: nowrap !important;/)
 })
+
+test('0.1.7 header controls share one vertical center line', () => {
+  // Measured live at 390px: in-flow 28px controls sit at y=11 while the
+  // absolutely-positioned toggle/corner used a fixed top:12px (1px low),
+  // and the Files button is 22px tall. The row is the positioning context
+  // and both absolute controls center against it, so every control's
+  // center lands on the same line whatever the row offset is.
+  const row = /\[data-slot="conversation\.session\.header"\] > div:first-child \{([\s\S]*?)\n  \}/.exec(layout)?.[1]
+  assert.ok(row, '0.1.7 titleRow rule is missing')
+  assert.match(row, /position: relative !important;/)
+  assert.match(
+    layout,
+    /\[data-slot="conversation\.session\.header"\][^{]*\[data-mobile-nav="toggle"\]\s*\{[^}]*top: 50% !important;[^}]*transform: translateY\(-50%\) !important;/s,
+    'toggle must center against the row, not a fixed top',
+  )
+  assert.match(
+    layout,
+    /\[data-slot="conversation\.session\.header"\][^{]*\[data-conversation-header-corner\]\s*\{[^}]*top: 50% !important;[^}]*transform: translateY\(-50%\) !important;/s,
+    'corner must center against the row, not a fixed top',
+  )
+  assert.match(
+    layout,
+    /\[class\*="headerUtilities"\] button:not\(\[class\*="moreButton"\]\):not\(\[class\*="chevron"\]\)\s*\{[^}]*height: 28px !important;/s,
+    'utilities buttons must match the 28px control rhythm without re-showing the hidden menu/chevron',
+  )
+})
