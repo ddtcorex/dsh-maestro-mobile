@@ -141,3 +141,23 @@ test('0.1.7 header controls share one vertical center line', () => {
     'utilities buttons must match the 28px control rhythm without re-showing the hidden menu/chevron',
   )
 })
+
+test('0.1.7 trailing actions form one tight right group', () => {
+  // Measured live at 390px: free space scattered as a 43px hole between the
+  // subagents trigger and Files plus 31px between Files and the corner,
+  // against 8px elsewhere. The title cluster is shrink-only (flex 0 1 auto)
+  // so it never donates space right; the utilities cluster carries
+  // margin-left auto and docks flush against the corner reservation, leaving
+  // exactly one flexible gap mid-row and an 8px rhythm everywhere else.
+  const cluster = /\[data-slot="conversation\.session\.header"\] > div:first-child > :first-child \{([\s\S]*?)\n  \}/.exec(layout)?.[1]
+  assert.ok(cluster, '0.1.7 titleCluster rule is missing')
+  assert.match(cluster, /flex: 0 1 auto !important;/)
+  const row = /\[data-slot="conversation\.session\.header"\] > div:first-child \{([\s\S]*?)\n  \}/.exec(layout)?.[1]
+  assert.ok(row, '0.1.7 titleRow rule is missing')
+  assert.match(row, /gap: 8px;/)
+  assert.match(
+    layout,
+    /\[class\*="headerUtilities"\] \{[^}]*margin-left: auto !important;/s,
+    'utilities must dock right via auto margin',
+  )
+})

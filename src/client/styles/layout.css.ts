@@ -836,14 +836,14 @@ export const LAYOUT_CSS = `/* ---------- mobile-only layout ---------- */
     position: relative !important;
     width: 100%;
     min-width: 0;
-    gap: 2px;
+    gap: 8px;
     padding-left: 16px;
     padding-right: 36px;
   }
   [data-mobile-nav="frame"] [data-phase] [data-slot="conversation.session.header"] > div:first-child > :first-child {
     display: flex !important;
     align-items: center;
-    flex: 1 1 auto;
+    flex: 0 1 auto !important;
     min-width: 0;
     gap: 2px;
     box-sizing: border-box;
@@ -1036,6 +1036,7 @@ export const LAYOUT_CSS = `/* ---------- mobile-only layout ---------- */
   [data-mobile-nav="frame"] [data-phase] [data-slot="conversation.session.header"] [class*="headerUtilities"] {
     flex: 0 1 auto !important;
     min-width: 0 !important;
+    margin-left: auto !important;
   }
   /* Trigger roots pin at max-content (jobs 28px circle, lineage 28px badge):
      without this the cluster crushes them to zero against the utilities. */
