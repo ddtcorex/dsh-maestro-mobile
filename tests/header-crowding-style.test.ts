@@ -161,3 +161,35 @@ test('0.1.7 trailing actions form one tight right group', () => {
     'utilities must dock right via auto margin',
   )
 })
+
+test('0.1.7 Files glyph is optically centered in its button', () => {
+  // Geometry lies here: the arrow path is centered in its viewBox and the
+  // svg box is centered in the button, yet the ink masses toward the
+  // arrowhead (top-right) and reads low-left at phone sizes (zoomed CDP
+  // shots, 2026-09-22). A 2px down-left nudge on the svg balances the
+  // visual mass. Scoped to utilities buttons so no other glyph moves.
+  assert.match(
+    layout,
+    /\[class\*="headerUtilities"\] button:not\(\[class\*="moreButton"\]\):not\(\[class\*="chevron"\]\) > svg\s*\{[^}]*transform: translate\(1px, -2px\) !important;/s,
+  )
+})
+
+test('0.1.7 side toggles read as a matched pair', () => {
+  // Measured live at 390px: both 28px boxes are centered, but the left
+  // (drawer) glyph renders 16px while upstream's right (panel) glyph is
+  // 15px — the pair reads unbalanced. Normalize the right svg to 16px;
+  // vector art scales cleanly and the button box is untouched.
+  assert.match(
+    layout,
+    /\[data-conversation-header-corner\] button svg\s*\{[^}]*width: 16px !important;[^}]*height: 16px !important;/s,
+  )
+})
+
+test('0.1.7 title row sits symmetric in the viewport', () => {
+  // Measured live at 390px: the row itself offsets 20px left / 28px right,
+  // so with symmetric 8px control insets the content gutters read 28 left
+  // vs 36 right. A 4px row shift balances both gutters at 32px.
+  const row = /\[data-slot="conversation\.session\.header"\] > div:first-child \{([\s\S]*?)\n  \}/.exec(layout)?.[1]
+  assert.ok(row, '0.1.7 titleRow rule is missing')
+  assert.match(row, /margin-left: 4px/)
+})
