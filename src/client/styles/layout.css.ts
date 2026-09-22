@@ -871,9 +871,11 @@ export const LAYOUT_CSS = `/* ---------- mobile-only layout ---------- */
     gap: 2px;
     box-sizing: border-box;
     width: 100%;
-    /* Just clears the jutting toggle (16..44 abs against row at 24):
-       anything more eats title room for nothing on 390px phones. */
-    padding-left: 20px;
+    /* Clears the jutting toggle (16..44 abs against row at 24) with one 8px
+       rhythm gap: row padding (16) + 12 lands content at row+28, past the
+       toggle's row+20 edge. Measured live at 402px — 20px left a 16px hole
+       between toggle and title (mobile report 2026-09-22). */
+    padding-left: 12px;
   }
   /* Cluster contents (see the guard above: the middle lane must not be the
      corner — on hero it would restyle the corner's own button instead). */

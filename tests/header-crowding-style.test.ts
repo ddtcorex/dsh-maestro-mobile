@@ -107,6 +107,17 @@ test('the hero corner never inherits the title-cluster row rules', () => {
   for (const m of cornerMatches) assert.match(m[1], /width: auto !important;/)
 })
 
+test('the title clears the drawer toggle by one rhythm, not two', () => {
+  // Measured live at 402px: row padding (16) + cluster padding (20) left a
+  // 16px hole between the drawer toggle's edge and the title — twice the
+  // header's 8px rhythm (mobile report 2026-09-22). The toggle ends at
+  // row+20, so 12px lands title content at row+28: past the toggle with
+  // exactly one gap, and every saved pixel goes to the title.
+  const cluster = /\[data-slot="conversation\.session\.header"\] > div:first-child > :first-child:not\(\[data-conversation-header-corner\]\) \{([\s\S]*?)\n  \}/.exec(layout)?.[1]
+  assert.ok(cluster, '0.1.7 titleCluster rule is missing')
+  assert.match(cluster, /padding-left: 12px;/)
+})
+
 test('0.1.7 header row anchors on the titleRow div, not <header>', () => {
   // 0.1.7 removed the <header> element: seat children are div.titleRow
   // (first) and div.tabs (last). Pre-0.1.7 `> header` rules match nothing,
