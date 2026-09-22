@@ -14,6 +14,7 @@ import { installOverlayMenuTapGuard } from './effects/overlay-menu-tap-guard.ts'
 import { installHeroPresetMenuFix } from './effects/preset-menu-fix.ts'
 import { installComposerKeyboardTouch } from './effects/composer-keyboard-touch.ts'
 import { installSessionMenuDelete } from './effects/session-menu.ts'
+import { installDebugBadge } from './debug.ts'
 import { NS, en, zh } from './i18n/locales.ts'
 import type { MobileNavKey } from './i18n/locales.ts'
 
@@ -52,6 +53,11 @@ export function apply(ctx: ClientContext): void {
     }
   }, 'dsh-maestro-mobile: styles')
 
+  // Opt-in diagnostics (?dsh-maestro-mobile-debug=1): live state overlay plus
+  // the captured-event trace used to diagnose touch behaviour on a platform
+  // that cannot be emulated locally. Registered before every other effect so
+  // its document listeners observe each event ahead of any that might stop it.
+  installDebugBadge(ctx)
 
   // Hard-fix the installed-plugins list text layout: the host market UI
   // injects its own CSS after this plugin's stylesheet, so CSS overrides can
