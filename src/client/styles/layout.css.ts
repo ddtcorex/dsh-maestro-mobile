@@ -971,14 +971,16 @@ export const LAYOUT_CSS = `/* ---------- mobile-only layout ---------- */
     font-size: 12px !important;
     line-height: 1 !important;
   }
-  /* Files split-button: the chevron ("More ways to open") goes on narrow
-     phones; the primary action keeps its full hit area and the choose-app
-     dialog stays one tap away on wider screens. Scoped to the utilities
-     cluster so no other chevron is hit. */
-  @media (max-width: 480px) {
-    [data-mobile-nav="frame"] [data-phase] [data-slot="conversation.session.header"] [class*="headerUtilities"] [class*="chevron"] {
-      display: none !important;
-    }
+  /* Open-in-Files split-button: the whole group goes on mobile, not just
+     the chevron ("More ways to open"). It deep-links into a desktop app —
+     useless on a phone — and the group eats ~50px of title room. The
+     drawer footer intentionally carries no Files entry (it would duplicate
+     this action), so hiding here removes the mobile path entirely, by
+     explicit product choice (mobile report 2026-09-22). Fragment-anchored:
+     the hash changes per build and the aria-labels per locale. Scoped to
+     the utilities cluster so no other split control is hit. */
+  [data-mobile-nav="frame"] [data-phase] [data-slot="conversation.session.header"] [class*="headerUtilities"] [class*="_split"] {
+    display: none !important;
   }
   /* Corner toggle + redundant ⋯ menu, re-anchored (see the pre-0.1.7 rules
      above for the rationale). */
@@ -1086,8 +1088,10 @@ export const LAYOUT_CSS = `/* ---------- mobile-only layout ---------- */
     max-width: none;
     max-height: min(420px, calc(100dvh - 120px));
   }
-  /* Utilities cluster holds Files + ⋯ on 0.1.7: fixed content, never grows
-     into the title lane. (Its menuAnchor span carries a "menu" substring —
+  /* Utilities cluster on 0.1.7 held the Files split + ⋯ menu; both now
+     hide on mobile (split group above, menu below), so the cluster
+     collapses to zero width and its auto margin docks it flush right with
+     no dead space. (Its menuAnchor span carries a "menu" substring —
      keep the popover clamp above scoped to ul so the anchor never matches.) */
   [data-mobile-nav="frame"] [data-phase] [data-slot="conversation.session.header"] [class*="headerUtilities"] {
     flex: 0 1 auto !important;

@@ -366,7 +366,16 @@
    "owner": "dsh-client-ui-conversation",
    "lazy": true,
    "state": "open any session",
-   "note": "0.1.7+: Files split + more-button cluster; the chevron hides <=480px. The menuAnchor span shares a menu substring — popover clamps must scope to ul."
+   "note": "0.1.7+: open-in-app split + more-button cluster; the whole split group hides on mobile. The menuAnchor span shares a menu substring — popover clamps must scope to ul."
+  },
+  {
+   "id": "open-in-app-split",
+   "kind": "fragment",
+   "needle": "_split",
+   "owner": "dsh-client-ui-open-in-app",
+   "lazy": true,
+   "state": "open any session",
+   "note": "Split-button group wrapping Open in Files + chevron; hidden wholesale on mobile, scoped under the utilities cluster."
   },
   {
    "id": "session-header-tabs-direct",

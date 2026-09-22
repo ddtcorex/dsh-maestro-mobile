@@ -118,6 +118,20 @@ test('the title clears the drawer toggle by one rhythm, not two', () => {
   assert.match(cluster, /padding-left: 12px;/)
 })
 
+test('the header Open-in-Files group stays off mobile', () => {
+  // The ui-open-in-app split button ("Open in Files" + "More ways to open"
+  // chevron) deep-links into a desktop app — useless on a phone, and it
+  // eats ~50px of title room. Hide the whole group at every mobile width.
+  // Fragment-anchored: the hash changes per build and the aria-labels per
+  // locale; scoped to the utilities cluster so no other split control is
+  // hit. Supersedes the old ≤480px chevron-only rule.
+  assert.match(
+    layout,
+    /\[data-slot="conversation\.session\.header"\][^{]*\[class\*="headerUtilities"\][^{]*\[class\*="_split"\]\s*\{[^}]*display:\s*none\s*!important;/s,
+    'open-in-app split group must hide on mobile',
+  )
+})
+
 test('0.1.7 header row anchors on the titleRow div, not <header>', () => {
   // 0.1.7 removed the <header> element: seat children are div.titleRow
   // (first) and div.tabs (last). Pre-0.1.7 `> header` rules match nothing,
@@ -143,12 +157,13 @@ test('0.1.7 unmarked lineage trigger stays one line until the effect marks it', 
   assert.match(fallback, /max-height: 28px !important;/)
 })
 
-test('0.1.7 Files chevron hides on narrow phones, tabs scroll one line', () => {
-  // The split-button chevron ("More ways to open") costs ~30px the title
-  // needs at 390px; the primary Files action keeps its hit area.
-  assert.match(
+test('0.1.7 Files group hides on mobile, tabs scroll one line', () => {
+  // The whole open-in-app split group hides (see 'the header Open-in-Files
+  // group stays off mobile'): the old ≤480px chevron-only rule is gone, the
+  // primary action no longer keeps a hit area.
+  assert.doesNotMatch(
     layout,
-    /\[class\*="headerUtilities"\] \[class\*="chevron"\]\s*\{\s*display:\s*none\s*!important;\s*\}/s,
+    /\[class\*="headerUtilities"\] \[class\*="chevron"\]\s*\{[^}]*display:\s*none/s,
   )
   // Tabs are direct seat children on 0.1.7 (div[class*="tabs"]), not nested
   // in the header: same one-line horizontal scroll contract as before.
