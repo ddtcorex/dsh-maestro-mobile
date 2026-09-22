@@ -972,6 +972,15 @@ export const LAYOUT_CSS = `/* ---------- mobile-only layout ---------- */
     margin-inline: 0 !important;
     z-index: 2 !important;
   }
+  /* Matched pair with the left drawer toggle: both boxes are 28px and both
+     glyphs are centered, but upstream's right (panel) glyph renders 15px
+     against the drawer's 16px and the pair reads lopsided. Normalize the
+     right svg to 16px (vector art scales cleanly); the button box that
+     reserves the corner gutter is untouched. */
+  [data-mobile-nav="frame"] [data-phase] [data-slot="conversation.session.header"] [data-conversation-header-corner] button svg {
+    width: 16px !important;
+    height: 16px !important;
+  }
   /* Utilities buttons match the 28px control rhythm (upstream Files action
      ships 22px tall and centers 1px off the 28px controls). The :not() guards
      keep this below the hidden menu/chevron rules in specificity-neutral

@@ -173,3 +173,14 @@ test('0.1.7 Files glyph is optically centered in its button', () => {
     /\[class\*="headerUtilities"\] button:not\(\[class\*="moreButton"\]\):not\(\[class\*="chevron"\]\) > svg\s*\{[^}]*transform: translate\(1px, -2px\) !important;/s,
   )
 })
+
+test('0.1.7 side toggles read as a matched pair', () => {
+  // Measured live at 390px: both 28px boxes are centered, but the left
+  // (drawer) glyph renders 16px while upstream's right (panel) glyph is
+  // 15px — the pair reads unbalanced. Normalize the right svg to 16px;
+  // vector art scales cleanly and the button box is untouched.
+  assert.match(
+    layout,
+    /\[data-conversation-header-corner\] button svg\s*\{[^}]*width: 16px !important;[^}]*height: 16px !important;/s,
+  )
+})
