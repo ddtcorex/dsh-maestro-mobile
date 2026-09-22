@@ -1,7 +1,7 @@
 import type { Context as ClientContext } from '@deepseek-ai/cordis'
 import { installMobileEffect, getFrame } from './phone-chrome.ts'
 import { markGestureConsumed, consumeIfGestured, markStrokeLocked, clearStrokeLocked } from './gesture-guard.ts'
-import { dragMarkYields, floatingWidgetYields } from './drag-yield.ts'
+import { dragMarkYields, floatingWidgetYields, isClosestLike } from './drag-yield.ts'
 import { fadeOverlayOut } from './overlay-backdrop-fab.ts'
 
 /**
@@ -441,6 +441,38 @@ export function takeoverActive(): boolean {
 }
 
 /**
+ * Selector for the pointer-owning overlay option lists the shell and its
+ * plugins portal to `<body>`: the composer model picker and every other
+ * `role="menu"` card, the `@` trigger candidate listbox, and the host's
+ * `[data-trigger-menu]` shell that wraps it.
+ */
+export const OVERLAY_MENU_SELECTOR = '[role="menu"], [role="listbox"], [data-trigger-menu]'
+
+/**
+ * Whether an open overlay option list owns this stroke.
+ *
+ * These surfaces portal to `<body>` and land inside the drawer's start zone.
+ * The model picker's card is 248px wide and every row spans x≈84..324 on a
+ * 390px phone, so the left third of each row sits inside the 45% left-edge
+ * zone. A finger's ordinary horizontal jitter reaches LOCK_PX there:
+ * `tryLock` axis-locked the stroke, `applyFollow` reached
+ * OPEN_FOLLOW_ARM_PX and `armOpenFollow` flipped the drawer open, the release
+ * classified to `'none'`, and the release then marked the tap consumed — so
+ * the row's click never reached React and the row read as dead. Reported as
+ * "the model list appears, but choosing a model does nothing".
+ *
+ * A pointer that lands on an open overlay belongs to that overlay: the row's
+ * own tap, and any drag the overlay handles, must reach it untouched.
+ *
+ * @param target - the stroke's event target (may be anything).
+ * @returns true when the stroke must yield to the overlay.
+ */
+export function overlayMenuOwnsStroke(target: unknown): boolean {
+  if (!isClosestLike(target)) return false
+  return target.closest(OVERLAY_MENU_SELECTOR) !== null
+}
+
+/**
  * Whether a live text selection owns the pointer stroke.
  *
  * A selection-handle drag (and a long-press selection that appears between
@@ -820,6 +852,11 @@ function beginStroke(
   if (onCooldown()) return false
   if (modalOpen()) return false
   if (takeoverActive()) return false
+  // An open overlay option list owns the pointers on it. The model picker and
+  // the other body-portalled menus overlap the start zone, so without this
+  // yield a row tap whose finger drifts past LOCK_PX becomes a drawer stroke
+  // that consumes the tap (see overlayMenuOwnsStroke).
+  if (overlayMenuOwnsStroke(event.target)) return false
   // A live selection owns the stroke: yield before any geometric test. This
   // also blocks swipe-open while a stale selection is alive; one tap collapses
   // the selection everywhere, and backdrop tap-to-close is unaffected (a tap

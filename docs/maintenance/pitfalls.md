@@ -3,6 +3,10 @@
 Traps that cost real debugging time in this package. Each entry says what went
 wrong, how it presented, and the rule that prevents it.
 
+## Gesture traps
+
+**A body-portalled menu can sit inside the 45% drawer start zone.** The composer model picker is 248px wide with rows at x=84..324 on a 390px phone, so the left third of every row is inside the swipe-in zone. A finger's ordinary horizontal jitter reaches LOCK_PX there: the stroke axis-locks, `armOpenFollow` flips the drawer open, the release classifies to `none`, and the release's consume mark swallows the row's click — the list opens but the row reads as dead. Zero-drift CDP taps never reproduce it; a jitter probe (same point, +12px rightward drift) does. New pointer-owning overlay surfaces must be added to `OVERLAY_MENU_SELECTOR` in `sidebar-swipe.ts`.
+
 ## CDP / probe traps
 
 **Headless Chrome has no pointer unless you emulate one.** `Emulation.setDeviceMetricsOverride {mobile: true}` alone reports `(pointer: none)` with `maxTouchPoints: 0`, so a `(pointer: coarse)`-gated mobile branch never arms. Every probe must call `Emulation.setTouchEmulationEnabled {enabled: true, maxTouchPoints: 5}` and assert the query. `maxTouchPoints: 0` is rejected with `-32602` even while disabling, so only send the field when enabling.

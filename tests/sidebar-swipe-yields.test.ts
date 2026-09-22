@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
 
-import { shouldAbortForMultiTouch, shouldAbortForTouchCount, selectionOwnsStroke, takeoverActive, OVERLAY_SELECTOR } from '../src/client/effects/sidebar-swipe.ts'
+import { shouldAbortForMultiTouch, shouldAbortForTouchCount, selectionOwnsStroke, takeoverActive, overlayMenuOwnsStroke, OVERLAY_SELECTOR, OVERLAY_MENU_SELECTOR } from '../src/client/effects/sidebar-swipe.ts'
 
 /** Install DOM globals for one call, then restore whatever was there. */
 function withDom<T>(dom: { window?: unknown; document?: unknown }, run: () => T): T {
@@ -104,6 +104,39 @@ test('a non-text control never owns the stroke, and a throwing getter is not fat
 
 test('without a DOM the predicate is inert', () => {
   assert.equal(withDom({}, () => selectionOwnsStroke()), false)
+})
+
+/** An event target whose `closest` answers only the one overlay selector. */
+const insideOverlay = (): { closest(selector: string): unknown } => ({
+  closest: (selector: string) => (selector === OVERLAY_MENU_SELECTOR ? {} : null),
+})
+
+test('an open overlay option list owns the taps and drags on it', () => {
+  // The composer model picker portals to <body>; on a 390px phone its card
+  // spans x=80..328 and every row spans x=84..324, so the left third of each
+  // row sits inside the 45% left-edge drawer start zone. Without this yield a
+  // finger's ordinary horizontal jitter reached LOCK_PX, armOpenFollow flipped
+  // the drawer open, the release classified to 'none', and the release's
+  // consume mark swallowed the row's click — the row read as dead, reported as
+  // "the model list appears but choosing one does nothing".
+  assert.equal(overlayMenuOwnsStroke(insideOverlay()), true)
+})
+
+test('the overlay selector covers every portalled option surface', () => {
+  // One selector, one query: the predicate must not grow per-surface branches.
+  assert.ok(OVERLAY_MENU_SELECTOR.includes('[role="menu"]'), 'menu: model picker, session kebab, preset list')
+  assert.ok(OVERLAY_MENU_SELECTOR.includes('[role="listbox"]'), 'listbox: @ trigger candidates')
+  assert.ok(OVERLAY_MENU_SELECTOR.includes('[data-trigger-menu]'), 'trigger menu: host wrapper around the listbox')
+})
+
+test('ordinary content and non-elements keep the stroke', () => {
+  // The yield is scoped to the overlay itself; a swipe anywhere else must
+  // still arm, or the drawer becomes unreachable.
+  assert.equal(overlayMenuOwnsStroke({ closest: () => null }), false)
+  assert.equal(overlayMenuOwnsStroke(null), false)
+  assert.equal(overlayMenuOwnsStroke(undefined), false)
+  assert.equal(overlayMenuOwnsStroke('body'), false)
+  assert.equal(overlayMenuOwnsStroke({}), false)
 })
 
 test('an open conversation overlay counts as a takeover', () => {

@@ -64,6 +64,24 @@
    "note": "ask card root: scrollport + field sizing rules"
   },
   {
+   "id": "overlay-option-menu",
+   "kind": "marker",
+   "needle": "[role=\"menu\"]",
+   "owner": "dsh-client-ui-model-selection",
+   "lazy": true,
+   "state": "open the composer model picker",
+   "note": "body-portalled option card: the drawer swipe layer yields taps and drags on it"
+  },
+  {
+   "id": "overlay-option-listbox",
+   "kind": "marker",
+   "needle": "[role=\"listbox\"]",
+   "owner": "dsh-client-ui-input-trigger",
+   "lazy": true,
+   "state": "type @ in the composer",
+   "note": "trigger candidate list: the drawer swipe layer yields taps and drags on it"
+  },
+  {
    "id": "trigger-menu",
    "kind": "marker",
    "needle": "[data-trigger-menu]",
