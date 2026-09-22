@@ -75,3 +75,89 @@ test('the subagent lineage yields to the session title on narrow phones', () => 
   assert.ok(switcher, 'switcher shrink rule is missing from layout.css.ts')
   assert.match(switcher, /min-width: 0 !important;/)
 })
+
+test('0.1.7 header row anchors on the titleRow div, not <header>', () => {
+  // 0.1.7 removed the <header> element: seat children are div.titleRow
+  // (first) and div.tabs (last). Pre-0.1.7 `> header` rules match nothing,
+  // so the row box, cluster flex and ellipsis chain re-anchor here.
+  const row = /\[data-slot="conversation\.session\.header"\] > div:first-child \{([\s\S]*?)\n  \}/.exec(layout)?.[1]
+  assert.ok(row, '0.1.7 titleRow rule is missing from layout.css.ts')
+  assert.match(row, /display: flex !important;/)
+  assert.match(row, /padding-right: 36px;/)
+  const chain = /\[class\*="_crumbs"\] \{([\s\S]*?)\n  \}/.exec(layout)?.[1]
+  assert.ok(chain, '0.1.7 crumbs ellipsis rule is missing')
+  assert.match(chain, /min-width: 0;/)
+  assert.match(chain, /text-overflow: ellipsis;/)
+})
+
+test('0.1.7 unmarked lineage trigger stays one line until the effect marks it', () => {
+  // The reconciler collapses the marked trigger to a 28px badge circle;
+  // before the mark lands (or with effects off) the tall badge-over-caption
+  // stack invaded the tab row at 390px. The fallback caps the unmarked
+  // trigger to one 28px line and must not touch the marked state.
+  const fallback = /button\[class\*="_trigger"\]\[aria-haspopup="tree"\]:not\(\[data-mobile-nav\]\) \{([\s\S]*?)\n  \}/.exec(layout)?.[1]
+  assert.ok(fallback, 'unmarked trigger fallback rule is missing')
+  assert.match(fallback, /flex-direction: row !important;/)
+  assert.match(fallback, /max-height: 28px !important;/)
+})
+
+test('0.1.7 Files chevron hides on narrow phones, tabs scroll one line', () => {
+  // The split-button chevron ("More ways to open") costs ~30px the title
+  // needs at 390px; the primary Files action keeps its hit area.
+  assert.match(
+    layout,
+    /\[class\*="headerUtilities"\] \[class\*="chevron"\]\s*\{\s*display:\s*none\s*!important;\s*\}/s,
+  )
+  // Tabs are direct seat children on 0.1.7 (div[class*="tabs"]), not nested
+  // in the header: same one-line horizontal scroll contract as before.
+  const tabs = /> div\[class\*="tabs"\] \{([\s\S]*?)\n  \}/.exec(layout)?.[1]
+  assert.ok(tabs, '0.1.7 direct-tabs rule is missing')
+  assert.match(tabs, /overflow-x: auto !important;/)
+  assert.match(tabs, /white-space: nowrap !important;/)
+})
+
+test('0.1.7 header controls share one vertical center line', () => {
+  // Measured live at 390px: in-flow 28px controls sit at y=11 while the
+  // absolutely-positioned toggle/corner used a fixed top:12px (1px low),
+  // and the Files button is 22px tall. The row is the positioning context
+  // and both absolute controls center against it, so every control's
+  // center lands on the same line whatever the row offset is.
+  const row = /\[data-slot="conversation\.session\.header"\] > div:first-child \{([\s\S]*?)\n  \}/.exec(layout)?.[1]
+  assert.ok(row, '0.1.7 titleRow rule is missing')
+  assert.match(row, /position: relative !important;/)
+  assert.match(
+    layout,
+    /\[data-slot="conversation\.session\.header"\][^{]*\[data-mobile-nav="toggle"\]\s*\{[^}]*top: 50% !important;[^}]*transform: translateY\(-50%\) !important;/s,
+    'toggle must center against the row, not a fixed top',
+  )
+  assert.match(
+    layout,
+    /\[data-slot="conversation\.session\.header"\][^{]*\[data-conversation-header-corner\]\s*\{[^}]*top: 50% !important;[^}]*transform: translateY\(-50%\) !important;/s,
+    'corner must center against the row, not a fixed top',
+  )
+  assert.match(
+    layout,
+    /\[class\*="headerUtilities"\] button:not\(\[class\*="moreButton"\]\):not\(\[class\*="chevron"\]\)\s*\{[^}]*height: 28px !important;/s,
+    'utilities buttons must match the 28px control rhythm without re-showing the hidden menu/chevron',
+  )
+})
+
+test('0.1.7 trailing actions form one tight right group', () => {
+  // Measured live at 390px: free space scattered as a 43px hole between the
+  // subagents trigger and Files plus 31px between Files and the corner,
+  // against 8px elsewhere. The title cluster is shrink-only (flex 0 1 auto)
+  // so it never donates space right; the utilities cluster carries
+  // margin-left auto and docks flush against the corner reservation, leaving
+  // exactly one flexible gap mid-row and an 8px rhythm everywhere else.
+  const cluster = /\[data-slot="conversation\.session\.header"\] > div:first-child > :first-child \{([\s\S]*?)\n  \}/.exec(layout)?.[1]
+  assert.ok(cluster, '0.1.7 titleCluster rule is missing')
+  assert.match(cluster, /flex: 0 1 auto !important;/)
+  const row = /\[data-slot="conversation\.session\.header"\] > div:first-child \{([\s\S]*?)\n  \}/.exec(layout)?.[1]
+  assert.ok(row, '0.1.7 titleRow rule is missing')
+  assert.match(row, /gap: 8px;/)
+  assert.match(
+    layout,
+    /\[class\*="headerUtilities"\] \{[^}]*margin-left: auto !important;/s,
+    'utilities must dock right via auto margin',
+  )
+})

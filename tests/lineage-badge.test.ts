@@ -22,14 +22,16 @@ test('the lineage badge count comes from the trigger accessible name', () => {
   assert.equal(lineageCountFromLabel(undefined), 0)
 })
 
-test('the reconciler marks only the crumbs lineage trigger', () => {
-  // The lineage trigger is the only accordion in the header crumbs with
-  // aria-haspopup="tree": the session switcher beside it carries no popup
-  // attributes, and the plugin's own drawer toggle lives in the header
-  // actions slot — so the marker lands on the lineage trigger and never on
-  // either control.
+test('the reconciler marks only the header lineage trigger', () => {
+  // 0.1.7 moved the triggers out of the crumbs nav into the title cluster
+  // (measured live: no header button has a [class*="_crumbs"] ancestor), so
+  // the old crumbs scope misses and the trigger never collapses. Scope to
+  // the header seat instead. Uniqueness still holds: the lineage trigger is
+  // the only accordion in the seat with aria-haspopup="tree" — the session
+  // switcher beside it carries no popup attributes, and the plugin's own
+  // drawer toggle lives in the header actions slot.
   assert.match(effect, /\[data-slot="conversation\.session\.header"\]/)
-  assert.match(effect, /\[class\*="_crumbs"\]/)
+  assert.doesNotMatch(effect, /\[class\*="_crumbs"\]/)
   assert.match(effect, /button\[class\*="_trigger"\]\[aria-haspopup="tree"\]/)
 })
 
@@ -59,10 +61,13 @@ test('the lineage control collapses to a 28px icon button with a count badge', (
   assert.ok(badge, 'the count badge rule is missing')
   assert.match(badge, /content: attr\(data-lineage-count\)/)
   assert.match(badge, /position: absolute !important;/)
-  // Inside the border box: the trigger's own ellipsis overflow:hidden and
-  // the crumbs nav clip anything hanging off the corner.
-  assert.match(badge, /top: 0 !important;/)
-  assert.match(badge, /right: 0 !important;/)
+  // Same outside-corner seat as the jobs badge (top -3px, right -4px): the
+  // two 28px controls must read as twins. 0.1.6 docked this badge inside
+  // because the trigger's own ellipsis overflow and the crumbs nav clipped
+  // anything outside; on 0.1.7 the trigger lives in the title cluster with
+  // no clipping ancestor, so the outside seat paints fine (verified live).
+  assert.match(badge, /top: -3px !important;/)
+  assert.match(badge, /right: -4px !important;/)
 })
 
 test('the lineage root keeps a gap from the title ellipsis', () => {

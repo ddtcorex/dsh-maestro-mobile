@@ -340,6 +340,42 @@
    "lazy": true,
    "state": "open any global panel",
    "note": "second panel-open signal, covers a panel whose page ships no marker of its own"
+  },
+  {
+   "id": "session-header-row-div",
+   "kind": "marker",
+   "needle": "[data-slot=\"conversation.session.header\"] > div",
+   "owner": "dsh-client-ui-conversation",
+   "lazy": true,
+   "state": "open any session",
+   "note": "0.1.7+: the header element is gone; seat children are div.titleRow (first) + div.tabs (last). Mobile titleRow/cluster/crumbs rules anchor here."
+  },
+  {
+   "id": "session-header-lineage-trigger",
+   "kind": "marker",
+   "needle": "[data-slot=\"conversation.session.header\"] button[aria-haspopup=\"tree\"]",
+   "owner": "dsh-client-ui-conversation",
+   "lazy": true,
+   "state": "session with subagents (running or idle)",
+   "note": "0.1.7+: trigger left the crumbs nav for the title cluster; the lineage-badge effect keys on tree popup without a crumbs ancestor."
+  },
+  {
+   "id": "session-header-utilities",
+   "kind": "marker",
+   "needle": "[class*=\"headerUtilities\"]",
+   "owner": "dsh-client-ui-conversation",
+   "lazy": true,
+   "state": "open any session",
+   "note": "0.1.7+: Files split + more-button cluster; the chevron hides <=480px. The menuAnchor span shares a menu substring — popover clamps must scope to ul."
+  },
+  {
+   "id": "session-header-tabs-direct",
+   "kind": "marker",
+   "needle": "[data-slot=\"conversation.session.header\"] > div[class*=\"tabs\"]",
+   "owner": "dsh-client-ui-conversation",
+   "lazy": true,
+   "state": "open any session",
+   "note": "0.1.7+: tab row is a direct seat child; one-line horizontal scroll contract lives here."
   }
  ]
 }

@@ -775,12 +775,13 @@ export const LAYOUT_CSS = `/* ---------- mobile-only layout ---------- */
   [data-mobile-nav="lineage"]::after {
     content: attr(data-lineage-count) !important;
     position: absolute !important;
-    /* Inside the border box, not hanging off the corner like the jobs
-       badge: the trigger keeps overflow:hidden for its own ellipsis, and
-       the crumbs nav clips too — anything outside is invisible. Overlapping
-       the chevron's top-right reads as the standard badge-over-icon. */
-    top: 0 !important;
-    right: 0 !important;
+    /* Same outside-corner seat as the jobs badge so the two 28px controls
+       read as twins. (On ≤0.1.6 this hung inside because the trigger's own
+       ellipsis overflow and the crumbs nav clipped anything outside; on
+       0.1.7 the trigger lives in the title cluster with no clipping
+       ancestor, verified live.) */
+    top: -3px !important;
+    right: -4px !important;
     box-sizing: border-box !important;
     min-width: 15px !important;
     height: 15px !important;
@@ -818,7 +819,234 @@ export const LAYOUT_CSS = `/* ---------- mobile-only layout ---------- */
     max-width: none !important;
     max-height: min(420px, calc(100dvh - 92px - env(safe-area-inset-top, 0px))) !important;
   }
-  /* --- Settings sheet moved to settings-sheet.css.ts (DSH-native bottom sheet) ---
+  /* --- Session header on 0.1.7+ (upstream replaced <header> with divs) ---
+     0.1.7 removed the <header> element from the session header seat: its
+     children are now div.titleRow (titleCluster | headerUtilities |
+     headerCorner) and div.tabs. Every pre-0.1.7 rule above anchors on
+     "> header" and matches nothing here, so this subsection re-applies the
+     same intents to the div structure plus the redesign below. The old
+     block stays for ≤0.1.6 (its selectors match no div) — remove it when
+     0.1.6 support is dropped. Measured live at 390px on 0.1.7 (2026-09-22):
+     before, the tall badge-over-caption subagents trigger invaded the tab
+     row and the session title crushed to "D…". Anchors use structural
+     positions (first-child / direct tabs div), never build hashes. */
+  [data-mobile-nav="frame"] [data-phase] [data-slot="conversation.session.header"] > div:first-child {
+    display: flex !important;
+    align-items: center;
+    box-sizing: border-box;
+    position: relative !important;
+    width: 100%;
+    min-width: 0;
+    gap: 8px;
+    padding-left: 16px;
+    padding-right: 36px;
+  }
+  [data-mobile-nav="frame"] [data-phase] [data-slot="conversation.session.header"] > div:first-child > :first-child {
+    display: flex !important;
+    align-items: center;
+    flex: 0 1 auto !important;
+    min-width: 0;
+    gap: 2px;
+    box-sizing: border-box;
+    width: 100%;
+    padding-left: 20px;
+  }
+  [data-mobile-nav="frame"] [data-phase] [data-slot="conversation.session.header"] > div:first-child > :first-child > :first-child {
+    display: flex !important;
+    align-items: center;
+    flex: 1 1 auto;
+    min-width: 0;
+    gap: 2px;
+  }
+  /* Title ellipsis chain: every lane between the cluster and the current
+     crumb must allow shrinking or one max-content ancestor stops the
+     ellipsis and the title paints past the actions. */
+  [data-mobile-nav="frame"] [data-phase] [data-slot="conversation.session.header"] [class*="_crumbs"] {
+    flex: 1 1 0;
+    min-width: 0;
+    max-width: none;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap !important;
+  }
+  [data-mobile-nav="frame"] [data-phase] [data-slot="conversation.session.header"] [class*="_crumbs"] [class*="_crumbSeg"],
+  [data-mobile-nav="frame"] [data-phase] [data-slot="conversation.session.header"] [class*="_crumbs"] [class*="_crumbCurrent"] {
+    min-width: 0 !important;
+    overflow: hidden !important;
+    text-overflow: ellipsis !important;
+  }
+  [data-mobile-nav="frame"] [data-phase] [data-slot="conversation.session.header"] [class*="_crumbs"] [class*="_separator"] {
+    display: none !important;
+  }
+  /* Actions cluster: single row, right-aligned, never wraps into the tabs. */
+  [data-mobile-nav="frame"] [data-phase] [data-slot="conversation.session.header"] [class*="_headerActions"] {    display: flex !important;
+    align-items: center;
+    box-sizing: border-box;
+    flex: 0 1 auto;
+    min-width: 0;
+    max-width: calc(100% - 32px);
+    margin-left: auto;
+    justify-content: flex-end;
+    gap: 2px;
+  }
+  /* Mode label: icon-only on phones, hidden on very small ones. Unconditional
+     below 440px — the old conditional guards keyed on the lineage living in
+     the crumbs, which 0.1.7 moved; a predictable icon costs less than another
+     structure-coupled guard. */
+  @media (max-width: 440px) {
+    [data-mobile-nav="frame"] [data-phase] [data-slot="conversation.session.header"] [class*="_label"]:has(> svg) {
+      order: 1;
+      flex: 0 0 auto;
+      min-width: 18px;
+      max-width: 18px;
+      display: block;
+      position: relative;
+      box-sizing: border-box;
+      padding-left: 18px;
+      padding-right: 0 !important;
+      overflow: hidden;
+      white-space: nowrap !important;
+    }
+    [data-mobile-nav="frame"] [data-phase] [data-slot="conversation.session.header"] [class*="_label"]:has(> svg) > svg {
+      position: absolute !important;
+      left: 0 !important;
+      top: 50% !important;
+      transform: translateY(-50%) !important;
+    }
+  }
+  @media (max-width: 359px) {
+    [data-mobile-nav="frame"] [data-phase] [data-slot="conversation.session.header"] [class*="_label"]:has(> svg) {
+      display: none !important;
+    }
+  }
+  /* Unmarked lineage trigger fallback: one 28px line, never a tall stack.
+     The reconciler marks the trigger within a tick ([data-mobile-nav=
+     "lineage"] collapses it to the 28px badge circle), so this only covers
+     the pre-mark flash and no-JS edge — hence :not([data-mobile-nav]),
+     which also keeps it clear of the marked state. */
+  [data-mobile-nav="frame"] [data-phase] [data-slot="conversation.session.header"] button[class*="_trigger"][aria-haspopup="tree"]:not([data-mobile-nav]) {
+    display: inline-flex !important;
+    flex-direction: row !important;
+    align-items: center !important;
+    gap: 4px !important;
+    height: 28px !important;
+    max-height: 28px !important;
+    overflow: hidden !important;
+    white-space: nowrap !important;
+  }
+  [data-mobile-nav="frame"] [data-phase] [data-slot="conversation.session.header"] button[class*="_trigger"][aria-haspopup="tree"]:not([data-mobile-nav]) > span {
+    display: block !important;
+    white-space: nowrap !important;
+    max-width: 76px !important;
+    overflow: hidden !important;
+    text-overflow: ellipsis !important;
+    font-size: 12px !important;
+    line-height: 1 !important;
+  }
+  /* Files split-button: the chevron ("More ways to open") goes on narrow
+     phones; the primary action keeps its full hit area and the choose-app
+     dialog stays one tap away on wider screens. Scoped to the utilities
+     cluster so no other chevron is hit. */
+  @media (max-width: 480px) {
+    [data-mobile-nav="frame"] [data-phase] [data-slot="conversation.session.header"] [class*="headerUtilities"] [class*="chevron"] {
+      display: none !important;
+    }
+  }
+  /* Corner toggle + redundant ⋯ menu, re-anchored (see the pre-0.1.7 rules
+     above for the rationale). */
+  /* Absolute header controls center on the row itself (which is now the
+     positioning context), not on a fixed top pixel: in-flow 28px controls
+     sit at row-top + (rowH - 28) / 2 and any fixed top drifts when the row
+     offset moves (measured 1px low at 390px). The hero fallback toggle
+     outside any header keeps the fixed top from the rule further up. */
+  [data-mobile-nav="frame"] [data-phase] [data-slot="conversation.session.header"] [data-mobile-nav="toggle"] {
+    top: 50% !important;
+    transform: translateY(-50%) !important;
+  }
+  [data-mobile-nav="frame"] [data-phase] [data-slot="conversation.session.header"] [data-conversation-header-corner] {
+    display: block !important;
+    position: absolute !important;
+    right: 8px !important;
+    top: 50% !important;
+    transform: translateY(-50%) !important;
+    margin-inline: 0 !important;
+    z-index: 2 !important;
+  }
+  /* Utilities buttons match the 28px control rhythm (upstream Files action
+     ships 22px tall and centers 1px off the 28px controls). The :not() guards
+     keep this below the hidden menu/chevron rules in specificity-neutral
+     order: without them this later, more-specific rule re-shows the ⋯ menu
+     its own earlier display:none hides. */
+  [data-mobile-nav="frame"] [data-phase] [data-slot="conversation.session.header"] [class*="headerUtilities"] button:not([class*="moreButton"]):not([class*="chevron"]) {
+    height: 28px !important;
+    display: inline-flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+  }
+  [data-mobile-nav="frame"] [data-phase] [data-slot="conversation.session.header"] [class*="moreButton"] {
+    display: none !important;
+  }
+  [data-mobile-nav="frame"] [data-phase] [data-slot="conversation.session.header"] [class*="_headerLeading"]:not(:has([data-slot="conversation.session.header.leading"] > *)) {
+    display: none !important;
+  }
+  /* Tabs are direct seat children on 0.1.7 (not nested in the header): same
+     one-line horizontal scroll contract as the pre-0.1.7 rule above. */
+  [data-mobile-nav="frame"] [data-phase] [data-slot="conversation.session.header"] > div[class*="tabs"] {
+    flex: 0 1 auto !important;
+    min-width: 0 !important;
+    max-width: 100% !important;
+    overflow-x: auto !important;
+    overflow-y: hidden !important;
+    white-space: nowrap !important;
+    -webkit-overflow-scrolling: touch;
+    scrollbar-width: none;
+  }
+  [data-mobile-nav="frame"] [data-phase] [data-slot="conversation.session.header"] > div[class*="tabs"]::-webkit-scrollbar {
+    display: none;
+  }
+  [data-mobile-nav="frame"] [data-phase] [data-slot="conversation.session.header"] > div[class*="tabs"] > [class*="tab"] {
+    flex: 0 0 auto !important;
+    min-width: max-content !important;
+    max-width: max-content !important;
+    white-space: nowrap !important;
+  }
+  /* Lineage root gap + jobs menu dock + popover clamp, re-anchored (the
+     pre-0.1.7 rules above carry the rationale). */
+  [data-mobile-nav="frame"] [data-phase] [data-slot="conversation.session.header"] [class*="_root"]:not([class*="_switcherRoot"]):has(> button[class*="_trigger"]) {
+    margin-left: 6px !important;
+  }
+  [data-mobile-nav="frame"] [data-phase] [data-slot="conversation.session.header"] [class*="_root"]:has(> [data-mobile-nav="jobs"]) > ul[class*="_menu"] {
+    position: fixed !important;
+    top: calc(76px + env(safe-area-inset-top, 0px)) !important;
+    left: 8px !important;
+    right: 8px !important;
+    width: auto !important;
+    max-width: none !important;
+    max-height: min(420px, calc(100dvh - 92px - env(safe-area-inset-top, 0px))) !important;
+  }
+  [data-mobile-nav="frame"] [data-phase] [data-slot="conversation.session.header"] ul[class*="_menu"] {
+    left: 8px !important;
+    right: auto !important;
+    width: min(336px, calc(100vw - 16px));
+    max-width: none;
+    max-height: min(420px, calc(100dvh - 120px));
+  }
+  /* Utilities cluster holds Files + ⋯ on 0.1.7: fixed content, never grows
+     into the title lane. (Its menuAnchor span carries a "menu" substring —
+     keep the popover clamp above scoped to ul so the anchor never matches.) */
+  [data-mobile-nav="frame"] [data-phase] [data-slot="conversation.session.header"] [class*="headerUtilities"] {
+    flex: 0 1 auto !important;
+    min-width: 0 !important;
+    margin-left: auto !important;
+  }
+  /* Trigger roots pin at max-content (jobs 28px circle, lineage 28px badge):
+     without this the cluster crushes them to zero against the utilities. */
+  [data-mobile-nav="frame"] [data-phase] [data-slot="conversation.session.header"] [class*="_root"]:not([class*="_switcherRoot"]):has(> button[class*="_trigger"]) {
+    flex: 0 0 auto !important;
+    min-width: max-content !important;
+    max-width: max-content !important;
+    white-space: nowrap !important;
+  }
      Legacy aria-modal sheet rules removed — see src/client/styles/settings-sheet.css.ts
      for panel:has(navList) bottom-sheet, pill tabs scroll, header h44 close 36, safe-area.
      Keep cubeRow compact (Appearance) for any modal on mobile. */

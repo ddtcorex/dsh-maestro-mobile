@@ -1,5 +1,5 @@
 import type { PropsLocale, PropsRuntime } from '@deepseek-ai/dsh-client-ui-slots'
-import { IconDownloadOutline16 } from '@deepseek-ai/dsh-client-ui-primitives'
+import { IconDownloadOutlineMedium } from '@deepseek-ai/dsh-client-ui-primitives'
 import { NS } from '../i18n/locales.ts'
 
 /** Full props for the sidebar footer action entry. */
@@ -34,7 +34,7 @@ export function MobileDrawerFooter({ useSessions, downloadSessionLog, t }: Mobil
         }}
         style={{ display: 'inline-flex', alignItems: 'center', gap: 6, height: 36, padding: '0 12px', borderRadius: 999, border: '1px solid var(--dsw-alias-border-l1)', background: 'var(--dsw-alias-bg-layer-1)', color: 'var(--dsw-alias-label-primary)', font: 'var(--dsw-font-xs-13)', cursor: 'pointer', opacity: sessionId === undefined ? 0.5 : 1 } as any}
       >
-        <IconDownloadOutline16 size={14} />
+        <IconDownloadOutlineMedium size={14} />
         <span>{t('sessionLog')}</span>
       </button>
     </div>
