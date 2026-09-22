@@ -76,6 +76,37 @@ test('the subagent lineage yields to the session title on narrow phones', () => 
   assert.match(switcher, /min-width: 0 !important;/)
 })
 
+test('the hero corner never inherits the title-cluster row rules', () => {
+  // New-chat (hero) header: hideChrome removes the title cluster, so the
+  // corner seat is the titleRow's :first-child. The structural
+  // `> :first-child` row rules below target the title cluster — without a
+  // guard they restyle the absolutely-positioned corner instead
+  // (width:100% + padding-left stretches it across the row and drops the
+  // "Open right sidebar" button at the row start, x=50 instead of the
+  // right gutter — mobile report 2026-09-22). The cluster selectors must
+  // exclude the corner, and the corner must shrink-wrap its own button.
+  assert.match(
+    layout,
+    /\[data-slot="conversation\.session\.header"\] > div:first-child > :first-child:not\(\[data-conversation-header-corner\]\)\s*\{/s,
+    '0.1.7 cluster rule must exclude the header corner',
+  )
+  assert.match(
+    layout,
+    /\[data-slot="conversation\.session\.header"\] > div:first-child > :first-child:not\(\[data-conversation-header-corner\]\) > :first-child\s*\{/s,
+    '0.1.7 cluster-child rule must exclude the header corner',
+  )
+  assert.match(
+    layout,
+    /\[data-slot="conversation\.session\.header"\] > header > :first-child > :first-child:not\(\[data-conversation-header-corner\]\)\s*\{/s,
+    'pre-0.1.7 cluster-child rule must exclude the header corner',
+  )
+  // Belt and braces: even if a future rule targets the corner, it keeps
+  // shrink-wrapping its 28px button instead of filling the row.
+  const cornerMatches = [...layout.matchAll(/\[data-conversation-header-corner\]\s*\{([^}]*)\}/g)]
+  assert.ok(cornerMatches.length >= 2, 'both header generations must carry a corner rule')
+  for (const m of cornerMatches) assert.match(m[1], /width: auto !important;/)
+})
+
 test('0.1.7 header row anchors on the titleRow div, not <header>', () => {
   // 0.1.7 removed the <header> element: seat children are div.titleRow
   // (first) and div.tabs (last). Pre-0.1.7 `> header` rules match nothing,
@@ -149,7 +180,7 @@ test('0.1.7 trailing actions form one tight right group', () => {
   // so it never donates space right; the utilities cluster carries
   // margin-left auto and docks flush against the corner reservation, leaving
   // exactly one flexible gap mid-row and an 8px rhythm everywhere else.
-  const cluster = /\[data-slot="conversation\.session\.header"\] > div:first-child > :first-child \{([\s\S]*?)\n  \}/.exec(layout)?.[1]
+  const cluster = /\[data-slot="conversation\.session\.header"\] > div:first-child > :first-child:not\(\[data-conversation-header-corner\]\) \{([\s\S]*?)\n  \}/.exec(layout)?.[1]
   assert.ok(cluster, '0.1.7 titleCluster rule is missing')
   assert.match(cluster, /flex: 0 1 auto !important;/)
   const row = /\[data-slot="conversation\.session\.header"\] > div:first-child \{([\s\S]*?)\n  \}/.exec(layout)?.[1]

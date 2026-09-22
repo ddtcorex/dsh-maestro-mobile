@@ -447,7 +447,13 @@ export const LAYOUT_CSS = `/* ---------- mobile-only layout ---------- */
     gap: 2px;
     padding-left: 20px;
   }
-  [data-mobile-nav="frame"] [data-phase] [data-slot="conversation.session.header"] > header > :first-child > :first-child {
+  /* Second level: the title cluster — never the header corner. On a blank
+     (hero) session hideChrome removes the cluster, so the corner seat is the
+     titleRow's :first-child; without the guard this rule restyles the
+     absolutely-positioned corner instead (width:100% stretches it across
+     the row and drops the "Open right sidebar" button at the row start —
+     mobile report 2026-09-22). */
+  [data-mobile-nav="frame"] [data-phase] [data-slot="conversation.session.header"] > header > :first-child > :first-child:not([data-conversation-header-corner]) {
     display: flex !important;
     align-items: center;
     flex: 1 1 auto;
@@ -479,6 +485,12 @@ export const LAYOUT_CSS = `/* ---------- mobile-only layout ---------- */
        offset against its margin edge, so the -16px would push the button 16px
        past the gutter (x=370 instead of x=354) and off the 390px viewport. */
     margin-inline: 0 !important;
+    /* Shrink-wrap the 28px button: on a blank (hero) session the corner is
+       the titleRow's :first-child, and any present-or-future row rule that
+       reaches it must not stretch it across the row (mobile report
+       2026-09-22 — the button landed at the row start, x=50). */
+    left: auto !important;
+    width: auto !important;
     z-index: 2 !important;
   }
   /* The ⋯ menu itself is redundant once its slot is reused. Matched by class
@@ -845,7 +857,13 @@ export const LAYOUT_CSS = `/* ---------- mobile-only layout ---------- */
     padding-left: 16px;
     padding-right: 30px;
   }
-  [data-mobile-nav="frame"] [data-phase] [data-slot="conversation.session.header"] > div:first-child > :first-child {
+  /* Cluster lane: the title cluster — never the header corner. On a blank
+     (hero) session hideChrome removes the cluster, so the corner seat is the
+     row's :first-child; without the guard this rule restyles the
+     absolutely-positioned corner instead (width:100% stretches it across
+     the row and drops the "Open right sidebar" button at the row start —
+     mobile report 2026-09-22). */
+  [data-mobile-nav="frame"] [data-phase] [data-slot="conversation.session.header"] > div:first-child > :first-child:not([data-conversation-header-corner]) {
     display: flex !important;
     align-items: center;
     flex: 0 1 auto !important;
@@ -857,7 +875,9 @@ export const LAYOUT_CSS = `/* ---------- mobile-only layout ---------- */
        anything more eats title room for nothing on 390px phones. */
     padding-left: 20px;
   }
-  [data-mobile-nav="frame"] [data-phase] [data-slot="conversation.session.header"] > div:first-child > :first-child > :first-child {
+  /* Cluster contents (see the guard above: the middle lane must not be the
+     corner — on hero it would restyle the corner's own button instead). */
+  [data-mobile-nav="frame"] [data-phase] [data-slot="conversation.session.header"] > div:first-child > :first-child:not([data-conversation-header-corner]) > :first-child {
     display: flex !important;
     align-items: center;
     flex: 1 1 auto;
@@ -981,6 +1001,10 @@ export const LAYOUT_CSS = `/* ---------- mobile-only layout ---------- */
     top: 50% !important;
     transform: translateY(-50%) !important;
     margin-inline: 0 !important;
+    /* Shrink-wrap the 28px button (see the pre-0.1.7 twin: on hero the
+       corner is the row's :first-child and row rules must not stretch it). */
+    left: auto !important;
+    width: auto !important;
     z-index: 2 !important;
   }
   /* Matched pair with the left drawer toggle: both boxes are 28px and both
