@@ -76,6 +76,79 @@ test('the subagent lineage yields to the session title on narrow phones', () => 
   assert.match(switcher, /min-width: 0 !important;/)
 })
 
+test('the hero corner never inherits the title-cluster row rules', () => {
+  // New-chat (hero) header: hideChrome removes the title cluster, so the
+  // corner seat is the titleRow's :first-child. The structural
+  // `> :first-child` row rules below target the title cluster — without a
+  // guard they restyle the absolutely-positioned corner instead
+  // (width:100% + padding-left stretches it across the row and drops the
+  // "Open right sidebar" button at the row start, x=50 instead of the
+  // right gutter — mobile report 2026-09-22). The cluster selectors must
+  // exclude the corner, and the corner must shrink-wrap its own button.
+  assert.match(
+    layout,
+    /\[data-slot="conversation\.session\.header"\] > div:first-child > :first-child:not\(\[data-conversation-header-corner\]\)\s*\{/s,
+    '0.1.7 cluster rule must exclude the header corner',
+  )
+  assert.match(
+    layout,
+    /\[data-slot="conversation\.session\.header"\] > div:first-child > :first-child:not\(\[data-conversation-header-corner\]\) > :first-child\s*\{/s,
+    '0.1.7 cluster-child rule must exclude the header corner',
+  )
+  assert.match(
+    layout,
+    /\[data-slot="conversation\.session\.header"\] > header > :first-child > :first-child:not\(\[data-conversation-header-corner\]\)\s*\{/s,
+    'pre-0.1.7 cluster-child rule must exclude the header corner',
+  )
+  // Belt and braces: even if a future rule targets the corner, it keeps
+  // shrink-wrapping its 28px button instead of filling the row.
+  const cornerMatches = [...layout.matchAll(/\[data-conversation-header-corner\]\s*\{([^}]*)\}/g)]
+  assert.ok(cornerMatches.length >= 2, 'both header generations must carry a corner rule')
+  for (const m of cornerMatches) assert.match(m[1], /width: auto !important;/)
+})
+
+test('the title clears the drawer toggle by one rhythm, not two', () => {
+  // Measured live at 402px: row padding (16) + cluster padding (20) left a
+  // 16px hole between the drawer toggle's edge and the title — twice the
+  // header's 8px rhythm (mobile report 2026-09-22). The toggle ends at
+  // row+20, so 12px lands title content at row+28: past the toggle with
+  // exactly one gap, and every saved pixel goes to the title.
+  const cluster = /\[data-slot="conversation\.session\.header"\] > div:first-child > :first-child:not\(\[data-conversation-header-corner\]\) \{([\s\S]*?)\n  \}/.exec(layout)?.[1]
+  assert.ok(cluster, '0.1.7 titleCluster rule is missing')
+  assert.match(cluster, /padding-left: 12px;/)
+})
+
+test('the header Open-in-Files group stays off mobile', () => {
+  // The ui-open-in-app split button ("Open in Files" + "More ways to open"
+  // chevron) deep-links into a desktop app — useless on a phone, and it
+  // eats ~50px of title room. Hide the whole group at every mobile width.
+  // Fragment-anchored: the hash changes per build and the aria-labels per
+  // locale; scoped to the utilities cluster so no other split control is
+  // hit. Supersedes the old ≤480px chevron-only rule.
+  assert.match(
+    layout,
+    /\[data-slot="conversation\.session\.header"\][^{]*\[class\*="headerUtilities"\][^{]*\[class\*="_split"\]\s*\{[^}]*display:\s*none\s*!important;/s,
+    'open-in-app split group must hide on mobile',
+  )
+})
+
+test('the emptied utilities cluster yields the row to the actions', () => {
+  // Measured live at 402px: with the split group + ⋯ menu both hidden, the
+  // utilities cluster kept an 8px gap slice that stacked with the row gap
+  // and the corner clearance into a 24px hole between the trailing buttons
+  // and the corner toggle (mobile report 2026-09-22). Remove the emptied
+  // cluster from the row outright while its only content is the hidden
+  // split group; the grown title cluster then fills to the reservation and
+  // the buttons land one rhythm from the corner. If upstream ever removes
+  // the split markup — or ships another visible utilities entry — the
+  // guard stops matching and the cluster comes back on its own.
+  assert.match(
+    layout,
+    /\[class\*="headerUtilities"\]:has\(\[class\*="_split"\]\)\s*\{[^}]*display:\s*none\s*!important;/s,
+    'emptied utilities cluster must leave the row entirely',
+  )
+})
+
 test('0.1.7 header row anchors on the titleRow div, not <header>', () => {
   // 0.1.7 removed the <header> element: seat children are div.titleRow
   // (first) and div.tabs (last). Pre-0.1.7 `> header` rules match nothing,
@@ -83,7 +156,7 @@ test('0.1.7 header row anchors on the titleRow div, not <header>', () => {
   const row = /\[data-slot="conversation\.session\.header"\] > div:first-child \{([\s\S]*?)\n  \}/.exec(layout)?.[1]
   assert.ok(row, '0.1.7 titleRow rule is missing from layout.css.ts')
   assert.match(row, /display: flex !important;/)
-  assert.match(row, /padding-right: 36px;/)
+  assert.match(row, /padding-right: 30px;/)
   const chain = /\[class\*="_crumbs"\] \{([\s\S]*?)\n  \}/.exec(layout)?.[1]
   assert.ok(chain, '0.1.7 crumbs ellipsis rule is missing')
   assert.match(chain, /min-width: 0;/)
@@ -101,12 +174,13 @@ test('0.1.7 unmarked lineage trigger stays one line until the effect marks it', 
   assert.match(fallback, /max-height: 28px !important;/)
 })
 
-test('0.1.7 Files chevron hides on narrow phones, tabs scroll one line', () => {
-  // The split-button chevron ("More ways to open") costs ~30px the title
-  // needs at 390px; the primary Files action keeps its hit area.
-  assert.match(
+test('0.1.7 Files group hides on mobile, tabs scroll one line', () => {
+  // The whole open-in-app split group hides (see 'the header Open-in-Files
+  // group stays off mobile'): the old ≤480px chevron-only rule is gone, the
+  // primary action no longer keeps a hit area.
+  assert.doesNotMatch(
     layout,
-    /\[class\*="headerUtilities"\] \[class\*="chevron"\]\s*\{\s*display:\s*none\s*!important;\s*\}/s,
+    /\[class\*="headerUtilities"\] \[class\*="chevron"\]\s*\{[^}]*display:\s*none/s,
   )
   // Tabs are direct seat children on 0.1.7 (div[class*="tabs"]), not nested
   // in the header: same one-line horizontal scroll contract as before.
@@ -143,15 +217,16 @@ test('0.1.7 header controls share one vertical center line', () => {
 })
 
 test('0.1.7 trailing actions form one tight right group', () => {
-  // Measured live at 390px: free space scattered as a 43px hole between the
-  // subagents trigger and Files plus 31px between Files and the corner,
-  // against 8px elsewhere. The title cluster is shrink-only (flex 0 1 auto)
-  // so it never donates space right; the utilities cluster carries
-  // margin-left auto and docks flush against the corner reservation, leaving
-  // exactly one flexible gap mid-row and an 8px rhythm everywhere else.
-  const cluster = /\[data-slot="conversation\.session\.header"\] > div:first-child > :first-child \{([\s\S]*?)\n  \}/.exec(layout)?.[1]
+  // The title cluster grows (flex 1 1 auto) so its trailing controls (jobs
+  // badge, lineage) dock flush right against the corner reservation: with
+  // the utilities cluster emptied (Files split + ⋯ menu both hidden), a
+  // shrink-only cluster would strand them mid-row, 44px from the corner
+  // toggle (measured live at 402px, mobile report 2026-09-22). The crumbs
+  // lane inside stays the flexible one, so a long title still ellipsizes
+  // instead of pushing the group.
+  const cluster = /\[data-slot="conversation\.session\.header"\] > div:first-child > :first-child:not\(\[data-conversation-header-corner\]\) \{([\s\S]*?)\n  \}/.exec(layout)?.[1]
   assert.ok(cluster, '0.1.7 titleCluster rule is missing')
-  assert.match(cluster, /flex: 0 1 auto !important;/)
+  assert.match(cluster, /flex: 1 1 auto !important;/)
   const row = /\[data-slot="conversation\.session\.header"\] > div:first-child \{([\s\S]*?)\n  \}/.exec(layout)?.[1]
   assert.ok(row, '0.1.7 titleRow rule is missing')
   assert.match(row, /gap: 8px;/)
@@ -192,4 +267,20 @@ test('0.1.7 title row sits symmetric in the viewport', () => {
   const row = /\[data-slot="conversation\.session\.header"\] > div:first-child \{([\s\S]*?)\n  \}/.exec(layout)?.[1]
   assert.ok(row, '0.1.7 titleRow rule is missing')
   assert.match(row, /margin-left: 4px/)
+})
+
+test('0.1.7 header gutters match the composer', () => {
+  // Measured live at 390px: the composer sits at x=16 w=356 (gutters
+  // 16/18) while header content read 32/32. The row box cannot widen to
+  // the composer span, so the controls jut inside it: toggle 8px left of
+  // the row edge lands at x=16, corner 6px right of it ends at 372, with
+  // the cluster/corner paddings clearing both.
+  const toggle = /\[data-slot="conversation\.session\.header"\][^{]*\[data-mobile-nav="toggle"\]\s*\{([^}]*)\}/.exec(layout)?.[1]
+  assert.ok(toggle, 'header toggle centering rule is missing')
+  assert.match(toggle, /left: -8px !important;/)
+  // (pre-0.1.7 twin uses right:8px; take the last match = the 0.1.7 rule).
+  const cornerMatches = [...layout.matchAll(/\[data-conversation-header-corner\]\s*\{([^}]*)\}/g)]
+  const corner = cornerMatches[cornerMatches.length - 1]?.[1]
+  assert.ok(corner, 'header corner rule is missing')
+  assert.match(corner, /right: -6px !important;/)
 })

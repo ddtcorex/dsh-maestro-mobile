@@ -447,7 +447,13 @@ export const LAYOUT_CSS = `/* ---------- mobile-only layout ---------- */
     gap: 2px;
     padding-left: 20px;
   }
-  [data-mobile-nav="frame"] [data-phase] [data-slot="conversation.session.header"] > header > :first-child > :first-child {
+  /* Second level: the title cluster — never the header corner. On a blank
+     (hero) session hideChrome removes the cluster, so the corner seat is the
+     titleRow's :first-child; without the guard this rule restyles the
+     absolutely-positioned corner instead (width:100% stretches it across
+     the row and drops the "Open right sidebar" button at the row start —
+     mobile report 2026-09-22). */
+  [data-mobile-nav="frame"] [data-phase] [data-slot="conversation.session.header"] > header > :first-child > :first-child:not([data-conversation-header-corner]) {
     display: flex !important;
     align-items: center;
     flex: 1 1 auto;
@@ -479,6 +485,12 @@ export const LAYOUT_CSS = `/* ---------- mobile-only layout ---------- */
        offset against its margin edge, so the -16px would push the button 16px
        past the gutter (x=370 instead of x=354) and off the 390px viewport. */
     margin-inline: 0 !important;
+    /* Shrink-wrap the 28px button: on a blank (hero) session the corner is
+       the titleRow's :first-child, and any present-or-future row rule that
+       reaches it must not stretch it across the row (mobile report
+       2026-09-22 — the button landed at the row start, x=50). */
+    left: auto !important;
+    width: auto !important;
     z-index: 2 !important;
   }
   /* The ⋯ menu itself is redundant once its slot is reused. Matched by class
@@ -838,24 +850,42 @@ export const LAYOUT_CSS = `/* ---------- mobile-only layout ---------- */
     width: 100%;
     min-width: 0;
     gap: 8px;
-    /* The row itself offsets 20px left / 28px right in the viewport, so
-       symmetric control insets read 28 left vs 36 right. Shift 4px to
-       balance both content gutters. */
+    /* The row itself offsets 20px left / 28px right in the viewport.
+       The toggle/corner jut past it to the composer lines (x=16/372),
+       so the row keeps its shift with a tighter right padding. */
     margin-left: 4px !important;
     padding-left: 16px;
-    padding-right: 36px;
+    padding-right: 30px;
   }
-  [data-mobile-nav="frame"] [data-phase] [data-slot="conversation.session.header"] > div:first-child > :first-child {
+  /* Cluster lane: the title cluster — never the header corner. On a blank
+     (hero) session hideChrome removes the cluster, so the corner seat is the
+     row's :first-child; without the guard this rule restyles the
+     absolutely-positioned corner instead (width:100% stretches it across
+     the row and drops the "Open right sidebar" button at the row start —
+     mobile report 2026-09-22). */
+  [data-mobile-nav="frame"] [data-phase] [data-slot="conversation.session.header"] > div:first-child > :first-child:not([data-conversation-header-corner]) {
     display: flex !important;
     align-items: center;
-    flex: 0 1 auto !important;
+    /* Grow to fill the row: the trailing controls (jobs badge, lineage)
+       dock flush right against the corner reservation. Shrink-only left
+       them stranded mid-row once the utilities cluster emptied (Files
+       split + ⋯ menu both hidden on mobile): 44px from the corner at
+       402px (mobile report 2026-09-22). The crumbs lane inside stays the
+       flexible one, so a long title ellipsizes instead of pushing out. */
+    flex: 1 1 auto !important;
     min-width: 0;
     gap: 2px;
     box-sizing: border-box;
     width: 100%;
-    padding-left: 20px;
+    /* Clears the jutting toggle (16..44 abs against row at 24) with one 8px
+       rhythm gap: row padding (16) + 12 lands content at row+28, past the
+       toggle's row+20 edge. Measured live at 402px — 20px left a 16px hole
+       between toggle and title (mobile report 2026-09-22). */
+    padding-left: 12px;
   }
-  [data-mobile-nav="frame"] [data-phase] [data-slot="conversation.session.header"] > div:first-child > :first-child > :first-child {
+  /* Cluster contents (see the guard above: the middle lane must not be the
+     corner — on hero it would restyle the corner's own button instead). */
+  [data-mobile-nav="frame"] [data-phase] [data-slot="conversation.session.header"] > div:first-child > :first-child:not([data-conversation-header-corner]) > :first-child {
     display: flex !important;
     align-items: center;
     flex: 1 1 auto;
@@ -947,14 +977,16 @@ export const LAYOUT_CSS = `/* ---------- mobile-only layout ---------- */
     font-size: 12px !important;
     line-height: 1 !important;
   }
-  /* Files split-button: the chevron ("More ways to open") goes on narrow
-     phones; the primary action keeps its full hit area and the choose-app
-     dialog stays one tap away on wider screens. Scoped to the utilities
-     cluster so no other chevron is hit. */
-  @media (max-width: 480px) {
-    [data-mobile-nav="frame"] [data-phase] [data-slot="conversation.session.header"] [class*="headerUtilities"] [class*="chevron"] {
-      display: none !important;
-    }
+  /* Open-in-Files split-button: the whole group goes on mobile, not just
+     the chevron ("More ways to open"). It deep-links into a desktop app —
+     useless on a phone — and the group eats ~50px of title room. The
+     drawer footer intentionally carries no Files entry (it would duplicate
+     this action), so hiding here removes the mobile path entirely, by
+     explicit product choice (mobile report 2026-09-22). Fragment-anchored:
+     the hash changes per build and the aria-labels per locale. Scoped to
+     the utilities cluster so no other split control is hit. */
+  [data-mobile-nav="frame"] [data-phase] [data-slot="conversation.session.header"] [class*="headerUtilities"] [class*="_split"] {
+    display: none !important;
   }
   /* Corner toggle + redundant ⋯ menu, re-anchored (see the pre-0.1.7 rules
      above for the rationale). */
@@ -966,14 +998,23 @@ export const LAYOUT_CSS = `/* ---------- mobile-only layout ---------- */
   [data-mobile-nav="frame"] [data-phase] [data-slot="conversation.session.header"] [data-mobile-nav="toggle"] {
     top: 50% !important;
     transform: translateY(-50%) !important;
+    /* Gutter match with the composer (x=16): the toggle juts 8px left of
+       the row edge to land on the composer line. */
+    left: -8px !important;
   }
   [data-mobile-nav="frame"] [data-phase] [data-slot="conversation.session.header"] [data-conversation-header-corner] {
     display: block !important;
     position: absolute !important;
-    right: 8px !important;
+    /* Gutter match with the composer (ends x=372): the corner juts 6px
+       right of the row edge. */
+    right: -6px !important;
     top: 50% !important;
     transform: translateY(-50%) !important;
     margin-inline: 0 !important;
+    /* Shrink-wrap the 28px button (see the pre-0.1.7 twin: on hero the
+       corner is the row's :first-child and row rules must not stretch it). */
+    left: auto !important;
+    width: auto !important;
     z-index: 2 !important;
   }
   /* Matched pair with the left drawer toggle: both boxes are 28px and both
@@ -1053,13 +1094,27 @@ export const LAYOUT_CSS = `/* ---------- mobile-only layout ---------- */
     max-width: none;
     max-height: min(420px, calc(100dvh - 120px));
   }
-  /* Utilities cluster holds Files + ⋯ on 0.1.7: fixed content, never grows
-     into the title lane. (Its menuAnchor span carries a "menu" substring —
-     keep the popover clamp above scoped to ul so the anchor never matches.) */
+  /* Utilities cluster on 0.1.7 held the Files split + ⋯ menu; both now
+     hide on mobile (split group above, menu below), so the cluster
+     collapses to zero width. (Its menuAnchor span carries a "menu"
+     substring — keep the popover clamp above scoped to ul so the anchor
+     never matches.) */
   [data-mobile-nav="frame"] [data-phase] [data-slot="conversation.session.header"] [class*="headerUtilities"] {
     flex: 0 1 auto !important;
     min-width: 0 !important;
     margin-left: auto !important;
+  }
+  /* ...but an emptied cluster must leave the row entirely, not even a
+     zero-width box: its 8px gap slice plus the corner clearance stacked a
+     24px hole between the trailing buttons and the corner toggle (measured
+     live at 402px, mobile report 2026-09-22). display:none also drops the
+     row gap's orphan slice, so the grown cluster fills to the reservation
+     and the buttons land one rhythm from the corner. Guarded on the hidden
+     split group: if upstream ever removes that markup — or ships another
+     visible utilities entry — the guard stops matching and the cluster
+     comes back on its own. */
+  [data-mobile-nav="frame"] [data-phase] [data-slot="conversation.session.header"] [class*="headerUtilities"]:has([class*="_split"]) {
+    display: none !important;
   }
   /* Trigger roots pin at max-content (jobs 28px circle, lineage 28px badge):
      without this the cluster crushes them to zero against the utilities. */
