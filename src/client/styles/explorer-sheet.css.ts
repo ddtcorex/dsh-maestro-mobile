@@ -1,5 +1,5 @@
 // explorer-sheet — DSH-native bottom sheets for aionui explorer/preview
-// Reuses BottomSheet tokens: --dsw-alias-bg-layer-2, --dsw-shadow-lv3, --ds-ease-out
+// Reuses the sheet tokens: --dsw-alias-bg-layer-2, --dsw-shadow-lv3, --ds-ease-out
 // See design-system/pages/sheet.md
 // Consolidated from legacy compat.css.ts — core visibility + geometry retained, polish migrated to DSH tokens
 

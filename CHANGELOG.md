@@ -4,6 +4,93 @@ All notable changes to this project are documented in this file. Format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); this project uses
 [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Removed
+
+- **Dead modules, and the composer marker got one home** — a reachability +
+  reference scan over `src/` (every module reachable from the two entries, every
+  export referenced somewhere, `tsc --noUnusedLocals --noUnusedParameters` clean
+  on both faces) left four things to delete:
+  `components/BottomSheet.tsx` and its `styles/sheet.css.ts` section — the
+  component had no importer and its `[data-mobile-sheet]` rules therefore styled
+  nothing; the walker that builds the client bundle never inlined it, so only the
+  stylesheet section was being shipped. `effects/overlay-backdrop-fab.ts` — the
+  legacy manual `frame.appendChild` backdrop/FAB task: nothing installed it, and
+  because its `fadeHook` was the only thing that ever set it, the swipe-close
+  call `fadeOverlayOut()` had been a silent no-op. `isGestureConsumed` — a
+  `gesture-guard.ts` export referenced nowhere, not even by its own tests. The
+  `[data-composer-input]` literal now lives once, in `core/composer-dom.ts`,
+  together with the `editorElement()` copy both composer effects carried and the
+  visual-viewport reader; five modules used to spell the marker out.
+  `probe:composer-plus` 17/17, `probe:pointer-gating` 6/6 and
+  `probe:multi-width` 33/33 after the deletions, `pnpm test` 223/223.
+
+### Fixed
+
+- **The composer "+" stops raising the keyboard on the host's second focus** —
+  reported after the release above landed: tapping `+` with the keyboard dismissed
+  still brought it up. The focus shadow was lifting too early — the host focuses
+  the editor again from the effect that runs when its menu opens, which is after
+  this plugin's bubble handler has read the menu as "not open" (mounted, not yet
+  laid out). `FOCUS_SHADOW_MIN_MS` (700ms, still bounded by the 1.5s cap) makes
+  the window a floor rather than a click-scoped one, and a `focusin` capture-phase
+  blur takes back any focus that reaches the editor during the window, because a
+  blur in a macrotask is too late (the IME has started). Both come from the
+  community plugin `mexiaosqwq/dsh-web-mobile`'s `composer-keyboard-guard.ts`,
+  which measured the timing on a real iPhone; their v3.0.2 does not touch this
+  path. `probe:composer-plus` gates the window (`shadow-window-outlives-the-click`,
+  `shadow-lifts-on-its-own`), and the take-back rule is unit-tested
+  (`shouldTakeBackArmedFocus`) because this host leaves the editor unfocusable
+  while its menu is open, so a focus-driving probe row would pass either way.
+  Refs: mexiaosqwq/dsh-web-mobile v3.0.0/v3.0.1.
+- **The composer no longer drops the keyboard while it is being typed in** —
+  reported from the phone as "the keyboard hides by itself" after the fix above
+  landed. The release trusts the keyboard reading, and that reading was the
+  classic `innerHeight - visualViewport.height` inset: on a page that cannot
+  scroll (this shell is a full-height flex layout), iOS shrinks the LAYOUT
+  viewport with the keyboard too, so both heights move together and the inset
+  stays near zero while the keyboard is up. The reading now also compares against
+  the tallest `visualViewport.height` seen recently (resetting on rotation) and
+  treats either signal saying "up" as up, and a keystroke in the editor
+  (`beforeinput` / `input` / `keydown` / `compositionupdate`) keeps the release
+  away for 1.5s whatever the viewport says. `probe:composer-plus` gained
+  `focus-release-holds-when-both-heights-shrink` (emulating the iOS case: both
+  heights shrink by the same amount), A/B-validated against the inset-only
+  reading, where it FAILs with the editor losing focus and the release count
+  rising while the emulated keyboard is up.
+- **The iOS keyboard stops coming back on the first tap of the composer "+"** —
+  reported from the phone after the focus shadow landed. The shadow neutralises a
+  `focus()` the host calls, and the tap that raises the keyboard focuses nothing
+  at all: iOS keeps the composer's contenteditable as the active element once
+  the keyboard goes away, and WebKit shows the keyboard for that retained
+  editable on the next tap. The plugin now releases the focus while the keyboard
+  is hidden — at install, on a 500ms heartbeat, on an editor `focusin`, on a tap,
+  on `visualViewport` resize/scroll, and as soon as the "+" shadow lifts — and
+  never during the tap (the uncompensated blur that bounced the composer row),
+  never while the keyboard is up, never inside the 700ms grace after a finger
+  lands on the editor, and never while the visual viewport is unreadable (a
+  pinch-zoomed viewport reads as "no keyboard"). The blur's own viewport nudge is
+  undone by restoring the scroll on the next frame when it moved by
+  `NUDGE_MAX_PX` or less. The invariant is a state, not an event: measured, a
+  focus can land on the editor with no `focusin` dispatched at all, which is what
+  the heartbeat is for. `probe:composer-plus` runs the battery under an iPhone
+  user agent (the release arms on `detectIosWebKit`) and gained three rows for
+  it — precondition, release armed, and the release resuming after an editor tap
+  — A/B-validated against the release inverted to never install for iOS, where
+  they report the retained focus, `releases=null`, and the retained focus
+  surviving a "+" tap.
+- **The composer probe no longer inherits the typing scene's fake viewport** —
+  the scene replaces `window.visualViewport` to emulate a keyboard and only put
+  back an own descriptor, which Chrome does not have (the property lives on the
+  prototype): the stub outlived the scene, every later row read "keyboard up",
+  and the focus rows were silently disarmed. It now deletes the stub when there
+  is nothing to restore, and a `composer.focus-release-precondition` row reports
+  the keyboard inset it is asserting against. A probe throw also lands as a
+  `probe.crashed` FAIL row with a `SUMMARY` instead of a stack, and the
+  touch taps use the camelCase `touchEnd` CDP event type (`touchend` is rejected
+  with `-32602`, which killed the run mid-battery).
+
 ## [1.6.0] - 2026-09-23
 
 ### Added

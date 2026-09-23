@@ -167,6 +167,22 @@ The delete route is destructive; validate it in this order:
   `probe:composer-plus` gates the DOM half of this (menu open with the editor
   unfocused at a fixed 900ms sample, and programmatic focus working again after
   the interaction); the keyboard itself is device-only.
+- **iOS Safari, the retained focus**: dismiss the keyboard while the composer has
+  the caret, then tap `+` — the keyboard must stay down. WebKit shows it for the
+  FOCUSED EDITABLE, and nothing is focused by that tap, so the focus shadow
+  cannot stop it; `composer-focus-release.ts` releases the editor's focus while
+  the keyboard is hidden. Add `?dsh-maestro-mobile-debug=1`, tap `+`, then tap the
+  badge and read the trace: `rel=<n>` is the release count (0 or absent on a
+  build without the effect) and every event line carries `af=` — a tap whose
+  stamp reads `af=div` still had the editable focused, which is the bug. The same
+  badge's `vv=` / `seat=` samples are what say whether the release's viewport
+  nudge is visible; the compensation is `shouldRestoreScroll`.
+- **iOS Safari, the "+" second focus**: with the keyboard dismissed, tap `+` —
+  the menu must open and the keyboard must stay down. The host focuses the editor
+  again from its menu-open effect about 200ms after the click (timing from the
+  community plugin's device trace), so the focus shadow holds for a 700ms floor
+  and a `focusin` blur takes back any focus that lands; neither is visible in
+  headless, where this host's menu-open state leaves the editor unfocusable.
 - **Notched phone**: safe-area insets still applied after a host rewrite of the
   `viewport` meta.
 - **Desktop**: a narrow mouse-driven window (≈900px) is a complete no-op.

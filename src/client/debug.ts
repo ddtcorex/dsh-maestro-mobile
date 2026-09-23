@@ -1,3 +1,4 @@
+import { EDITOR_SELECTOR } from './core/composer-dom.ts'
 import type { Context as ClientContext } from '@deepseek-ai/cordis'
 import { DESKTOP_QUERY, MOBILE_QUERY } from './effects/phone-chrome.ts'
 
@@ -25,11 +26,16 @@ function stateStamp(): string {
   const seat = document.querySelector('[data-composer-seat]')
   const seatTop = seat === null ? -1 : Math.round(seat.getBoundingClientRect().top)
   const shadow = document.documentElement.hasAttribute('data-mobile-nav-focus-shadow') ? 1 : 0
+  // How many times the composer editor's retained focus has been released
+  // (composer-focus-release.ts). The iOS keyboard follows the focused editable,
+  // so `rel` rising before a tap is what makes the tap safe; a tap whose stamp
+  // still reads `af=div` is a release that did not run.
+  const releases = document.documentElement.getAttribute('data-mobile-nav-focus-release') ?? '0'
   const active = document.activeElement
   const activeTag = active === null ? 'null' : active.tagName.toLowerCase()
   const scroller = document.querySelector('[data-conversation-scroll]')
   const scrollTop = scroller === null ? -1 : Math.round(scroller.scrollTop)
-  return `vv=${vv}/${innerHeight} seat=${seatTop} y=${Math.round(window.scrollY)}/${scrollTop} sh=${shadow} af=${activeTag}`
+  return `vv=${vv}/${innerHeight} seat=${seatTop} y=${Math.round(window.scrollY)}/${scrollTop} sh=${shadow} rel=${releases} af=${activeTag}`
 }
 
 /** Compact one-line description of an event target. */
@@ -173,7 +179,7 @@ export function installDebugBadge(ctx: ClientContext): void {
         `css ${q('style[data-plugin-css*="mobile"]')}  frame ${!!frame}`,
         `previewCol ${vis('[data-aionui-preview-col]')}  explorerCol ${vis('[data-aionui-explorer-col]')}`,
         `previewOpen ${frame?.hasAttribute('data-aionui-preview-open') ?? '?'}  explorerOpen ${frame?.hasAttribute('data-aionui-explorer-open') ?? '?'}  previewFull ${frame?.hasAttribute('data-mobile-preview-full') ?? '?'}`,
-        `header ${vis('[data-phase] header')}  composer ${q('[data-composer-input]')}`,
+        `header ${vis('[data-phase] header')}  composer ${q(EDITOR_SELECTOR)}`,
         `phase ${document.querySelector('[data-phase]')?.getAttribute('data-phase') ?? '?'}`,
         `errs ${errors.slice(-5).join(' | ') || 'none'}`,
       ]

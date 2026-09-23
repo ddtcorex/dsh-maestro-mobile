@@ -1,3 +1,4 @@
+import { EDITOR_SELECTOR } from '../core/composer-dom.ts'
 import type { ReconcilerTask } from '../core/reconciler-core.ts'
 
 export function createGitChipTask(): ReconcilerTask {
@@ -7,7 +8,7 @@ export function createGitChipTask(): ReconcilerTask {
     ensure: () => {
       const chip = document.querySelector('[data-slot="conversation.input.dock"] [data-gitgraph-chip-anchor]')
       if (chip === null) return
-      const card = document.querySelector('[data-composer-input]')?.closest('[class*="_card"]')
+      const card = document.querySelector(EDITOR_SELECTOR)?.closest('[class*="_card"]')
       if (card == null) return
       if (chip.parentElement !== card) card.insertBefore(chip, card.firstChild)
     },

@@ -14,6 +14,13 @@
 // editor can be focused again. The IME itself cannot be emulated - the phone check
 // in docs/upstream/upgrade-runbook.md §5 stays authoritative for it.
 //
+// The last three rows gate the retained focus the phone reported after that: with
+// the keyboard dismissed iOS keeps the composer editable as the focused element,
+// and the next tap on "+" makes WebKit show the keyboard for it - nothing is
+// focused at that moment, so the focus shadow cannot stop it. They run under an
+// iPhone user agent (composer-focus-release.ts arms only where detectIosWebKit()
+// answers true) and FAIL on a build without the release: no marker, focus kept.
+//
 // Env: DSH_PROBE_URL (default http://127.0.0.1:3082/?token=…),
 //      DSH_PROBE_SESSION_ID (required), DSH_PROBE_CHROME (default chromium),
 //      DSH_PROBE_TIMEOUT_MS (default 30000).
@@ -155,6 +162,9 @@ async function main() {
   const sessionId = process.env.DSH_PROBE_SESSION_ID?.trim()
   if (!sessionId) throw new Error('DSH_PROBE_SESSION_ID is required')
   const timeoutMs = Number(process.env.DSH_PROBE_TIMEOUT_MS || DEFAULT_TIMEOUT_MS)
+  // The release rows poll for a state a correct build reaches in one frame; the
+  // short cap keeps an A/B run against the pre-fix build from stalling on them.
+  const releaseRowTimeoutMs = Math.min(timeoutMs, 6000)
 
   const port = await allocatePort()
   const profileDir = await mkdtemp(join(homedir(), '.cache', 'dsh-mobile-plus-'))
@@ -193,6 +203,14 @@ async function main() {
       width: 390, height: 844, deviceScaleFactor: 2, mobile: true, hasTouch: true,
     })
     await client.send('Emulation.setTouchEmulationEnabled', { enabled: true, maxTouchPoints: 5 })
+    // Every row below is an iOS row: composer-focus-release.ts arms only where
+    // detectIosWebKit() answers true, and that reads the user agent. Chrome's own
+    // UA would leave the release effect uninstalled and the last two rows would
+    // assert nothing.
+    await client.send('Emulation.setUserAgentOverride', {
+      userAgent: 'Mozilla/5.0 (iPhone; CPU iPhone OS 18_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/18.0 Mobile/15E148 Safari/604.1',
+      platform: 'iPhone',
+    })
     await client.send('Page.addScriptToEvaluateOnNewDocument', {
       source: `localStorage.setItem('dsh.sessions.current', ${JSON.stringify(JSON.stringify({ sessionId }))})`,
     })
@@ -312,6 +330,69 @@ async function main() {
     // 4th tap: and closing still works on the re-opened menu.
     if (ok) ok = await tapAndExpect('composer.plus-closes-again', false)
 
+    // --- the host's SECOND focus (the community plugin's device trace) -------
+    // The host focuses the editor again from the effect that runs when its menu
+    // opens, ~200ms after the click; a shadow that lifts with the click blocks
+    // nothing. And the shadow only covers focus(): a focus that reaches the
+    // element another way has to be answered by a SYNCHRONOUS blur in the
+    // focusin capture phase, because a macrotask blur is too late (the IME has
+    // started - measured on device by the community plugin).
+    const addBox = await client.evaluate(`(() => {
+      const add = document.querySelector(${JSON.stringify(ADD_SELECTOR)});
+      if (add === null) return null;
+      const rect = add.getBoundingClientRect();
+      return { x: Math.round(rect.x + rect.width / 2), y: Math.round(rect.y + rect.height / 2) };
+    })()`)
+    const tapAdd = async () => {
+      await client.send('Input.dispatchTouchEvent', { type: 'touchStart', touchPoints: [{ x: addBox.x, y: addBox.y, radiusX: 8, radiusY: 8, force: 1 }] })
+      await sleep(60)
+      await client.send('Input.dispatchTouchEvent', { type: 'touchEnd', touchPoints: [] })
+    }
+    if (addBox === null) {
+      fail('composer.shadow-window-outlives-the-click', 'no add button to tap')
+    } else {
+      // A real finger gives the document focus (Blink dispatches no focus events
+      // while the document is unfocused, so a synthetic path would test nothing).
+      await tapAdd()
+      const menuForRow = await waitFor('menu open for the shadow rows', releaseRowTimeoutMs, async () => {
+        const state = await menuState(client)
+        return state.visible ? state : null
+      }).catch(() => null)
+      const armedNow = menuForRow === null
+        ? false
+        : await client.evaluate(`document.documentElement.hasAttribute('data-mobile-nav-focus-shadow')`)
+      if (menuForRow === null || !armedNow) {
+        fail('composer.shadow-window-outlives-the-click', `no live interaction to test (menu=${menuForRow !== null} armed=${armedNow})`)
+      } else {
+        // NOTE: the take-back blur (a focus that reaches the editor during the
+        // window) is NOT gated here: in this host's own menu-open state the
+        // editor is unfocusable, so a row that drives focus would pass whether
+        // or not the blur exists (measured: a plain div focuses, the editor does
+        // not, with the override deleted). tests/composer-plus-toggle.test.ts
+        // pins the rule instead, and the runbook's device pass owns the IME.
+        // Closing tap: the shadow must NOT lift with the click (the second host
+        // focus has not run yet), and must lift on its own once the window ends.
+        await tapAdd()
+        await sleep(250)
+        const heldAfterClose = await client.evaluate(`document.documentElement.hasAttribute('data-mobile-nav-focus-shadow')`).catch(() => null)
+        const menuGone = await menuState(client).catch(() => null)
+        if (heldAfterClose === true && menuGone !== null && menuGone.visible === false) {
+          pass('composer.shadow-window-outlives-the-click', 'still armed 250ms after the closing tap')
+        } else {
+          fail('composer.shadow-window-outlives-the-click', `armed=${heldAfterClose} menu=${JSON.stringify(menuGone)}`)
+        }
+        const lifted = await waitFor('shadow lifted on its own', releaseRowTimeoutMs, async () => {
+          try {
+            return await client.evaluate(`!document.documentElement.hasAttribute('data-mobile-nav-focus-shadow')`) ? true : null
+          } catch {
+            return null
+          }
+        }).catch(() => null)
+        if (lifted === null) fail('composer.shadow-lifts-on-its-own', 'the shadow outlived its window')
+        else pass('composer.shadow-lifts-on-its-own', 'released without another tap')
+      }
+    }
+
     // The "typing" state: keyboard UP, editor focused. Tapping "+" here must NOT
     // release the focus, because the keyboard is the composer's floor - blurring
     // it starts the hide animation and the row slides down under the finger (the
@@ -352,10 +433,15 @@ async function main() {
         const state = await menuState(client)
         return state.visible ? null : state
       }).catch(() => null)
+      // Chrome exposes visualViewport on the prototype, so there is usually no
+      // own descriptor to put back: deleting the stub is the restore. Leaving it
+      // behind reads as "keyboard up" for the rest of the run and silently
+      // disarms every later focus row.
       await client.evaluate(`(() => {
         const original = window.__dshProbeViewport;
         delete window.__dshProbeViewport;
         if (original !== null && original !== undefined) Object.defineProperty(window, 'visualViewport', original);
+        else delete window.visualViewport;
       })()`)
     }
 
@@ -373,6 +459,181 @@ async function main() {
     } else {
       fail('composer.editor-focus-restored', JSON.stringify(restored))
     }
+
+    // --- the retained focus (the phone's "first tap still opens the keyboard") --
+    // iOS keeps the editable as the focused element with the keyboard dismissed,
+    // and WebKit shows the keyboard for that retained focus on the next tap -
+    // nothing is focused at that moment, so the focus shadow cannot stop it.
+    // composer-focus-release.ts releases it while the keyboard is hidden; these
+    // rows are the gate, and they FAIL on the pre-fix build (no marker, focus
+    // retained).
+
+    // The rows below are only meaningful with the keyboard DOWN (that is the
+    // state the phone is in when it taps "+"); the typing scene faked a keyboard
+    // by shrinking the visual viewport, so the real one is restored and reported
+    // first rather than assumed.
+    const viewportReset = await client.evaluate(`(() => {
+      if (window.innerHeight - (window.visualViewport?.height ?? window.innerHeight) > 120) {
+        delete window.visualViewport;
+      }
+      const height = window.visualViewport?.height ?? -1;
+      return { inner: window.innerHeight, vv: Math.round(height), inset: Math.round(window.innerHeight - height) };
+    })()`)
+    if (viewportReset.inset > 120) {
+      fail('composer.focus-release-precondition', `the keyboard must be emulated as hidden ${JSON.stringify(viewportReset)}`)
+    } else {
+      pass('composer.focus-release-precondition', `keyboard inset ${viewportReset.inset}px`)
+    }
+
+    /** The release marker plus the focus state it is supposed to explain. */
+    const releaseState = () => client.evaluate(`(() => {
+      const editor = document.querySelector('[data-composer-input]');
+      return {
+        editorFocused: editor !== null && document.activeElement === editor,
+        releases: document.documentElement.getAttribute('data-mobile-nav-focus-release'),
+      };
+    })()`)
+
+    // The host's unlock effect focuses the editor with no gesture, which is the
+    // state a phone is in when the user puts it down and later taps "+". Forcing
+    // it explicitly makes the row independent of the host's own timing.
+    const forced = await client.evaluate(`(() => {
+      const editor = document.querySelector('[data-composer-input]');
+      if (editor === null) return { editor: false };
+      editor.focus();
+      return { editor: true, focused: document.activeElement === editor };
+    })()`)
+    if (forced.editor !== true || forced.focused !== true) {
+      fail('composer.focus-release-armed', `could not set up the retained focus ${JSON.stringify(forced)}`)
+    } else {
+      const released = await waitFor('retained focus released', releaseRowTimeoutMs, async () => {
+        const state = await releaseState()
+        return state.releases === null || state.editorFocused ? null : state
+      }).catch(() => null)
+      if (released === null) {
+        const state = await releaseState().catch(() => null)
+        fail('composer.focus-release-armed', `the editor kept the focus ${JSON.stringify(state)}`)
+      } else {
+        pass('composer.focus-release-armed', `releases=${released.releases}, editor no longer focused`)
+      }
+    }
+
+    // The reported regression, reproduced: on a page that cannot scroll (this
+    // shell is a full-height flex layout), iOS shrinks the LAYOUT viewport with
+    // the keyboard too, so `innerHeight` and `visualViewport.height` move
+    // together and the classic inset reads ~0 WHILE A KEYBOARD IS UP. A release
+    // driven by that reading alone fired mid-typing and the keyboard dropped -
+    // reported as "the keyboard hides by itself".
+    const shrink = await client.evaluate(`(() => {
+      const height = Math.max(200, window.innerHeight - 320);
+      window.__dshProbeHeights = {
+        inner: Object.getOwnPropertyDescriptor(window, 'innerHeight') ?? null,
+        vv: Object.getOwnPropertyDescriptor(window, 'visualViewport') ?? null,
+      };
+      Object.defineProperty(window, 'innerHeight', { configurable: true, value: height });
+      Object.defineProperty(window, 'visualViewport', {
+        configurable: true,
+        value: { height, scale: 1, width: window.innerWidth, offsetTop: 0, offsetLeft: 0, pageTop: 0, pageLeft: 0,
+          addEventListener() {}, removeEventListener() {} },
+      });
+      const editor = document.querySelector('[data-composer-input]');
+      if (editor !== null) editor.focus();
+      return { asked: height, inner: window.innerHeight, vv: Math.round(window.visualViewport.height) };
+    })()`)
+    if (shrink.inner !== shrink.asked || shrink.vv !== shrink.asked) {
+      fail('composer.focus-release-holds-when-both-heights-shrink', `could not emulate the iOS keyboard ${JSON.stringify(shrink)}`)
+    } else {
+      const beforeShrink = await releaseState().catch(() => null)
+      // The decision is scheduled on the next animation frame, and a headless
+      // page that receives no input renders no frames at all - an idle wait
+      // measures nothing (this row passed on the inset-only build until frames
+      // were pumped). The pump touches nothing: a tap would blur the editor by
+      // itself and the row would then read a focus state the release did not
+      // produce.
+      const pumped = await client.evaluate(`new Promise((resolve) => {
+        let frames = 0;
+        const tick = () => { frames += 1; if (frames < 45) requestAnimationFrame(tick); else resolve(frames); };
+        requestAnimationFrame(tick);
+      })`).catch(() => 0)
+      const held = await releaseState().catch(() => null)
+      if (held !== null && held.editorFocused && held.releases === (beforeShrink?.releases ?? null)) {
+        pass('composer.focus-release-holds-when-both-heights-shrink', `no release while the layout viewport is shrunk (releases=${held.releases}, ${pumped} frames)`)
+      } else {
+        fail('composer.focus-release-holds-when-both-heights-shrink', `the release took the keyboard away ${JSON.stringify({ before: beforeShrink, after: held })}`)
+      }
+      // Put the heights back: the release must resume, or the "fix" would just
+      // be a disabled guard.
+      const restored = await client.evaluate(`(() => {
+        const saved = window.__dshProbeHeights;
+        delete window.__dshProbeHeights;
+        if (saved.inner !== null) Object.defineProperty(window, 'innerHeight', saved.inner); else delete window.innerHeight;
+        if (saved.vv !== null) Object.defineProperty(window, 'visualViewport', saved.vv); else delete window.visualViewport;
+        return { inner: window.innerHeight, vv: Math.round(window.visualViewport.height) };
+      })()`)
+      await client.send('Input.dispatchTouchEvent', { type: 'touchStart', touchPoints: [{ x: 195, y: 200, radiusX: 8, radiusY: 8, force: 1 }] })
+      await sleep(60)
+      await client.send('Input.dispatchTouchEvent', { type: 'touchEnd', touchPoints: [] })
+      const resumed = await waitFor('release resumes once the heights are real', releaseRowTimeoutMs, async () => {
+        const state = await releaseState()
+        return state.releases === null || state.editorFocused ? null : state
+      }).catch(() => null)
+      if (resumed === null) {
+        fail('composer.focus-release-resumes-after-shrink', `no release after the heights were restored ${JSON.stringify(restored)}`)
+      } else {
+        pass('composer.focus-release-resumes-after-shink'.replace('shink', 'shrink'), `releases=${resumed.releases}`)
+      }
+    }
+
+    // A finger on the editor means "I want to type": the release must hold off
+    // for the keyboard animation instead of dropping the box the user just
+    // tapped. A real touch is the only way to place that gesture.
+    const editorBox = await client.evaluate(`(() => {
+      const editor = document.querySelector('[data-composer-input]');
+      if (editor === null) return null;
+      const rect = editor.getBoundingClientRect();
+      return { x: Math.round(rect.x + rect.width / 2), y: Math.round(rect.y + rect.height / 2) };
+    })()`)
+    if (editorBox === null) {
+      fail('composer.focus-release-yields-to-an-editor-tap', 'no editor to tap')
+    } else {
+      await client.send('Input.dispatchTouchEvent', {
+        type: 'touchStart',
+        touchPoints: [{ x: editorBox.x, y: editorBox.y, radiusX: 8, radiusY: 8, force: 1 }],
+      })
+      await sleep(60)
+      await client.send('Input.dispatchTouchEvent', { type: 'touchEnd', touchPoints: [] })
+      await sleep(300)
+      const held = await releaseState().catch(() => null)
+      if (held !== null && held.editorFocused) {
+        pass('composer.focus-release-yields-to-an-editor-tap', 'the tapped editor keeps the focus')
+      } else {
+        fail('composer.focus-release-yields-to-an-editor-tap', `the release dropped a rising keyboard ${JSON.stringify(held)}`)
+      }
+      // ... and the release is not sticky: once the grace has passed, a tap
+      // somewhere else releases the focus again (a guard that stops working after
+      // the first gesture would leave the phone in the bug it started in). The
+      // tap is real and lands on the conversation, not on the editor and not on
+      // the "+", so no gesture grace and no shadow are in play.
+      await sleep(900)
+      await client.send('Input.dispatchTouchEvent', {
+        type: 'touchStart',
+        touchPoints: [{ x: 195, y: 200, radiusX: 8, radiusY: 8, force: 1 }],
+      })
+      await sleep(60)
+      await client.send('Input.dispatchTouchEvent', { type: 'touchEnd', touchPoints: [] })
+      const recovered = await waitFor('release resumes after the grace', releaseRowTimeoutMs, async () => {
+        const state = await releaseState()
+        // `releases === null` means the release never armed at all: A/B showed
+        // this row passing on the neutered build, because the tap alone blurs the
+        // editor and `editorFocused` went false without the release doing it.
+        return state.releases === null || state.editorFocused ? null : state
+      }).catch(() => null)
+      if (recovered === null) {
+        fail('composer.focus-release-resumes', 'the release stopped working after an editor tap')
+      } else {
+        pass('composer.focus-release-resumes', `releases=${recovered.releases}`)
+      }
+    }
   } finally {
     client?.close()
     chrome.kill('SIGKILL')
@@ -385,4 +646,11 @@ async function main() {
   process.exitCode = failures > 0 ? 1 : 0
 }
 
-await main()
+await main().catch((error) => {
+  // A probe that dies with a stack instead of a FAIL row reads as an
+  // infrastructure problem and hides which row was under test.
+  fail('probe.crashed', error instanceof Error ? error.message : String(error))
+  const failures = results.filter((entry) => entry.status === 'FAIL').length
+  console.log(`SUMMARY pass=${results.filter((entry) => entry.status === 'PASS').length} fail=${failures}`)
+  process.exitCode = 1
+})

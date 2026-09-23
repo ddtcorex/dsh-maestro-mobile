@@ -1,3 +1,4 @@
+import { EDITOR_SELECTOR } from '../core/composer-dom.ts'
 import type { ReconcilerTask } from '../core/reconciler-core.ts'
 
 // The official conversation status row (turns / steps / LLM time / TTFT /
@@ -75,7 +76,7 @@ export function createStatsLineTask(): ReconcilerTask {
       if (buttons.length > 0 && !buttons.every((b) => b.matches('[class*="_pill"]'))) continue
       const text = root.textContent ?? ''
       if (!/(turns|steps|\bLLM\b|轮|步)/.test(text)) continue
-      if (root.querySelector('[data-composer-input]') !== null) continue
+      if (root.querySelector(EDITOR_SELECTOR) !== null) continue
       root.setAttribute('data-mobile-nav', 'stats')
       moveTps(root)
       return
