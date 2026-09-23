@@ -378,6 +378,15 @@
    "note": "0.1.7+: trigger left the crumbs nav for the title cluster; the lineage-badge effect keys on tree popup without a crumbs ancestor."
   },
   {
+   "id": "session-header-lineage-catalog",
+   "kind": "marker",
+   "needle": "[class*=\"_menu\"] > [role=\"tree\"]",
+   "owner": "dsh-client-ui-subagent",
+   "lazy": true,
+   "state": "open the lineage chip's catalog",
+   "note": "the chip's catalog is portalled to document.body, so the touch shim's synthetic-hover swallow needs this second scope beside the chip box marker (data-lineage-root). Both were named by CSS-module hashes before 0.1.7 and matched nothing after the rebuild, which silently disabled the swallow; gate with probe:lineage-chip"
+  },
+  {
    "id": "session-header-utilities",
    "kind": "marker",
    "needle": "[class*=\"headerUtilities\"]",

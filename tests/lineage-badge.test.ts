@@ -36,10 +36,29 @@ test('the reconciler marks only the header lineage trigger', () => {
 })
 
 test('the compact control removes its markers so desktop stays a no-op', () => {
-  assert.match(effect, /setAttribute\('data-mobile-nav', 'lineage'\)/)
-  assert.match(effect, /setAttribute\(\s*'data-lineage-count',/)
+  // Writes go through setMarker (core/dom-marks.ts) so a steady state writes
+  // nothing: the task re-runs on every flush and the observer watches attributes,
+  // so an unconditional write is a self-sustaining frame loop.
+  assert.match(effect, /setMarker\(trigger, 'data-mobile-nav', 'lineage'\)/)
+  assert.match(effect, /setMarker\(\s*trigger,\s*'data-lineage-count',/)
+  assert.doesNotMatch(effect, /trigger\.setAttribute\(/)
   assert.match(effect, /removeAttribute\('data-mobile-nav'\)/)
   assert.match(effect, /removeAttribute\('data-lineage-count'\)/)
+})
+
+test('the chip box carries the marker the hover swallow scopes to', () => {
+  // subagent-chip-touch.ts bounds its synthetic-hover swallow to the chip box and
+  // its portalled catalog. Naming the box with upstream's CSS-module hash of the
+  // day stopped matching on 0.1.7 (all four literals matched nothing live, while
+  // the box is `IwR9Qa_root` and its catalog `IwR9Qa_menu`), so the box carries
+  // this plugin's own marker — and exactly one box at a time, because a React
+  // re-render can reparent the trigger and a marker left behind would widen the
+  // scope the swallow exists to bound.
+  assert.match(effect, /scopeTo\(trigger\.parentElement\)/)
+  assert.match(effect, /setMarker\(root, 'data-lineage-root', ''\)/)
+  assert.match(effect, /if \(scoped !== null\) scoped\.removeAttribute\('data-lineage-root'\)/)
+  assert.match(effect, /scopeTo\(null\)/)
+  assert.match(effect, /if \(scoped === root\) return/)
 })
 
 test('the lineage control collapses to a 28px icon button with a count badge', () => {
