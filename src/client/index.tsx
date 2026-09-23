@@ -4,7 +4,8 @@ import { MobileDrawerFooter } from './components/MobileDrawerFooter.tsx'
 import { ShellOverlay } from './components/ShellOverlay.tsx'
 import { MOBILE_CSS } from './styles/index.ts'
 
-import { installFrameController, installOverlayInteractions, installPhoneChrome, installReconciler, registerReconcileTasks, installIosZoomGuard, MOBILE_QUERY } from './effects/phone-chrome.ts'
+import { installFrameController, installOverlayInteractions, installPhoneChrome, installReconciler, registerReconcileTasks, installIosZoomGuard, addReconcilerTask, MOBILE_QUERY } from './effects/phone-chrome.ts'
+import { createPanelExit, installPanelRowExit } from './effects/panel-exit.ts'
 import { installSubagentChipTouch } from './effects/subagent-chip-touch.ts'
 import { installAionuiCompat } from './effects/aionui-compat.ts'
 import { installLayoutBridge } from './effects/layout-bridge.ts'
@@ -160,6 +161,14 @@ export function apply(ctx: ClientContext): void {
     }
   }, 'dsh-maestro-mobile: reconciler infrastructure')
 
+  // Sidebar panel exit: a panel REPLACES the conversation and the host ships no
+  // way back, so one shared exit action serves the system back key (a
+  // reconciler task), a re-tap of the already-selected panel row, and the FAB's
+  // exit-panel face. Registered after the reconciler so its task is active.
+  const panelExit = createPanelExit(ctx.layout)
+  ctx.effect(() => addReconcilerTask(panelExit.task), 'dsh-maestro-mobile: panel back exit')
+  installPanelRowExit(ctx, panelExit.exit)
+
 
 
   // Drawer close interactions: Escape and navigation taps inside the drawer.
@@ -218,6 +227,7 @@ export function apply(ctx: ClientContext): void {
     locale: NS,
     inject: () => ({
       toggleSidebar: () => ctx.layout.toggleSidebar(),
+      exitPanel: () => panelExit.exit(),
     }),
   }, ShellOverlay))
 
