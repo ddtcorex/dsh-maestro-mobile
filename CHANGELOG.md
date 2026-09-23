@@ -28,6 +28,25 @@ All notable changes to this project are documented in this file. Format follows
 
 ### Fixed
 
+- **The drawer's dimming layer fades with the slide-out again** — the swipe
+  layer's close commit called a fade that had been a silent no-op since the
+  `shell.overlay` slot took over the backdrop (its hook's only setter lived in
+  the legacy overlay task nothing installed), so the dimming snapped away ~280ms
+  after the drawer had already left: the host flips `data-sidebar-collapsed` when
+  the animation lands, and React unmounts the layer at that moment. The new
+  `effects/backdrop-fade.ts` resolves the layer itself and drives the same two
+  inline properties the retired task did — `opacity` and `pointer-events`, both
+  `!important` so React's style prop and the layer's entry animation cannot
+  outrank them — with the rect flushed between the transition and the target so
+  the fade provably starts at opacity 1. Resolving the element instead of taking
+  a registered hook is deliberate: that seam is what went stale, and a function
+  that finds its own element cannot. No restore is needed, because the layer is
+  conditionally rendered per open. Gate: `pnpm probe:backdrop-fade` (4 rows: the
+  layer opens opaque, goes mid-fade while the drawer slides — 12 partial frames
+  and a final opacity of 0 — lands gone with the drawer closed, and a
+  non-animated backdrop tap still closes cleanly). A/B: with the fade call
+  disabled the mid-fade row FAILs with the layer at opacity 1 for the whole
+  755ms window, which is the reported symptom.
 - **The composer "+" stops raising the keyboard on the host's second focus** —
   reported after the release above landed: tapping `+` with the keyboard dismissed
   still brought it up. The focus shadow was lifting too early — the host focuses
