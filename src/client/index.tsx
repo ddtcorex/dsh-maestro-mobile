@@ -6,6 +6,7 @@ import { MOBILE_CSS } from './styles/index.ts'
 
 import { installFrameController, installOverlayInteractions, installPhoneChrome, installReconciler, registerReconcileTasks, installIosZoomGuard, addReconcilerTask, MOBILE_QUERY } from './effects/phone-chrome.ts'
 import { createPanelExit, installPanelRowExit } from './effects/panel-exit.ts'
+import { mountPluginStylesheet } from './effects/plugin-stylesheet.ts'
 import { installSubagentChipTouch } from './effects/subagent-chip-touch.ts'
 import { installAionuiCompat } from './effects/aionui-compat.ts'
 import { installLayoutBridge } from './effects/layout-bridge.ts'
@@ -39,21 +40,10 @@ export const inject = ['slots', 'layout', 'locale', 'sessionLogDownload', 'sessi
 export function apply(ctx: ClientContext): void {
   ctx.effect(() => ctx.locale.register(NS, { zh, en }), 'dsh-maestro-mobile: dictionaries')
 
-  ctx.effect(() => {
-    const tag = document.createElement('style')
-    tag.dataset.plugin = '@ddtcorex/dsh-maestro-mobile'
-    tag.dataset.pluginCss = '@ddtcorex/dsh-maestro-mobile/mobile.css'
-    tag.textContent = MOBILE_CSS
-    document.head.appendChild(tag)
-    // Keep this stylesheet last in <head> so its overrides win over the
-    // host UI's own styles (some host rules also use !important).
-    setTimeout(() => {
-      if (tag.isConnected) document.head.appendChild(tag)
-    }, 0)
-    return () => {
-      tag.remove()
-    }
-  }, 'dsh-maestro-mobile: styles')
+  ctx.effect(
+    () => mountPluginStylesheet(MOBILE_CSS),
+    'dsh-maestro-mobile: styles',
+  )
 
   // Opt-in diagnostics (?dsh-maestro-mobile-debug=1): live state overlay plus
   // the captured-event trace used to diagnose touch behaviour on a platform
