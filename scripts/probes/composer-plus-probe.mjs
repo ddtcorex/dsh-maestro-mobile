@@ -14,6 +14,13 @@
 // editor can be focused again. The IME itself cannot be emulated - the phone check
 // in docs/upstream/upgrade-runbook.md §5 stays authoritative for it.
 //
+// The last three rows gate the retained focus the phone reported after that: with
+// the keyboard dismissed iOS keeps the composer editable as the focused element,
+// and the next tap on "+" makes WebKit show the keyboard for it - nothing is
+// focused at that moment, so the focus shadow cannot stop it. They run under an
+// iPhone user agent (composer-focus-release.ts arms only where detectIosWebKit()
+// answers true) and FAIL on a build without the release: no marker, focus kept.
+//
 // Env: DSH_PROBE_URL (default http://127.0.0.1:3082/?token=…),
 //      DSH_PROBE_SESSION_ID (required), DSH_PROBE_CHROME (default chromium),
 //      DSH_PROBE_TIMEOUT_MS (default 30000).
@@ -155,6 +162,9 @@ async function main() {
   const sessionId = process.env.DSH_PROBE_SESSION_ID?.trim()
   if (!sessionId) throw new Error('DSH_PROBE_SESSION_ID is required')
   const timeoutMs = Number(process.env.DSH_PROBE_TIMEOUT_MS || DEFAULT_TIMEOUT_MS)
+  // The release rows poll for a state a correct build reaches in one frame; the
+  // short cap keeps an A/B run against the pre-fix build from stalling on them.
+  const releaseRowTimeoutMs = Math.min(timeoutMs, 6000)
 
   const port = await allocatePort()
   const profileDir = await mkdtemp(join(homedir(), '.cache', 'dsh-mobile-plus-'))
@@ -193,6 +203,14 @@ async function main() {
       width: 390, height: 844, deviceScaleFactor: 2, mobile: true, hasTouch: true,
     })
     await client.send('Emulation.setTouchEmulationEnabled', { enabled: true, maxTouchPoints: 5 })
+    // Every row below is an iOS row: composer-focus-release.ts arms only where
+    // detectIosWebKit() answers true, and that reads the user agent. Chrome's own
+    // UA would leave the release effect uninstalled and the last two rows would
+    // assert nothing.
+    await client.send('Emulation.setUserAgentOverride', {
+      userAgent: 'Mozilla/5.0 (iPhone; CPU iPhone OS 18_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/18.0 Mobile/15E148 Safari/604.1',
+      platform: 'iPhone',
+    })
     await client.send('Page.addScriptToEvaluateOnNewDocument', {
       source: `localStorage.setItem('dsh.sessions.current', ${JSON.stringify(JSON.stringify({ sessionId }))})`,
     })
@@ -352,10 +370,15 @@ async function main() {
         const state = await menuState(client)
         return state.visible ? null : state
       }).catch(() => null)
+      // Chrome exposes visualViewport on the prototype, so there is usually no
+      // own descriptor to put back: deleting the stub is the restore. Leaving it
+      // behind reads as "keyboard up" for the rest of the run and silently
+      // disarms every later focus row.
       await client.evaluate(`(() => {
         const original = window.__dshProbeViewport;
         delete window.__dshProbeViewport;
         if (original !== null && original !== undefined) Object.defineProperty(window, 'visualViewport', original);
+        else delete window.visualViewport;
       })()`)
     }
 
@@ -373,6 +396,115 @@ async function main() {
     } else {
       fail('composer.editor-focus-restored', JSON.stringify(restored))
     }
+
+    // --- the retained focus (the phone's "first tap still opens the keyboard") --
+    // iOS keeps the editable as the focused element with the keyboard dismissed,
+    // and WebKit shows the keyboard for that retained focus on the next tap -
+    // nothing is focused at that moment, so the focus shadow cannot stop it.
+    // composer-focus-release.ts releases it while the keyboard is hidden; these
+    // rows are the gate, and they FAIL on the pre-fix build (no marker, focus
+    // retained).
+
+    // The rows below are only meaningful with the keyboard DOWN (that is the
+    // state the phone is in when it taps "+"); the typing scene faked a keyboard
+    // by shrinking the visual viewport, so the real one is restored and reported
+    // first rather than assumed.
+    const viewportReset = await client.evaluate(`(() => {
+      if (window.innerHeight - (window.visualViewport?.height ?? window.innerHeight) > 120) {
+        delete window.visualViewport;
+      }
+      const height = window.visualViewport?.height ?? -1;
+      return { inner: window.innerHeight, vv: Math.round(height), inset: Math.round(window.innerHeight - height) };
+    })()`)
+    if (viewportReset.inset > 120) {
+      fail('composer.focus-release-precondition', `the keyboard must be emulated as hidden ${JSON.stringify(viewportReset)}`)
+    } else {
+      pass('composer.focus-release-precondition', `keyboard inset ${viewportReset.inset}px`)
+    }
+
+    /** The release marker plus the focus state it is supposed to explain. */
+    const releaseState = () => client.evaluate(`(() => {
+      const editor = document.querySelector('[data-composer-input]');
+      return {
+        editorFocused: editor !== null && document.activeElement === editor,
+        releases: document.documentElement.getAttribute('data-mobile-nav-focus-release'),
+      };
+    })()`)
+
+    // The host's unlock effect focuses the editor with no gesture, which is the
+    // state a phone is in when the user puts it down and later taps "+". Forcing
+    // it explicitly makes the row independent of the host's own timing.
+    const forced = await client.evaluate(`(() => {
+      const editor = document.querySelector('[data-composer-input]');
+      if (editor === null) return { editor: false };
+      editor.focus();
+      return { editor: true, focused: document.activeElement === editor };
+    })()`)
+    if (forced.editor !== true || forced.focused !== true) {
+      fail('composer.focus-release-armed', `could not set up the retained focus ${JSON.stringify(forced)}`)
+    } else {
+      const released = await waitFor('retained focus released', releaseRowTimeoutMs, async () => {
+        const state = await releaseState()
+        return state.releases === null || state.editorFocused ? null : state
+      }).catch(() => null)
+      if (released === null) {
+        const state = await releaseState().catch(() => null)
+        fail('composer.focus-release-armed', `the editor kept the focus ${JSON.stringify(state)}`)
+      } else {
+        pass('composer.focus-release-armed', `releases=${released.releases}, editor no longer focused`)
+      }
+    }
+
+    // A finger on the editor means "I want to type": the release must hold off
+    // for the keyboard animation instead of dropping the box the user just
+    // tapped. A real touch is the only way to place that gesture.
+    const editorBox = await client.evaluate(`(() => {
+      const editor = document.querySelector('[data-composer-input]');
+      if (editor === null) return null;
+      const rect = editor.getBoundingClientRect();
+      return { x: Math.round(rect.x + rect.width / 2), y: Math.round(rect.y + rect.height / 2) };
+    })()`)
+    if (editorBox === null) {
+      fail('composer.focus-release-yields-to-an-editor-tap', 'no editor to tap')
+    } else {
+      await client.send('Input.dispatchTouchEvent', {
+        type: 'touchStart',
+        touchPoints: [{ x: editorBox.x, y: editorBox.y, radiusX: 8, radiusY: 8, force: 1 }],
+      })
+      await sleep(60)
+      await client.send('Input.dispatchTouchEvent', { type: 'touchEnd', touchPoints: [] })
+      await sleep(300)
+      const held = await releaseState().catch(() => null)
+      if (held !== null && held.editorFocused) {
+        pass('composer.focus-release-yields-to-an-editor-tap', 'the tapped editor keeps the focus')
+      } else {
+        fail('composer.focus-release-yields-to-an-editor-tap', `the release dropped a rising keyboard ${JSON.stringify(held)}`)
+      }
+      // ... and the release is not sticky: once the grace has passed, a tap
+      // somewhere else releases the focus again (a guard that stops working after
+      // the first gesture would leave the phone in the bug it started in). The
+      // tap is real and lands on the conversation, not on the editor and not on
+      // the "+", so no gesture grace and no shadow are in play.
+      await sleep(900)
+      await client.send('Input.dispatchTouchEvent', {
+        type: 'touchStart',
+        touchPoints: [{ x: 195, y: 200, radiusX: 8, radiusY: 8, force: 1 }],
+      })
+      await sleep(60)
+      await client.send('Input.dispatchTouchEvent', { type: 'touchEnd', touchPoints: [] })
+      const recovered = await waitFor('release resumes after the grace', releaseRowTimeoutMs, async () => {
+        const state = await releaseState()
+        // `releases === null` means the release never armed at all: A/B showed
+        // this row passing on the neutered build, because the tap alone blurs the
+        // editor and `editorFocused` went false without the release doing it.
+        return state.releases === null || state.editorFocused ? null : state
+      }).catch(() => null)
+      if (recovered === null) {
+        fail('composer.focus-release-resumes', 'the release stopped working after an editor tap')
+      } else {
+        pass('composer.focus-release-resumes', `releases=${recovered.releases}`)
+      }
+    }
   } finally {
     client?.close()
     chrome.kill('SIGKILL')
@@ -385,4 +517,11 @@ async function main() {
   process.exitCode = failures > 0 ? 1 : 0
 }
 
-await main()
+await main().catch((error) => {
+  // A probe that dies with a stack instead of a FAIL row reads as an
+  // infrastructure problem and hides which row was under test.
+  fail('probe.crashed', error instanceof Error ? error.message : String(error))
+  const failures = results.filter((entry) => entry.status === 'FAIL').length
+  console.log(`SUMMARY pass=${results.filter((entry) => entry.status === 'PASS').length} fail=${failures}`)
+  process.exitCode = 1
+})

@@ -4,6 +4,42 @@ All notable changes to this project are documented in this file. Format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); this project uses
 [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Fixed
+
+- **The iOS keyboard stops coming back on the first tap of the composer "+"** —
+  reported from the phone after the focus shadow landed. The shadow neutralises a
+  `focus()` the host calls, and the tap that raises the keyboard focuses nothing
+  at all: iOS keeps the composer's contenteditable as the active element once
+  the keyboard goes away, and WebKit shows the keyboard for that retained
+  editable on the next tap. The plugin now releases the focus while the keyboard
+  is hidden — at install, on a 500ms heartbeat, on an editor `focusin`, on a tap,
+  on `visualViewport` resize/scroll, and as soon as the "+" shadow lifts — and
+  never during the tap (the uncompensated blur that bounced the composer row),
+  never while the keyboard is up, never inside the 700ms grace after a finger
+  lands on the editor, and never while the visual viewport is unreadable (a
+  pinch-zoomed viewport reads as "no keyboard"). The blur's own viewport nudge is
+  undone by restoring the scroll on the next frame when it moved by
+  `NUDGE_MAX_PX` or less. The invariant is a state, not an event: measured, a
+  focus can land on the editor with no `focusin` dispatched at all, which is what
+  the heartbeat is for. `probe:composer-plus` runs the battery under an iPhone
+  user agent (the release arms on `detectIosWebKit`) and gained three rows for
+  it — precondition, release armed, and the release resuming after an editor tap
+  — A/B-validated against the release inverted to never install for iOS, where
+  they report the retained focus, `releases=null`, and the retained focus
+  surviving a "+" tap.
+- **The composer probe no longer inherits the typing scene's fake viewport** —
+  the scene replaces `window.visualViewport` to emulate a keyboard and only put
+  back an own descriptor, which Chrome does not have (the property lives on the
+  prototype): the stub outlived the scene, every later row read "keyboard up",
+  and the focus rows were silently disarmed. It now deletes the stub when there
+  is nothing to restore, and a `composer.focus-release-precondition` row reports
+  the keyboard inset it is asserting against. A probe throw also lands as a
+  `probe.crashed` FAIL row with a `SUMMARY` instead of a stack, and the
+  touch taps use the camelCase `touchEnd` CDP event type (`touchend` is rejected
+  with `-32602`, which killed the run mid-battery).
+
 ## [1.6.0] - 2026-09-23
 
 ### Added
