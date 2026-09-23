@@ -455,6 +455,72 @@ async function main() {
       }
     }
 
+    // The reported regression, reproduced: on a page that cannot scroll (this
+    // shell is a full-height flex layout), iOS shrinks the LAYOUT viewport with
+    // the keyboard too, so `innerHeight` and `visualViewport.height` move
+    // together and the classic inset reads ~0 WHILE A KEYBOARD IS UP. A release
+    // driven by that reading alone fired mid-typing and the keyboard dropped -
+    // reported as "the keyboard hides by itself".
+    const shrink = await client.evaluate(`(() => {
+      const height = Math.max(200, window.innerHeight - 320);
+      window.__dshProbeHeights = {
+        inner: Object.getOwnPropertyDescriptor(window, 'innerHeight') ?? null,
+        vv: Object.getOwnPropertyDescriptor(window, 'visualViewport') ?? null,
+      };
+      Object.defineProperty(window, 'innerHeight', { configurable: true, value: height });
+      Object.defineProperty(window, 'visualViewport', {
+        configurable: true,
+        value: { height, scale: 1, width: window.innerWidth, offsetTop: 0, offsetLeft: 0, pageTop: 0, pageLeft: 0,
+          addEventListener() {}, removeEventListener() {} },
+      });
+      const editor = document.querySelector('[data-composer-input]');
+      if (editor !== null) editor.focus();
+      return { asked: height, inner: window.innerHeight, vv: Math.round(window.visualViewport.height) };
+    })()`)
+    if (shrink.inner !== shrink.asked || shrink.vv !== shrink.asked) {
+      fail('composer.focus-release-holds-when-both-heights-shrink', `could not emulate the iOS keyboard ${JSON.stringify(shrink)}`)
+    } else {
+      const beforeShrink = await releaseState().catch(() => null)
+      // The decision is scheduled on the next animation frame, and a headless
+      // page that receives no input renders no frames at all - an idle wait
+      // measures nothing (this row passed on the inset-only build until frames
+      // were pumped). The pump touches nothing: a tap would blur the editor by
+      // itself and the row would then read a focus state the release did not
+      // produce.
+      const pumped = await client.evaluate(`new Promise((resolve) => {
+        let frames = 0;
+        const tick = () => { frames += 1; if (frames < 45) requestAnimationFrame(tick); else resolve(frames); };
+        requestAnimationFrame(tick);
+      })`).catch(() => 0)
+      const held = await releaseState().catch(() => null)
+      if (held !== null && held.editorFocused && held.releases === (beforeShrink?.releases ?? null)) {
+        pass('composer.focus-release-holds-when-both-heights-shrink', `no release while the layout viewport is shrunk (releases=${held.releases}, ${pumped} frames)`)
+      } else {
+        fail('composer.focus-release-holds-when-both-heights-shrink', `the release took the keyboard away ${JSON.stringify({ before: beforeShrink, after: held })}`)
+      }
+      // Put the heights back: the release must resume, or the "fix" would just
+      // be a disabled guard.
+      const restored = await client.evaluate(`(() => {
+        const saved = window.__dshProbeHeights;
+        delete window.__dshProbeHeights;
+        if (saved.inner !== null) Object.defineProperty(window, 'innerHeight', saved.inner); else delete window.innerHeight;
+        if (saved.vv !== null) Object.defineProperty(window, 'visualViewport', saved.vv); else delete window.visualViewport;
+        return { inner: window.innerHeight, vv: Math.round(window.visualViewport.height) };
+      })()`)
+      await client.send('Input.dispatchTouchEvent', { type: 'touchStart', touchPoints: [{ x: 195, y: 200, radiusX: 8, radiusY: 8, force: 1 }] })
+      await sleep(60)
+      await client.send('Input.dispatchTouchEvent', { type: 'touchEnd', touchPoints: [] })
+      const resumed = await waitFor('release resumes once the heights are real', releaseRowTimeoutMs, async () => {
+        const state = await releaseState()
+        return state.releases === null || state.editorFocused ? null : state
+      }).catch(() => null)
+      if (resumed === null) {
+        fail('composer.focus-release-resumes-after-shrink', `no release after the heights were restored ${JSON.stringify(restored)}`)
+      } else {
+        pass('composer.focus-release-resumes-after-shink'.replace('shink', 'shrink'), `releases=${resumed.releases}`)
+      }
+    }
+
     // A finger on the editor means "I want to type": the release must hold off
     // for the keyboard animation instead of dropping the box the user just
     // tapped. A real touch is the only way to place that gesture.

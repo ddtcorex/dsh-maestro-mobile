@@ -1,5 +1,5 @@
 import type { Context as ClientContext } from '@deepseek-ai/cordis'
-import { keyboardIsVisible } from './composer-plus-toggle.ts'
+import { KEYBOARD_MIN_INSET_PX } from './composer-plus-toggle.ts'
 import { detectIosWebKit, installMobileEffect } from './phone-chrome.ts'
 
 /**
@@ -70,6 +70,14 @@ export const RELEASE_HEARTBEAT_MS = 500
 export const NUDGE_MAX_PX = 80
 
 /**
+ * How long a keystroke keeps the release away. Reported from the phone as "the
+ * keyboard hides by itself": whatever the viewport signals say, a finger that is
+ * typing owns the focus, and the gap between two keystrokes must not be enough
+ * to take it away.
+ */
+export const TYPING_QUIET_MS = 1500
+
+/**
  * Marker publishing how many times the editor's focus has been released. The
  * opt-in debug badge reads it, so one phone screenshot answers "did the release
  * run at all" - the question the previous round could not answer.
@@ -97,16 +105,62 @@ export function keyboardIsReadable(viewport: ViewportMetrics | null): boolean {
   return viewport.scale <= 1.01
 }
 
+/**
+ * The tallest visual viewport height seen recently: the page with no keyboard.
+ *
+ * iOS on a page that cannot scroll (the DSH shell is a full-height flex layout
+ * with no document scroll) shrinks the LAYOUT viewport with the keyboard, so
+ * `innerHeight - visualViewport.height` stays near zero while a keyboard is up
+ * and the classic inset reads a keyboard that is right there as absent. The
+ * tallest height seen is the baseline that survives that; it heals by itself
+ * once a taller reading arrives.
+ * @param previous - the baseline so far.
+ * @param current - the height just read (0 or less when unreadable).
+ * @returns the new baseline.
+ */
+export function restingViewportHeight(previous: number, current: number): number {
+  if (current <= 0) return previous
+  return Math.max(previous, current)
+}
+
+/** The three heights the keyboard reading can compare. */
+export interface KeyboardReading {
+  /** `window.innerHeight` (the layout viewport, which iOS shrinks too). */
+  readonly innerHeight: number
+  /** `visualViewport.height` (0 when the API is missing). */
+  readonly viewportHeight: number
+  /** The tallest height seen recently. */
+  readonly restingHeight: number
+}
+
+/**
+ * Whether a keyboard appears to occupy part of the screen, from every signal.
+ *
+ * Either comparison saying "up" is enough: a release that fires while the
+ * keyboard is up takes the keyboard away from someone who is typing, which is
+ * worse than leaving the retained focus for another moment. An unreadable
+ * viewport reads as "might be up" for the same reason.
+ * @param reading - the heights to compare.
+ * @returns true when the keyboard must be assumed up.
+ */
+export function keyboardOccupiesScreen(reading: KeyboardReading): boolean {
+  if (reading.viewportHeight <= 0) return true
+  if (reading.innerHeight - reading.viewportHeight > KEYBOARD_MIN_INSET_PX) return true
+  return reading.restingHeight - reading.viewportHeight > KEYBOARD_MIN_INSET_PX
+}
+
 /** Everything the release decision reads, injectable for the unit tests. */
 export interface ComposerFocusState {
   /** The composer editor is `document.activeElement`. */
   readonly editorFocused: boolean
-  /** The soft keyboard is up (visual viewport inset). */
+  /** A keyboard appears to be up (any height signal). */
   readonly keyboardVisible: boolean
   /** The visual viewport can report the keyboard state. */
   readonly keyboardReadable: boolean
   /** A finger landed on the editor within the keyboard-animation window. */
   readonly editorGestureActive: boolean
+  /** A keystroke landed in the editor within the typing quiet window. */
+  readonly typingActive: boolean
   /** The focus shadow is armed for a "+" interaction. */
   readonly shadowArmed: boolean
 }
@@ -121,6 +175,7 @@ export function shouldReleaseComposerFocus(state: ComposerFocusState): boolean {
   if (state.keyboardVisible) return false
   if (!state.keyboardReadable) return false
   if (state.editorGestureActive) return false
+  if (state.typingActive) return false
   return !state.shadowArmed
 }
 
@@ -145,6 +200,14 @@ function editorElement(): HTMLElement | null {
   return editor instanceof HTMLElement ? editor : null
 }
 
+/**
+ * Events that mean "a finger is typing in the editor". `beforeinput` covers the
+ * input itself, `keydown` covers a key the contenteditable swallows, and
+ * `compositionupdate` covers an IME mid-composition (a Vietnamese or Japanese
+ * keyboard fires nothing else for a whole syllable).
+ */
+const TYPING_EVENTS = ['beforeinput', 'input', 'keydown', 'compositionupdate'] as const
+
 /** The visual viewport metrics, or null where the API is missing. */
 function viewportMetrics(): ViewportMetrics | null {
   const viewport = window.visualViewport
@@ -167,6 +230,10 @@ export function installComposerFocusRelease(ctx: ClientContext): void {
 
     /** A finger landed on the editor before this timestamp. */
     let gestureUntil = 0
+    /** A keystroke landed in the editor before this timestamp. */
+    let typingUntil = 0
+    /** The tallest visual viewport height seen: the page with no keyboard. */
+    let restingHeight = 0
     /** Releases performed, published on <html> for the debug badge. */
     let releases = 0
     let scheduled: number | null = null
@@ -191,20 +258,31 @@ export function installComposerFocusRelease(ctx: ClientContext): void {
       publish()
       window.requestAnimationFrame(() => {
         const drift = window.scrollY - scrollY
-        if (shouldRestoreScroll(drift, keyboardIsVisible(viewportMetrics(), window.innerHeight))) {
-          window.scrollTo(window.scrollX, scrollY)
-        }
+        const metrics = viewportMetrics()
+        const visible = keyboardOccupiesScreen({
+          innerHeight: window.innerHeight,
+          viewportHeight: metrics?.height ?? 0,
+          restingHeight,
+        })
+        if (shouldRestoreScroll(drift, visible)) window.scrollTo(window.scrollX, scrollY)
       })
     }
 
     const readState = (): ComposerFocusState => {
       const editor = editorElement()
       const metrics = viewportMetrics()
+      const viewportHeight = metrics?.height ?? 0
+      restingHeight = restingViewportHeight(restingHeight, viewportHeight)
       return {
         editorFocused: editor !== null && document.activeElement === editor,
-        keyboardVisible: keyboardIsVisible(metrics, window.innerHeight),
+        keyboardVisible: keyboardOccupiesScreen({
+          innerHeight: window.innerHeight,
+          viewportHeight,
+          restingHeight,
+        }),
         keyboardReadable: keyboardIsReadable(metrics),
         editorGestureActive: Date.now() < gestureUntil,
+        typingActive: Date.now() < typingUntil,
         shadowArmed: document.documentElement.hasAttribute('data-mobile-nav-focus-shadow'),
       }
     }
@@ -251,6 +329,27 @@ export function installComposerFocusRelease(ctx: ClientContext): void {
     }
 
     /**
+     * Typing owns the focus. The reported failure of an earlier cut of this
+     * effect was "the keyboard hides by itself" while the user was typing: a
+     * keystroke cannot be replaced by any viewport reading, so it is tracked
+     * directly and the release stays away for the quiet window after it.
+     */
+    const onEditorInput = (event: Event): void => {
+      const target = event.target
+      if (!(target instanceof Element) || target.closest('[data-composer-input]') === null) return
+      typingUntil = Date.now() + TYPING_QUIET_MS
+    }
+
+    /**
+     * A rotation changes the height of the page legitimately, and the tallest
+     * height seen would otherwise keep reading the landscape page as a keyboard.
+     */
+    const onOrientation = (): void => {
+      restingHeight = 0
+      schedule()
+    }
+
+    /**
      * The shadow lifts when the "+" interaction ends, which is the first moment
      * a late host focus (or the tap's own blurred state) can be settled again.
      */
@@ -262,6 +361,8 @@ export function installComposerFocusRelease(ctx: ClientContext): void {
     document.addEventListener('pointerdown', onPointer, true)
     document.addEventListener('touchstart', onPointer, true)
     document.addEventListener('click', onClick, true)
+    for (const type of TYPING_EVENTS) document.addEventListener(type, onEditorInput, true)
+    window.addEventListener('orientationchange', onOrientation)
     shadowObserver.observe(document.documentElement, {
       attributes: true,
       attributeFilter: ['data-mobile-nav-focus-shadow'],
@@ -283,6 +384,8 @@ export function installComposerFocusRelease(ctx: ClientContext): void {
       document.removeEventListener('pointerdown', onPointer, true)
       document.removeEventListener('touchstart', onPointer, true)
       document.removeEventListener('click', onClick, true)
+      for (const type of TYPING_EVENTS) document.removeEventListener(type, onEditorInput, true)
+      window.removeEventListener('orientationchange', onOrientation)
       viewportTarget?.removeEventListener('resize', schedule)
       viewportTarget?.removeEventListener('scroll', schedule)
       document.documentElement.removeAttribute(RELEASE_MARKER)

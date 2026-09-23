@@ -8,6 +8,21 @@ All notable changes to this project are documented in this file. Format follows
 
 ### Fixed
 
+- **The composer no longer drops the keyboard while it is being typed in** —
+  reported from the phone as "the keyboard hides by itself" after the fix above
+  landed. The release trusts the keyboard reading, and that reading was the
+  classic `innerHeight - visualViewport.height` inset: on a page that cannot
+  scroll (this shell is a full-height flex layout), iOS shrinks the LAYOUT
+  viewport with the keyboard too, so both heights move together and the inset
+  stays near zero while the keyboard is up. The reading now also compares against
+  the tallest `visualViewport.height` seen recently (resetting on rotation) and
+  treats either signal saying "up" as up, and a keystroke in the editor
+  (`beforeinput` / `input` / `keydown` / `compositionupdate`) keeps the release
+  away for 1.5s whatever the viewport says. `probe:composer-plus` gained
+  `focus-release-holds-when-both-heights-shrink` (emulating the iOS case: both
+  heights shrink by the same amount), A/B-validated against the inset-only
+  reading, where it FAILs with the editor losing focus and the release count
+  rising while the emulated keyboard is up.
 - **The iOS keyboard stops coming back on the first tap of the composer "+"** —
   reported from the phone after the focus shadow landed. The shadow neutralises a
   `focus()` the host calls, and the tap that raises the keyboard focuses nothing
