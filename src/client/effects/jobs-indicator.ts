@@ -1,3 +1,4 @@
+import { setMarker } from '../core/dom-marks.ts'
 import type { ReconcilerTask } from '../core/reconciler-core.ts'
 
 // The upstream background-job control in the session header is a labelled
@@ -73,8 +74,12 @@ export function createJobsIndicatorTask(): ReconcilerTask {
       if (candidates.length !== 1) return
       const trigger = candidates[0]
       if (trigger === undefined) return
-      trigger.setAttribute('data-mobile-nav', 'jobs')
-      trigger.setAttribute(
+      // Conditional writes: this task re-runs on every flush, so writing an
+      // unchanged value would queue a mutation each frame and keep the observer's
+      // flush chain alive with nothing driving it.
+      setMarker(trigger, 'data-mobile-nav', 'jobs')
+      setMarker(
+        trigger,
         'data-jobs-count',
         String(jobsCountFromLabel(trigger.getAttribute('aria-label'))),
       )
