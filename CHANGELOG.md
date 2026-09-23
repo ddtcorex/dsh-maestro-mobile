@@ -4,6 +4,70 @@ All notable changes to this project are documented in this file. Format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); this project uses
 [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Added
+
+- **Sidebar panels have a way back to the conversation** — a global panel
+  (Plugins, Skills, …) replaces the main column and the host ships no exit:
+  `PanelRow`'s onClick is a bare `selectPanel(id)`, so re-tapping the selected
+  row re-selects it, and a panel page renders no session header — which is
+  where the drawer toggle lives. One shared `exit()` now serves three routes:
+  the system back key (one history entry armed while a panel owns the main
+  column, given back when the panel leaves by another route so it cannot
+  swallow the user's next back press), a re-tap of the already-selected panel
+  row (`[class*="panelRow"][aria-current="page"]`), and the shell FAB, which
+  reads as "back to conversation" there and moves to the top-left corner
+  (`data-mobile-nav-fab-mode="exit-panel"`) instead of the hero seat that used
+  to float over the panel's own head. The host's panel-selection face is
+  capability-probed, so a host generation without `selectPanel` leaves every
+  route inert instead of throwing. Refs: mexiaosqwq/dsh-web-mobile v3.0.0/v3.0.1.
+- **`pnpm probe:composer-plus`, `pnpm probe:panel-exit` and
+  `pnpm probe:multi-width`** — three live gates for the phone interactions
+  above: the composer menu across four taps (open/close/open/close), the panel
+  FAB back face plus back-key and re-tap exits and their history bookkeeping,
+  and the layout tiers (phone 320/360/390/430, tablet 768/1023, desktop 1280)
+  including the header icon actually painting an `svg path`. All three were
+  A/B-validated against the pre-fix behaviour so they fail on a build that
+  lacks the fix. `pnpm test` gains `tests/phone-tier-gating.test.ts`, which
+  locks the tier structure (a `min-width: 768px` block must also cap 1023 and
+  require a coarse pointer; the tablet overrides must come after the mobile
+  gate).
+
+### Fixed
+
+- **A second tap on the composer "+" closes the command menu** — the button's
+  `onClick` focuses the editor before toggling the launcher, and that focus
+  re-enters `controller.track()`, whose first act is `clearLauncher()`; the
+  host's "already open ⇒ dismiss" branch then compares against a null launcher
+  and is unreachable, so every tap re-opened the menu (the host's own
+  `aria-expanded` stays `false` while it is visibly open). The plugin now
+  remembers the menu's state in the click capture phase and, in the bubble
+  phase after React's handler, closes it through the host's own Escape path
+  when it is still open. The opening tap is never touched.
+- **Tapping "+" releases the editor focus while the menu is open** — the
+  command menu needs no soft keyboard, but that same focus call re-raises the
+  IME on Android and slides the composer row up under the user's second tap
+  (measured upstream: visual viewport 754 → 471 about 170ms after the tap, with
+  no DOM event reaching the page). A tap on "+" now drops the focus before the
+  click fires and repeats the release at 120/320/640ms while the menu is on
+  screen, cancelled the moment the user touches the editor.
+- **Host icons are resolved by name at runtime** — the host's icon exports are
+  generation-specific (`IconXxxOutline16` on the 0.1.0-rc line versus
+  `IconXxxOutlineRegular` / `…Medium` on 0.1.7) and the two generations share no
+  names, so a static import resolves to `undefined` on the other one and React
+  reports "Element type is invalid" for the whole plugin tree. The first
+  candidate name the installed host actually exports now wins, and a name
+  nothing matches renders nothing rather than crashing.
+- **The plugin stylesheet replaces its previous copy** — a plugin re-applied in
+  the same JS environment (client hot reload, or a second apply whose dispose
+  never ran) stacked a second `<style>` tag with the same rules, and the older
+  tag could win on source order inside the cascade: the symptom was "I changed
+  the CSS and nothing moved" while the served bundle was correct. The mount now
+  removes any tag carrying the plugin's `data-plugin` marker first, keeps the
+  fresh tag last in `<head>` for its `!important` overrides, and never
+  resurrects a disposed tag from the deferred re-append.
+
 ## [1.5.0] - 2026-09-22
 
 ### Fixed
