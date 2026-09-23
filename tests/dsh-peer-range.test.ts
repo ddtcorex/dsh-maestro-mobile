@@ -14,7 +14,7 @@ const manifest = JSON.parse(readFileSync(resolve(here, '../package.json'), 'utf8
   peerDependencies?: Record<string, string>
 }
 
-const NORMALIZED = '^0.1.0-rc.6 || >=0.1.1-rc.0 <0.2.0-0'
+const NORMALIZED = '>=0.1.6-alpha.2 <0.2.0-0'
 const FORBIDDEN_PEER_PREFIX = '@deepseek-ai/dsh'
 
 function dshPeers(): Array<[string, string]> {
