@@ -147,53 +147,190 @@ async function main() {
       }
     })
     pass('setup.mobile-armed', 'coarse=true frame=true')
+    // ---------------------------------------------------------------- fix B
+    // A conversation with REAL rendered history, then the content font axis.
+    //
+    // Two waits are load-bearing and each was a red row before:
+    //  - a session must actually be OPEN. The injected `dsh.sessions.current` is
+    //    only a hint on this host (it is not restored on its own), so the drawer is
+    //    the authoritative route - the same drive the composer probe uses;
+    //  - the conversation then shows "Loading history..." while the session log is
+    //    read, and every prose selector matches nothing until it lands (measured:
+    //    the scroll body holding only a `_hint` node with that text). Sampling once
+    //    right after the drive measures the placeholder, not the prose.
+    //
+    // A RUNNING session is skipped on purpose: its label carries the Running prefix
+    // and it kept showing the hint 30s in, because the live turn owns the view.
+    const proseSelector = '[data-phase] p, [data-phase] [class*="_text_"], [data-phase] li'
+    const prosePresent = () =>
+      client.evaluate(`document.querySelector(${JSON.stringify(proseSelector)}) !== null`)
+    const onHero = () => client.evaluate(`document.querySelector('[data-phase="active"]') === null`)
+    const composerReady = () =>
+      client.evaluate(`(() => {
+        const add = document.querySelector('[data-composer-card] button[aria-haspopup="listbox"]');
+        return add !== null && add.disabled === false && document.querySelector('[data-phase="active"]') !== null;
+      })()`)
+    const sessionRows = () =>
+      client.evaluate(`document.querySelectorAll('[class*="_sessionRow"]').length`)
+
+    if (await onHero()) {
+      // Cold start: connect a workspace first, or the sidebar renders no sessions.
+      await client.evaluate(`document.querySelector('button[aria-label="Choose workspace"]')?.click()`)
+      await sleep(400)
+      await client.evaluate(`(() => {
+        const items = [...document.querySelectorAll('[role="menuitem"], [role="option"], li, button')];
+        const target = items.find((item) => (item.textContent ?? '').trim() !== '');
+        if (target === undefined) return false;
+        target.click();
+        return true;
+      })()`)
+      await sleep(800)
+    }
+    if (!(await drawerOpen(client))) {
+      await client.evaluate(`document.querySelector('button[aria-label="Open sidebar"]')?.click()`)
+      await waitFor('drawer open for the session drive', timeoutMs, () => drawerOpen(client)).catch(() => null)
+    }
+    if (!(await drawerOpen(client))) {
+      await client.evaluate(`document.querySelector('[data-mobile-nav="fab"], [data-mobile-nav="toggle"]')?.click()`)
+      await waitFor('drawer open for the session drive (plugin opener)', timeoutMs, () => drawerOpen(client)).catch(() => null)
+    }
+    if (!(await drawerOpen(client))) {
+      fail('font-axis.drawer', 'the drawer did not open with either opener')
+    } else {
+      const waitRows = () => waitFor('session rows', timeoutMs, async () => {
+        try {
+          return (await sessionRows()) > 0
+        } catch {
+          return false
+        }
+      }).catch(() => null)
+      await waitRows()
+      if ((await sessionRows()) === 0) {
+        // No workspace is connected yet, so the sidebar is listing workspaces
+        // instead of sessions: pick one, then the rows appear. Measured state:
+        // treeitems=14 workspace entries and sessionRows=0.
+        const workspace = await client.evaluate(`(() => {
+          const rows = [...document.querySelectorAll('[role="treeitem"]')]
+            .filter((row) => !/New Session/i.test(row.textContent || ''));
+          const row = rows[0];
+          if (row === undefined) return null;
+          row.click();
+          return (row.textContent || '').trim().slice(0, 30);
+        })()`)
+        if (workspace === null) fail('font-axis.workspace-picked', 'no workspace row in the drawer')
+        else pass('font-axis.workspace-picked', workspace)
+        await sleep(600)
+        await waitRows()
+      }
+      const picked = await client.evaluate(`(() => {
+        const rows = [...document.querySelectorAll('[class*="_sessionRow"]')];
+        const usable = rows.filter((candidate) => (candidate.textContent ?? '').trim() !== '' && candidate.querySelector('button') !== null);
+        const row = usable.find((candidate) => !/^Running/.test((candidate.textContent ?? '').trim())) ?? usable[0];
+        if (row === undefined) return { rows: rows.length, picked: null };
+        row.click();
+        return { rows: rows.length, picked: (row.textContent ?? '').trim().slice(0, 40) };
+      })()`)
+      if (picked.picked === null) fail('font-axis.session-picked', `no row with a row action (rows=${picked.rows})`)
+      else pass('font-axis.session-picked', picked.picked)
+    }
+    // Leave the drawer so the conversation column, not the rail, holds the width.
+    await client.evaluate(`document.querySelector('[data-mobile-nav="backdrop"]')?.click()`)
+    await sleep(300)
+    try {
+      await waitFor('composer in an active session', timeoutMs, composerReady)
+      pass('font-axis.session-open', 'composer enabled in an active session')
+    } catch (error) {
+      fail('font-axis.session-open', error instanceof Error ? error.message : String(error))
+    }
+    const historyTimeoutMs = Number(process.env.DSH_PROBE_HISTORY_TIMEOUT_MS || 30_000)
+    try {
+      await waitFor('session history', historyTimeoutMs, () => prosePresent())
+      pass('font-axis.history-loaded', `prose within ${historyTimeoutMs}ms`)
+    } catch {
+      const hint = await client.evaluate(`(() => {
+        const node = document.querySelector('[class*="_scrollBody"] [class*="_hint"]');
+        return node === null ? null : (node.textContent || '').trim().slice(0, 40);
+      })()`).catch(() => null)
+      fail('font-axis.history-loaded', `no prose after ${historyTimeoutMs}ms (flow shows ${hint === null ? 'nothing' : JSON.stringify(hint)})`)
+    }
+
+    const axis = await client.evaluate(`(() => {
+      const body = document.body;
+      const set = (value) => body.style.setProperty('--dsh-content-font-size', value);
+      set('14px');
+      const p = document.querySelector(${JSON.stringify(proseSelector)});
+      const computedBefore = p === null ? null : getComputedStyle(p).fontSize;
+      set('22px');
+      const computedAfter = p === null ? null : getComputedStyle(p).fontSize;
+      body.style.removeProperty('--dsh-content-font-size');
+      return {
+        hasProse: p !== null,
+        element: p === null ? null : (p.className || p.tagName),
+        computedBefore,
+        computedAfter,
+      };
+    })()`)
+
+    if (!axis.hasProse) {
+      fail('font-axis.prose-present', 'no message prose found to measure')
+    } else {
+      pass('font-axis.prose-present', `${axis.element}`)
+      const before = Number.parseFloat(axis.computedBefore)
+      const after = Number.parseFloat(axis.computedAfter)
+      if (after > before) pass('font-axis.follows-setting', `${axis.computedBefore} -> ${axis.computedAfter}`)
+      else fail('font-axis.follows-setting', `axis ignored: ${axis.computedBefore} -> ${axis.computedAfter}`)
+      // The floor must hold: a setting BELOW it must not shrink prose.
+      const floored = await client.evaluate(`(() => {
+        const body = document.body;
+        body.style.setProperty('--dsh-content-font-size', '8px');
+        const p = document.querySelector(${JSON.stringify(proseSelector)});
+        const size = p === null ? null : getComputedStyle(p).fontSize;
+        body.style.removeProperty('--dsh-content-font-size');
+        return size;
+      })()`)
+      const floorValue = Number.parseFloat(floored)
+      if (floorValue >= 15) pass('font-axis.floor-holds', `${floored} >= 15px`)
+      else fail('font-axis.floor-holds', `prose shrank below the floor: ${floored}`)
+    }
 
     // ---------------------------------------------------------------- fix A
-    // Ensure the drawer is open, then tap a REAL panel row through the DOM
-    // click path the plugin's capture listener observes.
-    const state = await client.evaluate(`(() => {
-      const frame = document.querySelector(${JSON.stringify(FRAME_SELECTOR)});
-      const open = frame !== null && !frame.hasAttribute('data-sidebar-collapsed');
-      const rows = document.querySelectorAll(${JSON.stringify(PANEL_ROW_SELECTOR)});
-      return { open, rows: rows.length, firstLabel: rows[0]?.getAttribute('aria-label') ?? null };
-    })()`)
-    if (!state.open) {
-      await client.evaluate(`document.querySelector('[data-mobile-nav="fab"], [data-mobile-nav="toggle"]')?.click()`)
-      await waitFor('drawer open', timeoutMs, () => drawerOpen(client))
+    // Open the drawer, then tap a REAL panel row through the DOM click path the
+    // plugin's capture listener observes: the drawer must collapse so the panel
+    // gets the whole screen.
+    if (!(await drawerOpen(client))) {
+      await client.evaluate(`document.querySelector('button[aria-label="Open sidebar"], [data-mobile-nav="fab"], [data-mobile-nav="toggle"]')?.click()`)
+      await waitFor('drawer open for the panel row', timeoutMs, () => drawerOpen(client))
     }
-    if (state.rows === 0) {
+    const rowCount = await client.evaluate(`document.querySelectorAll(${JSON.stringify(PANEL_ROW_SELECTOR)}).length`)
+    if (rowCount === 0) {
       fail('panel-close.row-present', 'no sidebar panel row on this host/state')
     } else {
-      pass('panel-close.row-present', `rows=${state.rows} first=${state.firstLabel}`)
-      // The predicate under test: the drawer must be open right before the tap.
+      pass('panel-close.row-present', `rows=${rowCount}`)
       const beforeTap = await drawerOpen(client)
       if (!beforeTap) fail('panel-close.precondition', 'drawer not open before the tap')
       else pass('panel-close.precondition', 'drawer open')
-
-      // Re-resolve the row INSIDE the page after the drawer is open.
       const tapped = await client.evaluate(`(() => {
-        const row = document.querySelector(${JSON.stringify(PANEL_ROW_SELECTOR)});
-        if (row === null) return 'missing';
-        row.dispatchEvent(new MouseEvent('click', { bubbles: true, cancelable: true }));
-        return 'tapped';
+        const row = [...document.querySelectorAll(${JSON.stringify(PANEL_ROW_SELECTOR)})].find((candidate) => candidate.getAttribute('aria-label') !== null) ?? document.querySelector(${JSON.stringify(PANEL_ROW_SELECTOR)});
+        if (row === null) return null;
+        row.click();
+        return row.getAttribute('aria-label');
       })()`)
-      if (tapped !== 'tapped') fail('panel-close.tap', tapped)
+      if (tapped === null) fail('panel-close.tap', 'no panel row to tap')
       else {
-        const closed = await waitFor('drawer collapse after panel tap', 4000, async () =>
-          (await drawerOpen(client)) === false).catch(() => false)
-        if (closed) pass('panel-close.drawer-collapsed', 'drawer collapsed on panel row tap')
-        else fail('panel-close.drawer-collapsed', 'drawer STILL OPEN after tapping a panel row')
+        try {
+          await waitFor('drawer collapsed after the panel tap', timeoutMs, async () => !(await drawerOpen(client)))
+          pass('panel-close.drawer-collapsed', `panel=${tapped}`)
+        } catch {
+          fail('panel-close.drawer-collapsed', `drawer stayed open after tapping ${tapped}`)
+        }
       }
     }
 
-    // ------------------------------------------- fix C: the FAB on a panel
-    // A global panel replaces the conversation, so it carries no [data-phase]
-    // and heroPhase is true there: the drawer FAB used to mount over the panel's
-    // own content at 10,72 with pointer-events auto, covering its subtitle and
-    // swallowing taps. Hiding it was the interim fix; since the panel-exit work
-    // the SAME button is the way back to the conversation, so the contract is
-    // now: present, in the exit-panel face, labelled for what it does, and clear
-    // of the panel's own controls (it moved to the top-left corner for that).
+    // ------------------------------------------------- fix C: the FAB on a panel
+    // A global panel replaces the conversation and renders no session header, so
+    // the FAB is the only way back: it must be present, in its exit face, named for
+    // what it does, and clear of the panel's own controls (it moved to the top-left
+    // corner for that).
     const fabState = await client.evaluate(`(() => {
       const overlaps = (a, b) => a.width > 0 && b.width > 0
         && a.left < b.right && b.left < a.right && a.top < b.bottom && b.top < a.bottom;
@@ -229,69 +366,6 @@ async function main() {
       fail('panel-fab.back-face', `overlaps ${fabState.collisions} panel control(s)`)
     } else {
       pass('panel-fab.back-face', `mode=${fabState.mode} label=${fabState.label}`)
-    }
-
-    // ---------------------------------------------------------------- fix B
-    // Leave the panel through the FAB's exit face, then raise the host axis above
-    // the floor and read the COMPUTED size of real message prose.
-    //
-    // KNOWN RED ON THIS HOST (pre-existing, unrelated to the panel/composer
-    // batch): the prose selector below matches nothing on 0.1.7-alpha.2 for the
-    // session this probe reaches - measured with the composer enabled and the app
-    // in an active phase, `[data-phase] p`, `[data-phase] [class*="_text_"]` and
-    // `[data-phase] li` all return 0 elements while the flow holds message text -
-    // so `font-axis.prose-present` FAILs. The rule it guards
-    // (layout.css.ts `[class*="_scroll"]:not([class*="_scrollBody"]):has(p)`)
-    // is untouched by this batch (git diff of the batch shows base.css.ts only),
-    // and the row failed before any probe edit as well. Fixing the probe needs a
-    // session whose message cards are rendered (and then maybe a fresh selector);
-    // it is tracked as a follow-up, not silently skipped.
-    await client.evaluate(`document.querySelector('[data-mobile-nav="fab"], [data-mobile-nav="toggle"]')?.click()`)
-    await sleep(500)
-
-    const axis = await client.evaluate(`(() => {
-      const probe = document.createElement('span');
-      // A synthetic message-like node is not enough: we need the real rule to
-      // match, so measure an element the plugin's selector actually targets.
-      const body = document.body;
-      const set = (value) => body.style.setProperty('--dsh-content-font-size', value);
-      set('14px');
-      const p = document.querySelector('[data-phase] p, [data-phase] [class*="_text_"], [data-phase] li');
-      const computedBefore = p === null ? null : getComputedStyle(p).fontSize;
-      set('22px');
-      const computedAfter = p === null ? null : getComputedStyle(p).fontSize;
-      body.style.removeProperty('--dsh-content-font-size');
-      return {
-        hasProse: p !== null,
-        element: p === null ? null : (p.className || p.tagName),
-        computedBefore,
-        computedAfter,
-      };
-    })()`)
-
-    if (!axis.hasProse) {
-      fail('font-axis.prose-present', 'no message prose found to measure')
-    } else {
-      pass('font-axis.prose-present', `${axis.element}`)
-      const before = Number.parseFloat(axis.computedBefore)
-      const after = Number.parseFloat(axis.computedAfter)
-      if (after > before) {
-        pass('font-axis.follows-setting', `${axis.computedBefore} -> ${axis.computedAfter}`)
-      } else {
-        fail('font-axis.follows-setting', `axis ignored: ${axis.computedBefore} -> ${axis.computedAfter}`)
-      }
-      // The floor must hold: a setting BELOW it must not shrink prose.
-      const floored = await client.evaluate(`(() => {
-        const body = document.body;
-        body.style.setProperty('--dsh-content-font-size', '8px');
-        const p = document.querySelector('[data-phase] p, [data-phase] [class*="_text_"], [data-phase] li');
-        const size = p === null ? null : getComputedStyle(p).fontSize;
-        body.style.removeProperty('--dsh-content-font-size');
-        return size;
-      })()`)
-      const floorValue = Number.parseFloat(floored)
-      if (floorValue >= 15) pass('font-axis.floor-holds', `${floored} >= 15px`)
-      else fail('font-axis.floor-holds', `prose shrank below the floor: ${floored}`)
     }
   } finally {
     client?.close()

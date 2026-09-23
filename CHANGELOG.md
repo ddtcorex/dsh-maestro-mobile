@@ -52,6 +52,20 @@ All notable changes to this project are documented in this file. Format follows
   no DOM event reaching the page). A tap on "+" now drops the focus before the
   click fires and repeats the release at 120/320/640ms while the menu is on
   screen, cancelled the moment the user touches the editor.
+- **The two probe reds are gone** — `probe:panel-font` now opens a session
+  through the drawer (the injected `dsh.sessions.current` is only a hint on this
+  host) and waits for the conversation history to render before measuring the
+  content font axis: it used to sample while the flow still showed
+  `Loading history...`, so the axis row was red against a placeholder. The axis is
+  live on 0.1.7-alpha.2 (`15px -> 22px`, floor held). `smoke:cdp` no longer seeds
+  `localStorage['dsh.sessions.current']` with the requested session: the restored
+  selection and the probe's own navigation opened the same session twice, the app
+  released the first reference while the right sidebar awaited it, and the host
+  logged `Sidebar Session opening failed: ... is released` — a page error from the
+  probe's boot, not the plugin (with an unrestorable id the same drive logs zero).
+  The scenario opens a session through the drawer instead, which also exercises
+  the real header toggle. Result: `probe:panel-font` 12/12 and `smoke:cdp`
+  17 pass / 1 state-skip / 0 fail with `page.errors count=0`.
 - **Tapping "+" no longer raises the keyboard on iOS** — the Android half of
   this (blur the editor after the tap) is not enough there: iOS follows DOM
   focus, so once the host's `focusDraftEditor` inside the button's `onClick` has
