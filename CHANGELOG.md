@@ -71,7 +71,14 @@ All notable changes to this project are documented in this file. Format follows
   fix); blurring one whose keyboard is already down is the state the IME re-rises
   from, and there the blur is what keeps the row still. `probe:composer-plus` now
   gates all of it, including a typing-state scene (emulated keyboard) where the
-  focus must survive the tap.
+  focus must survive the tap. A second phone report pinned the blur itself as the
+  remaining movement: the composer bounced up and back within 10-20ms, which no
+  keyboard can do (iOS takes ~250ms to show or hide one) but a programmatic blur
+  on iOS can, because it nudges the visual viewport. iOS therefore never blurs —
+  the focus shadow is the whole defence there — while Android keeps the blur,
+  which is what stops the IME re-rising into a hidden-keyboard editor. The shadow
+  is also armed on `touchstart` now (idempotent), because iOS can fire the touch
+  before the pointer event.
 - **Host icons are resolved by name at runtime** — the host's icon exports are
   generation-specific (`IconXxxOutline16` on the 0.1.0-rc line versus
   `IconXxxOutlineRegular` / `…Medium` on 0.1.7) and the two generations share no

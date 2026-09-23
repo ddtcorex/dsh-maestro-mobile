@@ -1,6 +1,6 @@
 import type { Context as ClientContext } from '@deepseek-ai/cordis'
 import { createFocusShadow } from './editor-focus-shadow.ts'
-import { installMobileEffect } from './phone-chrome.ts'
+import { detectIosWebKit, installMobileEffect } from './phone-chrome.ts'
 
 /**
  * Composer "+" (commands) menu: a second tap must close it.
@@ -203,8 +203,19 @@ export function keyboardIsVisible(
  * @param keyboardVisible - the soft keyboard is up.
  * @returns true when the focus must be released.
  */
-export function shouldDropEditorFocus(editorFocused: boolean, keyboardVisible: boolean): boolean {
-  return editorFocused && !keyboardVisible
+export function shouldDropEditorFocus(state: {
+  editorFocused: boolean
+  keyboardVisible: boolean
+  iosViewportPan: boolean
+}): boolean {
+  if (!state.editorFocused || state.keyboardVisible) return false
+  // iOS reacts to a programmatic blur by nudging the visual viewport, which is a
+  // 10-20ms up-and-back bounce of the whole composer row - reported from a phone
+  // as "it jumps up and drops straight back". There the focus shadow alone is the
+  // defence (it stops the host's focus() from landing at all), so the blur is
+  // skipped entirely and nothing moves. Android does not pan; there the blur is
+  // what stops the IME re-rising into a hidden-keyboard editor, so it stays.
+  return !state.iosViewportPan
 }
 
 /** The visual viewport metrics, or null where the API is missing. */
@@ -219,11 +230,15 @@ function visualViewportMetrics(): { height: number; scale: number } | null {
  * unless the keyboard is up, in which case releasing it is what makes the
  * composer jump (see shouldDropEditorFocus).
  */
-function dropEditorFocus(): void {
+function dropEditorFocus(iosViewportPan: boolean): void {
   const editor = editorElement()
   if (editor === null) return
-  if (!shouldDropEditorFocus(document.activeElement === editor, keyboardIsVisible(visualViewportMetrics(), window.innerHeight))) return
-  editor.blur()
+  const release = shouldDropEditorFocus({
+    editorFocused: document.activeElement === editor,
+    keyboardVisible: keyboardIsVisible(visualViewportMetrics(), window.innerHeight),
+    iosViewportPan,
+  })
+  if (release) editor.blur()
 }
 
 /**
@@ -265,6 +280,14 @@ export function installComposerPlusToggle(ctx: ClientContext): void {
      * helper is built to avoid.
      */
     const shadow = createFocusShadow(() => editorElement())
+    /**
+     * iOS WebKit responds to a programmatic blur by nudging the visual viewport.
+     * Read once per arm: the check is a CSS/UA probe, not a per-tap question.
+     */
+    const iosViewportPan = detectIosWebKit(
+      navigator,
+      typeof CSS === 'undefined' ? null : (condition: string) => CSS.supports(condition),
+    )
     /** Hard cap: whatever happens, the shadow lifts. */
     let shadowCap: number | null = null
     /**
@@ -342,7 +365,7 @@ export function installComposerPlusToggle(ctx: ClientContext): void {
         return
       }
       if (isComposerAddButton(target)) {
-        dropEditorFocus()
+        dropEditorFocus(iosViewportPan)
         armShadow()
         return
       }
@@ -358,7 +381,7 @@ export function installComposerPlusToggle(ctx: ClientContext): void {
       // what makes the keyboard stay down for a click path with no pointerdown
       // at all — a synthetic click, an assistive-technology activation, or a
       // shell that synthesizes the click without a matching pointer sequence.
-      dropEditorFocus()
+      dropEditorFocus(iosViewportPan)
       armShadow()
     }
 
@@ -387,14 +410,28 @@ export function installComposerPlusToggle(ctx: ClientContext): void {
       for (const delay of FOCUS_RELEASE_DELAYS_MS) {
         releaseTimers.push(
           window.setTimeout(() => {
-            if (openMenu() !== null) dropEditorFocus()
+            if (openMenu() !== null) dropEditorFocus(iosViewportPan)
             else restoreShadow()
           }, delay),
         )
       }
     }
 
+    /**
+     * Event-order insurance: iOS has historically fired `touchstart` before
+     * `pointerdown`, and the host's focus must already be blocked when the tap
+     * turns into a click. Arming here is idempotent and the normal release paths
+     * (next tap, menu gone, cap, dispose) still apply.
+     */
+    const onTouchStartAdd = (event: Event): void => {
+      const target = event.target
+      if (!(target instanceof Element) || !isComposerAddButton(target)) return
+      dropEditorFocus(iosViewportPan)
+      armShadow()
+    }
+
     document.addEventListener('pointerdown', onPointerDown, true)
+    document.addEventListener('touchstart', onTouchStartAdd, true)
     document.addEventListener('click', onClickCapture, true)
     document.addEventListener('click', onClickBubble, false)
     return () => {
@@ -402,6 +439,7 @@ export function installComposerPlusToggle(ctx: ClientContext): void {
       restoreShadow()
       stopMenuWatch()
       document.removeEventListener('pointerdown', onPointerDown, true)
+      document.removeEventListener('touchstart', onTouchStartAdd, true)
       document.removeEventListener('click', onClickCapture, true)
       document.removeEventListener('click', onClickBubble, false)
     }

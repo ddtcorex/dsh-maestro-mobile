@@ -141,11 +141,22 @@ test('the blur is skipped while the keyboard is up, so the composer cannot jump'
   // because blurring an editor whose keyboard is up starts the hide animation and
   // the keyboard is the composer's floor. Later taps looked fine only because the
   // keyboard was already down.
-  assert.equal(shouldDropEditorFocus(true, true), false)
-  assert.equal(shouldDropEditorFocus(true, false), true)
+  const android = { iosViewportPan: false }
+  assert.equal(shouldDropEditorFocus({ editorFocused: true, keyboardVisible: true, ...android }), false)
+  assert.equal(shouldDropEditorFocus({ editorFocused: true, keyboardVisible: false, ...android }), true)
   // Nothing focused: nothing to release.
-  assert.equal(shouldDropEditorFocus(false, false), false)
-  assert.equal(shouldDropEditorFocus(false, true), false)
+  assert.equal(shouldDropEditorFocus({ editorFocused: false, keyboardVisible: false, ...android }), false)
+  assert.equal(shouldDropEditorFocus({ editorFocused: false, keyboardVisible: true, ...android }), false)
+})
+
+test('iOS never blurs, because a blur there nudges the visual viewport', () => {
+  // Reported from a phone: the composer bounced up and back within 10-20ms - far
+  // too fast for a keyboard (iOS takes ~250ms), which is what a programmatic blur
+  // costs there. On iOS the focus shadow is the whole defence, so nothing moves.
+  const ios = { iosViewportPan: true }
+  assert.equal(shouldDropEditorFocus({ editorFocused: true, keyboardVisible: false, ...ios }), false)
+  assert.equal(shouldDropEditorFocus({ editorFocused: true, keyboardVisible: true, ...ios }), false)
+  assert.equal(shouldDropEditorFocus({ editorFocused: false, keyboardVisible: false, ...ios }), false)
 })
 
 test('the keyboard signal reads the visual viewport, not the layout viewport', () => {

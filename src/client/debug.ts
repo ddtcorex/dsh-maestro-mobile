@@ -19,13 +19,17 @@ const TRACE_LIMIT = 22
  */
 function stateStamp(): string {
   const viewport = window.visualViewport
-  const vv = viewport === undefined || viewport === null ? -1 : Math.round(viewport.height)
+  const vv = viewport === undefined || viewport === null
+    ? '-1@-1'
+    : `${Math.round(viewport.height)}@${Math.round(viewport.offsetTop)}`
   const seat = document.querySelector('[data-composer-seat]')
   const seatTop = seat === null ? -1 : Math.round(seat.getBoundingClientRect().top)
   const shadow = document.documentElement.hasAttribute('data-mobile-nav-focus-shadow') ? 1 : 0
   const active = document.activeElement
   const activeTag = active === null ? 'null' : active.tagName.toLowerCase()
-  return `vv=${vv}/${innerHeight} seat=${seatTop} sh=${shadow} af=${activeTag}`
+  const scroller = document.querySelector('[data-conversation-scroll]')
+  const scrollTop = scroller === null ? -1 : Math.round(scroller.scrollTop)
+  return `vv=${vv}/${innerHeight} seat=${seatTop} y=${Math.round(window.scrollY)}/${scrollTop} sh=${shadow} af=${activeTag}`
 }
 
 /** Compact one-line description of an event target. */
@@ -115,7 +119,8 @@ export function installDebugBadge(ctx: ClientContext): void {
     // The jump a phone user reports happens BETWEEN events (the keyboard slides,
     // the sticky seat follows it), so sample the same state on a short ladder
     // after a tap on the composer "+" and label each sample with its delay.
-    const SAMPLE_DELAYS_MS = [0, 60, 120, 250, 450, 800] as const
+    const SAMPLE_DELAYS_MS = [0, 20, 40, 80, 150, 300, 600, 1000] as const
+    const SAMPLE_FRAMES = 14
     let sampling = false
     const onSampleTrigger = (event: Event): void => {
       if (sampling) return
@@ -123,6 +128,16 @@ export function installDebugBadge(ctx: ClientContext): void {
       if (!(target instanceof Element)) return
       if (target.closest('[data-composer-card] button[aria-haspopup="listbox"]') === null) return
       sampling = true
+      const started = performance.now()
+      // Frame resolution first: a bounce that lasts 10-20ms is one or two frames
+      // and a 60ms timer ladder would step straight over it.
+      let frame = 0
+      const tick = (): void => {
+        frame += 1
+        push(`F${frame}+${Math.round(performance.now() - started)}ms menu=${menuCount()} ${stateStamp()}`)
+        if (frame < SAMPLE_FRAMES) requestAnimationFrame(tick)
+      }
+      requestAnimationFrame(tick)
       for (const delay of SAMPLE_DELAYS_MS) {
         window.setTimeout(() => {
           push(`SAMPLE+${delay}ms menu=${menuCount()} ${stateStamp()}`)
@@ -132,6 +147,16 @@ export function installDebugBadge(ctx: ClientContext): void {
     }
     document.addEventListener('pointerdown', onSampleTrigger, true)
     document.addEventListener('click', onSampleTrigger, true)
+
+    // The visual viewport fires resize/scroll when iOS pans or zooms it (focusing
+    // an editable near the bottom makes it pan). Event-driven, so a 10ms nudge
+    // cannot be missed by sampling.
+    const onViewportShift = (event: Event): void => {
+      push(`VV ${event.type} menu=${menuCount()} ${stateStamp()}`)
+    }
+    const viewportTarget: VisualViewport | null = window.visualViewport ?? null
+    viewportTarget?.addEventListener('resize', onViewportShift)
+    viewportTarget?.addEventListener('scroll', onViewportShift)
 
     // --- report ------------------------------------------------------------
     const read = (): string => {
@@ -208,6 +233,8 @@ export function installDebugBadge(ctx: ClientContext): void {
       for (const { type, handler } of tailHandlers) document.removeEventListener(type, handler)
       document.removeEventListener('pointerdown', onSampleTrigger, true)
       document.removeEventListener('click', onSampleTrigger, true)
+      viewportTarget?.removeEventListener('resize', onViewportShift)
+      viewportTarget?.removeEventListener('scroll', onViewportShift)
       observer.disconnect()
       clearInterval(timer)
       badge.remove()
