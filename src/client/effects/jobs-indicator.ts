@@ -2,17 +2,36 @@ import type { ReconcilerTask } from '../core/reconciler-core.ts'
 
 // The upstream background-job control in the session header is a labelled
 // trigger: it pins its full sentence at max-content width, which at 390px
-// measured 179x28 inside the header and crushed the session title to 30px.
-// The stylesheet collapses it to the same 28px circle as the drawer and
+// measured 187x28 inside the header and crushed the session title. The
+// stylesheet collapses it to the same 28px circle as the drawer and
 // right-sidebar toggles, with the count as a badge. Both the count and the
 // "is a job live" dot the stylesheet keys on live behind hashed classes, so
 // this task owns the stable markers instead.
 //
-// The jobs control is the only aria-expanded accordion in the session header's
-// actions slot: the drawer toggle the plugin itself registers beside it is an
-// icon button with no aria-expanded, so the marker cannot land on it.
-const JOBS_TRIGGER =
-  '[data-slot="conversation.session.header.actions"] button[class*="_trigger"][aria-expanded]'
+// The trigger carries no marker of its own upstream — its whole attribute set
+// is type/class/aria-expanded/aria-label — so it is identified by the roles the
+// other band residents declare plus its own contents:
+//
+//   - the subagent catalog declares aria-haspopup="tree";
+//   - the Team action declares aria-haspopup="dialog";
+//   - the schedule catalog leads with a clock icon, so its count badge is its
+//     second child while the jobs control's badge (or its live state dot) is
+//     its first.
+//
+// 0.1.7 moved the subagent catalog into this band at order -30, ahead of the
+// jobs control at order 20, which is why reading the FIRST accordion matched
+// the lineage trigger: the lineage chip took the jobs marker and its badge,
+// while the jobs control kept upstream's full-width sentence (measured live
+// 2026-09-24). The role exclusions keep a resident's own internals from
+// deciding this, so a future upstream change to how a neighbouring control
+// renders cannot hand it the marker.
+export const JOBS_TRIGGER = [
+  '[data-slot="conversation.session.header.actions"]',
+  ' button[class*="_trigger"][aria-expanded]',
+  ':not([aria-haspopup="tree"])',
+  ':not([aria-haspopup="dialog"])',
+  ':has(> :is([class*="_count"], [class*="_triggerDot"]):first-child)',
+].join('')
 
 /**
  * Read the job count out of the control's accessible name. Upstream localizes
@@ -45,8 +64,15 @@ export function createJobsIndicatorTask(): ReconcilerTask {
     name: 'jobs-indicator',
     scopes: ['*'],
     ensure: () => {
-      const trigger = document.querySelector(JOBS_TRIGGER)
-      if (trigger === null) return
+      // Exactly one candidate, or nothing: two would mean upstream added a
+      // header action that also leads with a count badge, and no rule can tell
+      // which is the jobs control. Yielding leaves the chip at upstream's width
+      // — visible and recoverable — instead of compacting another feature's
+      // control, which is the defect this selector exists to prevent.
+      const candidates = document.querySelectorAll(JOBS_TRIGGER)
+      if (candidates.length !== 1) return
+      const trigger = candidates[0]
+      if (trigger === undefined) return
       trigger.setAttribute('data-mobile-nav', 'jobs')
       trigger.setAttribute(
         'data-jobs-count',

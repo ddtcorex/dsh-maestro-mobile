@@ -41,6 +41,7 @@
     "contracts:cdp": "node scripts/cdp-compat-contracts.mjs",
     "probe:swipe": "node scripts/probes/swipe-yield-probe.mjs",
     "probe:session-delete": "node scripts/probes/session-delete-probe.mjs",
+    "probe:jobs-chip": "node scripts/probes/jobs-chip-probe.mjs",
     "probe:pointer-gating": "node scripts/probes/pointer-gating-probe.mjs",
     "probe:panel-font": "node scripts/probes/panel-and-font-axis-probe.mjs",
     "probe:composer-plus": "node scripts/probes/composer-plus-probe.mjs",

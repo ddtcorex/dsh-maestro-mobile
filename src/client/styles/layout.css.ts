@@ -874,7 +874,11 @@ export const LAYOUT_CSS = `/* ---------- mobile-only layout ---------- */
        flexible one, so a long title ellipsizes instead of pushing out. */
     flex: 1 1 auto !important;
     min-width: 0;
-    gap: 2px;
+    /* The row's 8px rhythm, held as a floor rather than as the gap it actually
+       paints: the actions cluster is right-pinned, so this only decides how
+       close a crowded title may come to the first chip (measured 2px before,
+       mobile report 2026-09-24). */
+    gap: 8px;
     box-sizing: border-box;
     width: 100%;
     /* Clears the jutting toggle (16..44 abs against row at 24) with one 8px
@@ -912,16 +916,26 @@ export const LAYOUT_CSS = `/* ---------- mobile-only layout ---------- */
   [data-mobile-nav="frame"] [data-phase] [data-slot="conversation.session.header"] [class*="_crumbs"] [class*="_separator"] {
     display: none !important;
   }
-  /* Actions cluster: single row, right-aligned, never wraps into the tabs. */
-  [data-mobile-nav="frame"] [data-phase] [data-slot="conversation.session.header"] [class*="_headerActions"] {    display: flex !important;
+  /* Actions cluster: single row, right-aligned, never wraps into the tabs.
+     One 8px gap for every resident, so the lineage chip, the jobs chip, the
+     mode icon and the corner toggle all sit on the row's own 8px rhythm. A
+     per-root gutter instead made each gap depend on which neighbour happened
+     to be a trigger root: measured 8px then 2px around the mode icon at 390px
+     (mobile report 2026-09-24). */
+  [data-mobile-nav="frame"] [data-phase] [data-slot="conversation.session.header"] [class*="_headerActions"] {
+    display: flex !important;
     align-items: center;
     box-sizing: border-box;
-    flex: 0 1 auto;
+    /* Never shrink: a shrinking band compresses the chips instead of the title
+       it is meant to yield (measured 51.4px for 54px of content, which slid the
+       first chip under the band's own left edge). The crumbs lane is the
+       flexible one, so a crowded header ellipsizes the title. */
+    flex: 0 0 auto;
     min-width: 0;
     max-width: calc(100% - 32px);
     margin-left: auto;
     justify-content: flex-end;
-    gap: 2px;
+    gap: 8px;
   }
   /* Mode label: icon-only on phones, hidden on very small ones. Unconditional
      below 440px — the old conditional guards keyed on the lineage living in
@@ -1074,8 +1088,12 @@ export const LAYOUT_CSS = `/* ---------- mobile-only layout ---------- */
     white-space: nowrap !important;
   }
   /* Lineage root gap + jobs menu dock + popover clamp, re-anchored (the
-     pre-0.1.7 rules above carry the rationale). */
-  [data-mobile-nav="frame"] [data-phase] [data-slot="conversation.session.header"] [class*="_root"]:not([class*="_switcherRoot"]):has(> button[class*="_trigger"]) {
+     pre-0.1.7 rules above carry the rationale). The gutter covers a lineage
+     chip rendered inside a crumb, beside that crumb's own title, where the
+     crumb's 2px gap is the only other spacing; the band's chips are spaced by
+     the band gap instead, and adding this gutter there would space them by
+     which neighbour a chip has (see the actions-cluster rule). */
+  [data-mobile-nav="frame"] [data-phase] [data-slot="conversation.session.header"] [class*="_crumbs"] [class*="_root"]:not([class*="_switcherRoot"]):has(> button[class*="_trigger"]) {
     margin-left: 6px !important;
   }
   [data-mobile-nav="frame"] [data-phase] [data-slot="conversation.session.header"] [class*="_root"]:has(> [data-mobile-nav="jobs"]) > ul[class*="_menu"] {
