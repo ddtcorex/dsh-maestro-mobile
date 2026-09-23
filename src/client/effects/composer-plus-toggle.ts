@@ -293,6 +293,7 @@ export function installComposerPlusToggle(ctx: ClientContext): void {
       }
       stopMenuWatch()
       shadow.restore()
+      publishShadowState(false)
     }
 
     /** Restore as soon as the menu is gone (checked per mutation batch). */
@@ -304,8 +305,18 @@ export function installComposerPlusToggle(ctx: ClientContext): void {
       menuWatcher.observe(document.documentElement, { childList: true, subtree: true })
     }
 
+    /**
+     * Mirror the shadow's state onto <html>. Cheaper than reaching into the
+     * effect from the debug badge, and it makes "was the tap's focus blocked?"
+     * readable on a phone screenshot (?dsh-maestro-mobile-debug=1).
+     */
+    const publishShadowState = (armed: boolean): void => {
+      document.documentElement.toggleAttribute('data-mobile-nav-focus-shadow', armed)
+    }
+
     const armShadow = (): void => {
       shadow.arm()
+      publishShadowState(shadow.armed)
       if (shadowCap !== null) window.clearTimeout(shadowCap)
       shadowCap = window.setTimeout(() => {
         shadowCap = null

@@ -10,6 +10,24 @@ const TRACE_TYPES = ['pointerdown', 'touchstart', 'mousedown', 'mouseup', 'click
 /** How many trace lines the frozen report keeps. */
 const TRACE_LIMIT = 22
 
+/**
+ * Live state that explains a phone-side jump: the visual viewport (the keyboard
+ * shrinks it), the composer seat's top edge (the row that visibly moves), the
+ * focus-shadow state (whether the tap's focus was blocked) and the active
+ * element. Recorded per event and by the sampler below, because the interesting
+ * movement happens between events.
+ */
+function stateStamp(): string {
+  const viewport = window.visualViewport
+  const vv = viewport === undefined || viewport === null ? -1 : Math.round(viewport.height)
+  const seat = document.querySelector('[data-composer-seat]')
+  const seatTop = seat === null ? -1 : Math.round(seat.getBoundingClientRect().top)
+  const shadow = document.documentElement.hasAttribute('data-mobile-nav-focus-shadow') ? 1 : 0
+  const active = document.activeElement
+  const activeTag = active === null ? 'null' : active.tagName.toLowerCase()
+  return `vv=${vv}/${innerHeight} seat=${seatTop} sh=${shadow} af=${activeTag}`
+}
+
 /** Compact one-line description of an event target. */
 function describeNode(node: unknown): string {
   if (node === null || node === undefined) return 'null'
@@ -75,13 +93,13 @@ export function installDebugBadge(ctx: ClientContext): void {
       const pointer = (event as PointerEvent).pointerType
       const related = event instanceof FocusEvent ? ` ->${describeNode(event.relatedTarget)}` : ''
       const prevented = event.defaultPrevented ? ' PREVENTED' : ''
-      push(`${type}${pointer === undefined ? '' : `/${pointer}`} ${describeNode(event.target)}${related}${prevented} | menu=${menuCount()} active=${describeNode(document.activeElement)}`)
+      push(`${type}${pointer === undefined ? '' : `/${pointer}`} ${describeNode(event.target)}${related}${prevented} | menu=${menuCount()} ${stateStamp()}`)
     }
     // Capture phase records every event; the bubble-phase twin exists only when
     // nothing stopped propagation, which is what exposes a swallowing listener.
     const onTraceTail = (type: string, event: Event): void => {
       const pointer = (event as PointerEvent).pointerType
-      push(`${type}^${pointer === undefined ? '' : `/${pointer}`} reached-document${event.defaultPrevented ? ' PREVENTED' : ''}`)
+      push(`${type}^${pointer === undefined ? '' : `/${pointer}`} reached-document${event.defaultPrevented ? ' PREVENTED' : ''} ${stateStamp()}`)
     }
     const captureHandlers = TRACE_TYPES.map((type) => {
       const handler = (event: Event) => onTrace(type, event)
@@ -93,6 +111,27 @@ export function installDebugBadge(ctx: ClientContext): void {
     })
     for (const { type, handler } of captureHandlers) document.addEventListener(type, handler, true)
     for (const { type, handler } of tailHandlers) document.addEventListener(type, handler)
+
+    // The jump a phone user reports happens BETWEEN events (the keyboard slides,
+    // the sticky seat follows it), so sample the same state on a short ladder
+    // after a tap on the composer "+" and label each sample with its delay.
+    const SAMPLE_DELAYS_MS = [0, 60, 120, 250, 450, 800] as const
+    let sampling = false
+    const onSampleTrigger = (event: Event): void => {
+      if (sampling) return
+      const target = event.target
+      if (!(target instanceof Element)) return
+      if (target.closest('[data-composer-card] button[aria-haspopup="listbox"]') === null) return
+      sampling = true
+      for (const delay of SAMPLE_DELAYS_MS) {
+        window.setTimeout(() => {
+          push(`SAMPLE+${delay}ms menu=${menuCount()} ${stateStamp()}`)
+          if (delay === SAMPLE_DELAYS_MS[SAMPLE_DELAYS_MS.length - 1]) sampling = false
+        }, delay)
+      }
+    }
+    document.addEventListener('pointerdown', onSampleTrigger, true)
+    document.addEventListener('click', onSampleTrigger, true)
 
     // --- report ------------------------------------------------------------
     const read = (): string => {
@@ -167,6 +206,8 @@ export function installDebugBadge(ctx: ClientContext): void {
       document.removeEventListener('click', onClickBadge)
       for (const { type, handler } of captureHandlers) document.removeEventListener(type, handler, true)
       for (const { type, handler } of tailHandlers) document.removeEventListener(type, handler)
+      document.removeEventListener('pointerdown', onSampleTrigger, true)
+      document.removeEventListener('click', onSampleTrigger, true)
       observer.disconnect()
       clearInterval(timer)
       badge.remove()
