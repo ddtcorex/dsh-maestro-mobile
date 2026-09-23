@@ -268,6 +268,27 @@ async function main() {
       }
     }
 
+    /**
+     * The armed history entry must be given back once the panel is gone: a stray
+     * entry swallows the user's next back press. Wait for the traversal to settle
+     * rather than sampling once.
+     */
+    const expectEntryReleased = async (label) => {
+      try {
+        await waitFor(label, timeoutMs, async () => {
+          const state = await safePanelState(client)
+          if (state.navigatedAway) return null
+          return state.panelEntry ? null : state
+        })
+        pass(label, 'no stray entry')
+      } catch (error) {
+        const state = await safePanelState(client)
+        fail(label, state.navigatedAway
+          ? 'the page navigated away'
+          : `panelEntry=${state.panelEntry} (${error instanceof Error ? error.message : String(error)})`)
+      }
+    }
+
     // Route 1: open a panel from the drawer.
     await openDrawer(client, timeoutMs)
     const label = await clickUnselectedPanelRow(client)
@@ -301,10 +322,11 @@ async function main() {
     // state check below reports it as a row.
     await client.evaluate('history.back()').catch(() => {})
     await expectBackFromPanel('panel.back-exits')
-    const afterBack = await safePanelState(client)
-    if (afterBack.navigatedAway) fail('panel.back-gives-entry-back', 'the back key left the page: no exit route armed')
-    else if (afterBack.panelEntry) fail('panel.back-gives-entry-back', `panelEntry=${afterBack.panelEntry}`)
-    else pass('panel.back-gives-entry-back', 'no stray entry')
+    // history.back() is a traversal, not a synchronous assignment: the entry can
+    // still carry the marker for a frame or two after the panel is already gone.
+    // Assert the settled state, or the row races the browser (observed as a
+    // flaky FAIL with panelEntry=true on an exit that worked).
+    await expectEntryReleased('panel.back-gives-entry-back')
 
     // Route 3: re-tap the already-selected panel row.
     await openDrawer(client, timeoutMs)
@@ -325,10 +347,7 @@ async function main() {
       if (!retapped) fail('panel.retap-exits', 'no selected panel row to re-tap')
       else await expectBackFromPanel('panel.retap-exits')
     }
-    const afterRetap = await safePanelState(client)
-    if (afterRetap.navigatedAway) fail('panel.retap-gives-entry-back', 'the page navigated away')
-    else if (afterRetap.panelEntry) fail('panel.retap-gives-entry-back', `panelEntry=${afterRetap.panelEntry}`)
-    else pass('panel.retap-gives-entry-back', 'no stray entry')
+    await expectEntryReleased('panel.retap-gives-entry-back')
   } finally {
     client?.close()
     chrome.kill('SIGKILL')
