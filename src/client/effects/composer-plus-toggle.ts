@@ -1,4 +1,5 @@
 import type { Context as ClientContext } from '@deepseek-ai/cordis'
+import { createFocusShadow } from './editor-focus-shadow.ts'
 import { installMobileEffect } from './phone-chrome.ts'
 
 /**
@@ -89,6 +90,15 @@ export function isEditorSurface(target: Element | null): boolean {
  * whole ladder.
  */
 export const FOCUS_RELEASE_DELAYS_MS = [120, 320, 640] as const
+
+/**
+ * Hard cap on the focus shadow. Every path that arms it also has a normal
+ * release (next tap, menu closed, dispose); this is the backstop that makes a
+ * stuck shadow impossible - a shadow that outlives the interaction is worse than
+ * the keyboard bug it prevents, because the user can no longer focus the editor
+ * at all.
+ */
+export const FOCUS_SHADOW_MAX_MS = 1500
 
 /**
  * Is this event target (or an ancestor of it) the composer "+" button?
@@ -185,33 +195,99 @@ export function installComposerPlusToggle(ctx: ClientContext): void {
     let openBeforeClick = false
     /** Pending focus-release timers while the command menu is open. */
     let releaseTimers: number[] = []
+    /**
+     * Blocks the host's programmatic `editor.focus()` for the length of the
+     * "+" interaction. Measured on iOS: a blur after the fact does NOT take the
+     * keyboard back, because the keyboard follows DOM focus and is already up
+     * by then — the only thing that works is never letting that focus land.
+     * See editor-focus-shadow.ts for the never-restored failure mode this
+     * helper is built to avoid.
+     */
+    const shadow = createFocusShadow(() => editorElement())
+    /** Hard cap: whatever happens, the shadow lifts. */
+    let shadowCap: number | null = null
+    /**
+     * Watches for the menu leaving the DOM while the shadow is armed. The shadow
+     * must lift the moment the interaction is over, and the ladder's ticks are
+     * too coarse to guarantee that: a probe (or a fast user) can observe the menu
+     * already gone while the next tick is still ~100ms away, and until the shadow
+     * lifts the editor cannot be focused at all.
+     */
+    let menuWatcher: MutationObserver | null = null
 
     const cancelRelease = (): void => {
       for (const id of releaseTimers) window.clearTimeout(id)
       releaseTimers = []
     }
 
+    const stopMenuWatch = (): void => {
+      menuWatcher?.disconnect()
+      menuWatcher = null
+    }
+
+    const restoreShadow = (): void => {
+      if (shadowCap !== null) {
+        window.clearTimeout(shadowCap)
+        shadowCap = null
+      }
+      stopMenuWatch()
+      shadow.restore()
+    }
+
+    /** Restore as soon as the menu is gone (checked per mutation batch). */
+    const startMenuWatch = (): void => {
+      if (menuWatcher !== null) return
+      menuWatcher = new MutationObserver(() => {
+        if (openMenu() === null) restoreShadow()
+      })
+      menuWatcher.observe(document.documentElement, { childList: true, subtree: true })
+    }
+
+    const armShadow = (): void => {
+      shadow.arm()
+      if (shadowCap !== null) window.clearTimeout(shadowCap)
+      shadowCap = window.setTimeout(() => {
+        shadowCap = null
+        shadow.restore()
+      }, FOCUS_SHADOW_MAX_MS)
+    }
+
     /**
-     * A finger on the editor means "I want to type", so every pending release is
-     * dropped immediately; a finger on the "+" releases the editor before the
-     * browser even synthesizes the click, which is what stops Android from
-     * re-raising the just-dismissed IME.
+     * A finger on the editor means "I want to type": every pending release is
+     * dropped and the shadow lifts, so focus works again immediately. A finger on
+     * the "+" releases the editor and shadows its focus before the browser even
+     * synthesizes the click, which is what stops the IME from coming back. Any
+     * other tap means the user moved on, so the shadow lifts too — that keeps the
+     * override from outliving the interaction (and lets a menu pick restore the
+     * caret, which is the host's own focus path).
      */
     const onPointerDown = (event: Event): void => {
       const target = event.target
       if (!(target instanceof Element)) return
       if (isEditorSurface(target)) {
         cancelRelease()
+        restoreShadow()
         return
       }
-      if (isComposerAddButton(target)) dropEditorFocus()
+      if (isComposerAddButton(target)) {
+        dropEditorFocus()
+        armShadow()
+        return
+      }
+      restoreShadow()
     }
 
     const onClickCapture = (event: Event): void => {
-      openBeforeClick =
-        event.target instanceof Element &&
-        isComposerAddButton(event.target) &&
-        openMenu() !== null
+      const onAdd = event.target instanceof Element && isComposerAddButton(event.target)
+      openBeforeClick = onAdd && openMenu() !== null
+      if (!onAdd) return
+      // Capture runs before React's root-delegated onClick, which is where the
+      // host focuses the editor. Arming here (and not only on pointerdown) is
+      // what makes the keyboard stay down for a click path with no pointerdown
+      // at all — a synthetic click, an assistive-technology activation, or a
+      // shell that synthesizes the click without a matching pointer sequence.
+      dropEditorFocus()
+      armShadow()
     }
 
     const onClickBubble = (event: Event): void => {
@@ -221,14 +297,26 @@ export function installComposerPlusToggle(ctx: ClientContext): void {
       // React's root-delegated onClick has already run: if the menu survived it,
       // the host's close branch lost the launcher and we close it here.
       if (shouldCloseCommandMenu(wasOpen, openMenu() !== null)) escapeEditor()
-      // The host re-focuses the editor from that same onClick; keep releasing it
-      // for as long as the menu is on screen, and let a tap on the editor end
-      // the ladder (see onPointerDown).
+      // The host re-focuses the editor from that same onClick (now a no-op) and
+      // may do it again from a menu effect; keep both defences running while the
+      // menu is on screen, and lift the shadow as soon as it is gone.
       cancelRelease()
+      if (openMenu() === null) {
+        // The tap closed the menu (or never opened one): nothing is left to
+        // defend, so give focus back on the next task rather than waiting for the
+        // ladder. The editor must be focusable again the moment the interaction
+        // is over.
+        window.setTimeout(() => {
+          if (openMenu() === null) restoreShadow()
+        }, 0)
+      } else {
+        startMenuWatch()
+      }
       for (const delay of FOCUS_RELEASE_DELAYS_MS) {
         releaseTimers.push(
           window.setTimeout(() => {
             if (openMenu() !== null) dropEditorFocus()
+            else restoreShadow()
           }, delay),
         )
       }
@@ -239,6 +327,8 @@ export function installComposerPlusToggle(ctx: ClientContext): void {
     document.addEventListener('click', onClickBubble, false)
     return () => {
       cancelRelease()
+      restoreShadow()
+      stopMenuWatch()
       document.removeEventListener('pointerdown', onPointerDown, true)
       document.removeEventListener('click', onClickCapture, true)
       document.removeEventListener('click', onClickBubble, false)

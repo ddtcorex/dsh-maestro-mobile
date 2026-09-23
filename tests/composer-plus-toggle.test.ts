@@ -5,6 +5,7 @@ import {
   ADD_BUTTON_SELECTOR,
   EDITOR_SELECTOR,
   FOCUS_RELEASE_DELAYS_MS,
+  FOCUS_SHADOW_MAX_MS,
   isComposerAddButton,
   isEditorSurface,
   menuIsVisible,
@@ -122,4 +123,12 @@ test('the effect is installed by the client entry point', () => {
   const entry = readFileSync(new URL('../src/client/index.tsx', import.meta.url), 'utf8')
   assert.match(entry, /installComposerPlusToggle\(ctx\)/)
   assert.match(entry, /from '\.\/effects\/composer-plus-toggle\.ts'/)
+})
+
+test('the focus shadow is bounded, so a stuck override is impossible', () => {
+  // The shadow blocks the host's programmatic focus(); the cap is what keeps it
+  // from outliving the interaction (the community plugin shipped an unbounded
+  // guard and the editor could never be focused again).
+  assert.ok(FOCUS_SHADOW_MAX_MS > FOCUS_RELEASE_DELAYS_MS[FOCUS_RELEASE_DELAYS_MS.length - 1]!)
+  assert.ok(FOCUS_SHADOW_MAX_MS <= 3000, 'the override must not survive the interaction by long')
 })

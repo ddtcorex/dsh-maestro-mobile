@@ -8,11 +8,11 @@
 // host its own closing Escape; without it the menu simply stays open — which is
 // exactly what this probe asserts, and why it fails on the pre-fix bundle.
 //
-// The same button's focus/IME half is reported as INFO, never as a gate: headless
-// Chrome's synthesized touch hands DOM focus to the button (which the host's
-// caret span does not survive), so the focus timeline here is evidence, and the
-// phone check in docs/upstream/upgrade-runbook.md §5 stays authoritative for the
-// keyboard itself.
+// The same button's focus half IS gated here as far as headless allows: while the
+// menu is open the editor must not hold DOM focus (the host's programmatic
+// focus() is shadowed), and after the interaction that shadow must be gone so the
+// editor can be focused again. The IME itself cannot be emulated - the phone check
+// in docs/upstream/upgrade-runbook.md §5 stays authoritative for it.
 //
 // Env: DSH_PROBE_URL (default http://127.0.0.1:3082/?token=…),
 //      DSH_PROBE_SESSION_ID (required), DSH_PROBE_CHROME (default chromium),
@@ -36,7 +36,6 @@ const report = (status, name, detail = '') => {
 }
 const pass = (name, detail = '') => report('PASS', name, detail)
 const fail = (name, detail = '') => report('FAIL', name, detail)
-const info = (name, detail = '') => report('INFO', name, detail)
 
 function allocatePort() {
   return new Promise((resolvePort, reject) => {
@@ -129,12 +128,11 @@ const clickAdd = (client) =>
   })()`)
 
 /**
- * The editor-focus face of the same button, reported as INFO only: the soft
- * keyboard attaches to whatever holds DOM focus, but the host re-focuses the
- * editor on its own schedule (observed again after the release ladder ends), so
- * this cannot discriminate a fix from a regression headless. It is recorded as
- * evidence, not as a gate — the IME behaviour itself is verified on a phone
- * (docs/upstream/upgrade-runbook.md §5).
+ * The editor-focus face of the same button. The soft keyboard attaches to
+ * whatever holds DOM focus, so "menu open AND the editor does not hold focus"
+ * is the headless statement of "tapping + did not raise the keyboard". It only
+ * became a gate once the host's programmatic focus() was shadowed: before that
+ * the host re-focused the editor within a frame and the row could never pass.
  */
 const FOCUS_STATE = `(() => {
   const editor = document.querySelector('[data-composer-input]');
@@ -288,16 +286,24 @@ async function main() {
     // 1st tap: the host opens its menu.
     let ok = await tapAndExpect('composer.plus-opens', true)
     if (ok) {
-      // Evidence for the IME half of the fix: the release ladder should take the
-      // DOM focus off the editor early, and the host may take it back later —
-      // neither state is asserted, because a phone (not this synthetic click)
-      // decides whether the IME follows. See FOCUS_STATE and runbook §5.
-      const timeline = []
-      for (const delay of [200, 800]) {
-        await sleep(delay === 200 ? 200 : 600)
-        timeline.push({ at: `${delay}ms`, ...(await focusState(client).catch(() => ({}))) })
+      // The keyboard half of the fix: while the menu is on screen the editor must
+      // NOT hold DOM focus, because on iOS the keyboard follows DOM focus and a
+      // later blur does not take it back. This is the strongest headless
+      // statement of "tapping + does not raise the keyboard" - the IME itself
+      // still needs a device pass (runbook §5).
+      // Sampled at a FIXED moment, after the last release tick (640ms), because
+      // the steady state is what matters: a wait-until-unfocused loop would pass
+      // on the release ladder alone (each blur makes the editor unfocused for an
+      // instant before the host focuses it again) and would never prove the
+      // shadow. At 900ms the only thing that can keep the editor unfocused is
+      // the host's own focus() being neutralised.
+      await sleep(900)
+      const held = await focusState(client).catch(() => null)
+      if (held !== null && held.menuVisible && !held.editorFocused) {
+        pass('composer.plus-keeps-editor-unfocused', `at 900ms ${JSON.stringify(held)}`)
+      } else {
+        fail('composer.plus-keeps-editor-unfocused', `at 900ms ${JSON.stringify(held)}`)
       }
-      info('composer.focus-after-tap', JSON.stringify(timeline))
     }
     // 2nd tap: THE regression gate. Pre-fix the host re-opens instead of closing.
     if (ok) ok = await tapAndExpect('composer.plus-closes', false)
@@ -305,6 +311,21 @@ async function main() {
     if (ok) ok = await tapAndExpect('composer.plus-reopens', true)
     // 4th tap: and closing still works on the re-opened menu.
     if (ok) ok = await tapAndExpect('composer.plus-closes-again', false)
+
+    // The override must lift: a guard that never disarms is worse than the bug it
+    // fixes (the editor could never be focused again - the community plugin
+    // shipped exactly that). Focusing the editor programmatically must work.
+    const restored = await client.evaluate(`(() => {
+      const editor = document.querySelector('[data-composer-input]');
+      if (editor === null) return { editor: false };
+      editor.focus();
+      return { editor: true, focused: document.activeElement === editor };
+    })()`)
+    if (restored.editor === true && restored.focused === true) {
+      pass('composer.editor-focus-restored', 'programmatic focus works after the interaction')
+    } else {
+      fail('composer.editor-focus-restored', JSON.stringify(restored))
+    }
   } finally {
     client?.close()
     chrome.kill('SIGKILL')
@@ -313,10 +334,7 @@ async function main() {
   }
 
   const failures = results.filter((entry) => entry.status === 'FAIL').length
-  console.log(
-    `SUMMARY pass=${results.filter((entry) => entry.status === 'PASS').length} fail=${failures}`
-    + ` info=${results.filter((entry) => entry.status === 'INFO').length}`,
-  )
+  console.log(`SUMMARY pass=${results.filter((entry) => entry.status === 'PASS').length} fail=${failures}`)
   process.exitCode = failures > 0 ? 1 : 0
 }
 
