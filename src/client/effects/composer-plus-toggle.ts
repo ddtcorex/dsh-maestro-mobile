@@ -51,10 +51,22 @@ import { installMobileEffect } from './phone-chrome.ts'
  * tap had just dismissed. Android then slides the composer row up by the
  * keyboard height and the user's second tap lands on the keyboard (measured
  * upstream: visual viewport 754 -> 471 about 170ms after the tap, with the page
- * receiving no DOM event at all). So a tap on "+" releases the editor focus
- * before the click even fires, and the release is repeated at
- * `FOCUS_RELEASE_DELAYS_MS` while the menu is on screen to defeat the host's own
- * late re-focus — cancelled the moment the user touches the editor.
+ * receiving no DOM event at all).
+ *
+ * Two defences, and the ORDER matters for what the user sees:
+ *  1. the editor's programmatic `focus` is neutralised for the interaction
+ *     (editor-focus-shadow.ts), so the host cannot re-focus at all; and
+ *  2. the editor is blurred on the tap — but ONLY while the keyboard is already
+ *     hidden.
+ *
+ * The condition on (2) is the difference between fixing the bug and creating a
+ * worse one. Blurring an editor whose keyboard is UP starts the hide animation,
+ * and the keyboard is the composer's floor: the whole row slides down under the
+ * user's finger while they are still typing (reported on iOS as "the composer
+ * jumps on the first tap"). Blurring an editor whose keyboard is already DOWN is
+ * the state upstream measured the IME *re-rising* from, and there the blur is
+ * what keeps the row still. So: never take the keyboard away from someone who is
+ * using it, and never let it come back for someone who is not.
  */
 
 /** The host's "+" button: the composer capsule's own listbox popup trigger. */
@@ -156,13 +168,62 @@ function editorElement(): HTMLElement | null {
 }
 
 /**
- * Release the editor's DOM focus so the soft keyboard has nothing to attach to.
- * A no-op when the editor is not the active element, so a mouse user who is
- * typing is never disturbed.
+ * Inset, in CSS pixels, above which the visual viewport is treated as shrunk by
+ * a soft keyboard. iOS keyboards take ~300px and Android ~250px; an address bar
+ * collapsing takes ~60px, so the threshold sits safely between them.
+ */
+export const KEYBOARD_MIN_INSET_PX = 120
+
+/**
+ * Whether the soft keyboard is currently up, read from the visual viewport.
+ *
+ * Pure and injectable so the decision table is unit-testable without a browser.
+ * The zoom guard matters: a pinch shrinks the visual viewport too, and treating
+ * that as a keyboard would skip the blur while the user is zoomed.
+ * @param viewport - the visual viewport metrics, or null when unsupported.
+ * @returns true when a keyboard appears to occupy part of the screen.
+ */
+export function keyboardIsVisible(
+  viewport: { height: number; scale: number } | null,
+  innerHeight: number,
+): boolean {
+  if (viewport === null) return false
+  if (viewport.scale > 1.01) return false
+  return innerHeight - viewport.height > KEYBOARD_MIN_INSET_PX
+}
+
+/**
+ * Should the tap release the editor's DOM focus?
+ *
+ * Only when the editor holds focus AND the keyboard is already hidden: that is
+ * the state the IME re-rises from, and the blur is what keeps the composer row
+ * still. Blurring while the keyboard is up would start hiding it, which moves the
+ * composer under the user's finger — the jump reported on iOS.
+ * @param editorFocused - the editor is the active element.
+ * @param keyboardVisible - the soft keyboard is up.
+ * @returns true when the focus must be released.
+ */
+export function shouldDropEditorFocus(editorFocused: boolean, keyboardVisible: boolean): boolean {
+  return editorFocused && !keyboardVisible
+}
+
+/** The visual viewport metrics, or null where the API is missing. */
+function visualViewportMetrics(): { height: number; scale: number } | null {
+  const viewport = window.visualViewport
+  if (viewport === null || viewport === undefined) return null
+  return { height: viewport.height, scale: viewport.scale }
+}
+
+/**
+ * Release the editor's DOM focus so the soft keyboard has nothing to attach to —
+ * unless the keyboard is up, in which case releasing it is what makes the
+ * composer jump (see shouldDropEditorFocus).
  */
 function dropEditorFocus(): void {
   const editor = editorElement()
-  if (editor !== null && document.activeElement === editor) editor.blur()
+  if (editor === null) return
+  if (!shouldDropEditorFocus(document.activeElement === editor, keyboardIsVisible(visualViewportMetrics(), window.innerHeight))) return
+  editor.blur()
 }
 
 /**

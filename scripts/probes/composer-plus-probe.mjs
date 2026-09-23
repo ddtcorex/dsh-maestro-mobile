@@ -312,6 +312,53 @@ async function main() {
     // 4th tap: and closing still works on the re-opened menu.
     if (ok) ok = await tapAndExpect('composer.plus-closes-again', false)
 
+    // The "typing" state: keyboard UP, editor focused. Tapping "+" here must NOT
+    // release the focus, because the keyboard is the composer's floor - blurring
+    // it starts the hide animation and the row slides down under the finger (the
+    // jump reported on iOS for the FIRST tap only). The keyboard is faked by
+    // shrinking the visual viewport, which is exactly what the plugin reads.
+    const emulated = await client.evaluate(`(() => {
+      const editor = document.querySelector('[data-composer-input]');
+      if (editor === null) return { editor: false };
+      const original = Object.getOwnPropertyDescriptor(window, 'visualViewport') || null;
+      window.__dshProbeViewport = original;
+      const height = Math.max(1, window.innerHeight - 320);
+      Object.defineProperty(window, 'visualViewport', {
+        configurable: true,
+        value: { height, scale: 1, width: window.innerWidth, offsetTop: 0, offsetLeft: 0, pageTop: 0, pageLeft: 0,
+          addEventListener() {}, removeEventListener() {} },
+      });
+      editor.focus();
+      return { editor: true, original: original !== null, focused: document.activeElement === editor, height };
+    })()`)
+    if (emulated.editor !== true || emulated.focused !== true) {
+      fail('composer.plus-keeps-focus-when-keyboard-up', `could not set up the typing state ${JSON.stringify(emulated)}`)
+    } else {
+      await clickAdd(client)
+      const opened2 = await waitFor('menu open in the typing state', timeoutMs, async () => {
+        const state = await menuState(client)
+        return state.visible ? state : null
+      }).catch(() => null)
+      const focusAfter = await focusState(client).catch(() => null)
+      if (opened2 === null) fail('composer.plus-keeps-focus-when-keyboard-up', 'the menu did not open')
+      else if (focusAfter === null || focusAfter.editorFocused !== true) {
+        fail('composer.plus-keeps-focus-when-keyboard-up', `the tap released the focus ${JSON.stringify(focusAfter)}`)
+      } else {
+        pass('composer.plus-keeps-focus-when-keyboard-up', `keyboard inset ${emulated.height}px, editor still focused, menu open`)
+      }
+      // Close the menu again and put the real viewport back.
+      await clickAdd(client)
+      await waitFor('menu closed after the typing-state tap', timeoutMs, async () => {
+        const state = await menuState(client)
+        return state.visible ? null : state
+      }).catch(() => null)
+      await client.evaluate(`(() => {
+        const original = window.__dshProbeViewport;
+        delete window.__dshProbeViewport;
+        if (original !== null && original !== undefined) Object.defineProperty(window, 'visualViewport', original);
+      })()`)
+    }
+
     // The override must lift: a guard that never disarms is worse than the bug it
     // fixes (the editor could never be focused again - the community plugin
     // shipped exactly that). Focusing the editor programmatically must work.

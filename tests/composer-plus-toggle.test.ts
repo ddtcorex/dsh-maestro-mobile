@@ -6,6 +6,9 @@ import {
   EDITOR_SELECTOR,
   FOCUS_RELEASE_DELAYS_MS,
   FOCUS_SHADOW_MAX_MS,
+  KEYBOARD_MIN_INSET_PX,
+  keyboardIsVisible,
+  shouldDropEditorFocus,
   isComposerAddButton,
   isEditorSurface,
   menuIsVisible,
@@ -131,4 +134,30 @@ test('the focus shadow is bounded, so a stuck override is impossible', () => {
   // guard and the editor could never be focused again).
   assert.ok(FOCUS_SHADOW_MAX_MS > FOCUS_RELEASE_DELAYS_MS[FOCUS_RELEASE_DELAYS_MS.length - 1]!)
   assert.ok(FOCUS_SHADOW_MAX_MS <= 3000, 'the override must not survive the interaction by long')
+})
+
+test('the blur is skipped while the keyboard is up, so the composer cannot jump', () => {
+  // Reported on iOS after the first fix: the FIRST tap moved the composer row,
+  // because blurring an editor whose keyboard is up starts the hide animation and
+  // the keyboard is the composer's floor. Later taps looked fine only because the
+  // keyboard was already down.
+  assert.equal(shouldDropEditorFocus(true, true), false)
+  assert.equal(shouldDropEditorFocus(true, false), true)
+  // Nothing focused: nothing to release.
+  assert.equal(shouldDropEditorFocus(false, false), false)
+  assert.equal(shouldDropEditorFocus(false, true), false)
+})
+
+test('the keyboard signal reads the visual viewport, not the layout viewport', () => {
+  // No API: treat the keyboard as hidden (the blur is the safe default).
+  assert.equal(keyboardIsVisible(null, 844), false)
+  // Keyboard up: the visual viewport shrinks by the keyboard height.
+  assert.equal(keyboardIsVisible({ height: 471, scale: 1 }, 844), true)
+  assert.equal(keyboardIsVisible({ height: 844 - KEYBOARD_MIN_INSET_PX - 1, scale: 1 }, 844), true)
+  // An address bar collapsing (~60px) is not a keyboard.
+  assert.equal(keyboardIsVisible({ height: 844 - 60, scale: 1 }, 844), false)
+  assert.equal(keyboardIsVisible({ height: 844 - KEYBOARD_MIN_INSET_PX, scale: 1 }, 844), false)
+  // A pinch shrinks the visual viewport too, and must not be read as a keyboard:
+  // that would skip the blur exactly when the user is zoomed in.
+  assert.equal(keyboardIsVisible({ height: 400, scale: 2.5 }, 844), false)
 })
