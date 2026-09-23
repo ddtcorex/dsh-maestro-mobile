@@ -259,7 +259,7 @@
    "owner": "dsh-client-ui-jobs",
    "lazy": true,
    "state": "have a background job running",
-   "note": "jobs chip compacting rule"
+   "note": "jobs chip compacting rule. The trigger carries no marker of its own: it is identified inside the actions band by the roles its neighbours declare (subagent catalog aria-haspopup=tree, Team action aria-haspopup=dialog) plus its own leading count badge or live state dot, which is also what excludes the icon-led schedule catalog. 0.1.7 moved the subagent catalog into the band at order -30, ahead of the jobs control, so the previous read-the-first-accordion rule marked the lineage trigger. A stray data-jobs-count on another control still HITs the scanner while the chip stays wide, so verify with probe:jobs-chip"
   },
   {
    "id": "aionui-explorer",

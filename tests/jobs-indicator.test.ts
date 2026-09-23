@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict'
 import { readFileSync } from 'node:fs'
 import test from 'node:test'
-import { jobsCountFromLabel } from '../src/client/effects/jobs-indicator.ts'
+import { JOBS_TRIGGER, jobsCountFromLabel } from '../src/client/effects/jobs-indicator.ts'
 
 const layout = readFileSync(new URL('../src/client/styles/layout.css.ts', import.meta.url), 'utf8')
 const effect = readFileSync(new URL('../src/client/effects/jobs-indicator.ts', import.meta.url), 'utf8')
@@ -22,13 +22,28 @@ test('the background-job badge count comes from the control accessible name', ()
   assert.equal(jobsCountFromLabel(undefined), 0)
 })
 
-test('the reconciler marks only the session-header jobs control', () => {
-  // The jobs root is the only aria-expanded accordion inside the session
-  // header's actions slot, and the drawer toggle the plugin registers next to
-  // it carries no aria-expanded — so the marker lands on the jobs trigger and
-  // never on the plugin's own control.
-  assert.match(effect, /\[data-slot="conversation\.session\.header\.actions"\]/)
-  assert.match(effect, /button\[class\*="_trigger"\]\[aria-expanded\]/)
+test('the jobs trigger is picked from the band, never as the first accordion', () => {
+  // The band holds up to four aria-expanded accordions: the subagent catalog,
+  // the Team action, the schedule catalog and the jobs control. Reading the
+  // first match stopped being the jobs control in 0.1.7, when the catalog moved
+  // into the band at order -30 and took the marker and its badge with it. Each
+  // clause below removes one other resident — the two popup roles by the
+  // declaration each owner makes, the schedule catalog by its icon-led shape,
+  // which leaves its count badge second instead of first.
+  assert.match(JOBS_TRIGGER, /^\[data-slot="conversation\.session\.header\.actions"\]/)
+  assert.match(JOBS_TRIGGER, /button\[class\*="_trigger"\]\[aria-expanded\]/)
+  assert.match(JOBS_TRIGGER, /:not\(\[aria-haspopup="tree"\]\)/)
+  assert.match(JOBS_TRIGGER, /:not\(\[aria-haspopup="dialog"\]\)/)
+  assert.match(JOBS_TRIGGER, /:has\(> :is\(\[class\*="_count"\], \[class\*="_triggerDot"\]\):first-child\)/)
+})
+
+test('an ambiguous band yields instead of compacting the wrong control', () => {
+  // Two matches mean upstream added a header action that is also icon-less and
+  // count-led, and no rule can say which one owns jobs. The task must then
+  // leave both at upstream's width: compacting the wrong control is exactly the
+  // defect the selector above exists to prevent, and a stale chip is visible.
+  assert.match(effect, /querySelectorAll\(JOBS_TRIGGER\)/)
+  assert.match(effect, /candidates\.length !== 1/)
 })
 
 test('a live job keeps upstream’s animated state dot', () => {
