@@ -305,6 +305,71 @@ async function runCoreScenario(client, config, signal, pageErrors) {
   });
   pass('mobile.pointer-coarse', `coarse=true maxTouchPoints=${mobilePointer.maxTouchPoints}`);
 
+  // Open a session through the UI (single open path - see the boot note): connect
+  // a workspace if the cold-start picker is up, open the drawer, pick a row, and
+  // wait for the composer. The header toggle then exists for the drawer scenario
+  // below, instead of only the hero FAB.
+  const onHero = () => client.evaluate(`document.querySelector('[data-phase="active"]') === null`);
+  const sessionRows = () => client.evaluate(`document.querySelectorAll('[class*="_sessionRow"]').length`);
+  if (await onHero()) {
+    await client.evaluate(`document.querySelector('button[aria-label="Choose workspace"]')?.click()`).catch(() => {});
+    await sleep(400, signal);
+    await client.evaluate(`(() => {
+      const items = [...document.querySelectorAll('[role="menuitem"], [role="option"], li, button')];
+      const target = items.find((item) => (item.textContent ?? '').trim() !== '');
+      if (target === undefined) return false;
+      target.click();
+      return true;
+    })()`).catch(() => {});
+    await sleep(800, signal);
+  }
+  if (!(await client.evaluate(`(() => {
+    const frame = document.querySelector(${JSON.stringify(MOBILE_FRAME_SELECTOR)});
+    return frame !== null && !frame.hasAttribute('data-sidebar-collapsed');
+  })()`).catch(() => false))) {
+    await client.evaluate(`document.querySelector('button[aria-label="Open sidebar"], [data-mobile-nav="fab"], [data-mobile-nav="toggle"]')?.click()`).catch(() => {});
+    await sleep(400, signal);
+  }
+  await waitFor('drawer rows for the session drive', config.timeoutMs, signal, async () => {
+    try {
+      return (await sessionRows()) > 0 ? true : null;
+    } catch {
+      return null;
+    }
+  }).catch(() => null);
+  if ((await sessionRows()) === 0) {
+    // No workspace connected: the sidebar lists workspaces instead of sessions.
+    const workspace = await client.evaluate(`(() => {
+      const rows = [...document.querySelectorAll('[role="treeitem"]')].filter((row) => !/New Session/i.test(row.textContent || ''));
+      const row = rows[0];
+      if (row === undefined) return null;
+      row.click();
+      return (row.textContent || '').trim().slice(0, 30);
+    })()`).catch(() => null);
+    if (workspace !== null) {
+      await sleep(600, signal);
+      await waitFor('session rows after the workspace pick', config.timeoutMs, signal, async () => {
+        try {
+          return (await sessionRows()) > 0 ? true : null;
+        } catch {
+          return null;
+        }
+      }).catch(() => null);
+    }
+  }
+  const sessionPicked = await client.evaluate(`(() => {
+    const rows = [...document.querySelectorAll('[class*="_sessionRow"]')];
+    const usable = rows.filter((candidate) => (candidate.textContent ?? '').trim() !== '' && candidate.querySelector('button') !== null);
+    const row = usable.find((candidate) => !/^Running/.test((candidate.textContent ?? '').trim())) ?? usable[0];
+    if (row === undefined) return { rows: rows.length, picked: null };
+    row.click();
+    return { rows: rows.length, picked: (row.textContent ?? '').trim().slice(0, 30) };
+  })()`).catch(() => ({ rows: -1, picked: null }));
+  if (sessionPicked.picked === null) check('mobile.session-open', false, `no session row to open (rows=${sessionPicked.rows})`);
+  else check('mobile.session-open', true, sessionPicked.picked);
+  await client.evaluate(`document.querySelector('[data-mobile-nav="backdrop"]')?.click()`).catch(() => {});
+  await sleep(400, signal);
+
   // Drawer state: open = backdrop present, frame without data-sidebar-collapsed,
   // first frame child (the drawer) with positive size; closed = collapsed frame
   // and no backdrop.
@@ -899,12 +964,15 @@ async function main() {
       pageErrors.push(url ? `${entry.text} :: ${url}` : entry.text);
     });
 
-    // Inject the current session before the first navigation (no
-    // navigate-then-reload dance): the plugin sees it on first boot.
-    const currentSession = JSON.stringify({ sessionId: config.sessionId });
-    await client.send('Page.addScriptToEvaluateOnNewDocument', {
-      source: `localStorage.setItem('dsh.sessions.current', ${JSON.stringify(currentSession)})`,
-    });
+    // Deliberately NOT seeding localStorage['dsh.sessions.current'] with the
+    // requested session: on this host the restored selection and the probe's own
+    // navigation open the SAME session twice, the app releases the first session
+    // reference while the right sidebar is still awaiting it, and the host logs
+    // "Sidebar Session opening failed: ... is released" - a page error that turned
+    // this probe red for a reason that had nothing to do with the plugin. Measured:
+    // with a valid id the error appears, with an id that cannot be restored the
+    // same drive produces zero errors. The scenario opens a session through the UI
+    // instead, which is a single open path (and exercises the real drawer rows).
     await setViewport(client, 390, 844, true);
     await client.send('Page.navigate', { url: config.url });
 

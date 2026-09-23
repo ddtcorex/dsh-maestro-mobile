@@ -88,11 +88,20 @@ host icon (a broken icon resolver renders nothing), so the run needs at least on
 session row in the drawer; on a host whose sidebar has no session it reports
 `no session row in the drawer` instead of passing quietly.
 
-`probe:panel-font` has one known red row on 0.1.7-alpha.2:
-`font-axis.prose-present` matches no prose because the probe never lands on a
-session whose message cards are rendered (the rule it guards, in
-`layout.css.ts`, is untouched by the panel/composer batch). Fixing it needs a
-session-bearing drive and possibly a fresh selector; it is tracked, not skipped.
+`probe:panel-font` drives a real session itself (the injected
+`dsh.sessions.current` is only a hint on this host - it is not restored on its
+own) and waits for the history to render before measuring the content font axis:
+the conversation shows `Loading history...` until the session log lands, and a
+probe that samples once measures the placeholder. With both waits the axis is
+verifiably live on 0.1.7-alpha.2 (`15px -> 22px`, floor held at 15px).
+`probe:multi-width` and `smoke:cdp` open their session through the drawer for the
+same reason, and `smoke:cdp` no longer seeds `localStorage['dsh.sessions.current']`
+with the requested session: the restored selection and the probe's own
+navigation opened the same session twice, the app released the first session
+reference while the right sidebar still awaited it, and the host logged
+`Sidebar Session opening failed: ... is released` - a page error caused by the
+probe's own boot, not by the plugin (measured: same drive with an unrestorable id
+= zero errors).
 
 `probe:session-delete` reports `SKIP delete.route-live` when the host half has
 not been loaded yet — that route ships from `src/index.ts`, so it needs a
