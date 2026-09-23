@@ -53,6 +53,10 @@ pnpm contracts:cdp
 
 - `MISS` on a non-lazy entry fails the run: that marker/class is gone and the
   rule named in its `note` must be fixed.
+- A `HIT` only says the needle exists in the rendered markup (for a class
+  fragment, in some element's `class` list) — never that a rule owns it or that
+  anything painted. Read the scan as a rename detector and assert "it renders"
+  with a real browser probe (see §3).
 - `SKIP` entries are state-gated. The drawer / row-menu anchors of the delete
   flow are exercised properly by `pnpm probe:session-delete`; the rest list the
   manual state that reveals them (open Settings, type `@`, run a background job,
@@ -66,12 +70,29 @@ pnpm probe:pointer-gating # narrow touch = mobile, narrow mouse = no-op, re-arm 
 pnpm probe:swipe          # swipe control, overlay / selection / drag / pinch yields
 pnpm probe:session-delete # item injection, dialog, Escape-cancel, route liveness
 pnpm probe:panel-font     # panel row collapses the drawer; prose follows the content font axis
+pnpm probe:composer-plus  # composer "+" opens/closes across four taps
+pnpm probe:panel-exit     # panel back face, back key, re-tap exit, history bookkeeping
+pnpm probe:multi-width    # layout tiers, see below
 ```
 
-All five need `DSH_PROBE_URL` (with the current launch token when probing
+All of them need `DSH_PROBE_URL` (with the current launch token when probing
 `:3082`), `DSH_PROBE_SESSION_ID`, and `DSH_PROBE_CHROME`. Add
 `DSH_PROBE_WORKSPACE=<title>` when the cold-start picker must select a specific
 workspace.
+
+The multi-width probe must run at all three tiers in one invocation — phones
+(320/360/390/430), tablets (768/1023) and desktop (1280, touch off) — because a
+value measured on one tier leaking into the next is exactly the regression it
+exists to catch. On the phone and tablet scenes it also reads the header toggle's
+host icon (a broken icon resolver renders nothing), so the run needs at least one
+session row in the drawer; on a host whose sidebar has no session it reports
+`no session row in the drawer` instead of passing quietly.
+
+`probe:panel-font` has one known red row on 0.1.7-alpha.2:
+`font-axis.prose-present` matches no prose because the probe never lands on a
+session whose message cards are rendered (the rule it guards, in
+`layout.css.ts`, is untouched by the panel/composer batch). Fixing it needs a
+session-bearing drive and possibly a fresh selector; it is tracked, not skipped.
 
 `probe:session-delete` reports `SKIP delete.route-live` when the host half has
 not been loaded yet — that route ships from `src/index.ts`, so it needs a

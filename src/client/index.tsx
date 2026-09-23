@@ -4,7 +4,9 @@ import { MobileDrawerFooter } from './components/MobileDrawerFooter.tsx'
 import { ShellOverlay } from './components/ShellOverlay.tsx'
 import { MOBILE_CSS } from './styles/index.ts'
 
-import { installFrameController, installOverlayInteractions, installPhoneChrome, installReconciler, registerReconcileTasks, installIosZoomGuard, MOBILE_QUERY } from './effects/phone-chrome.ts'
+import { installFrameController, installOverlayInteractions, installPhoneChrome, installReconciler, registerReconcileTasks, installIosZoomGuard, addReconcilerTask, MOBILE_QUERY } from './effects/phone-chrome.ts'
+import { createPanelExit, installPanelRowExit } from './effects/panel-exit.ts'
+import { mountPluginStylesheet } from './effects/plugin-stylesheet.ts'
 import { installSubagentChipTouch } from './effects/subagent-chip-touch.ts'
 import { installAionuiCompat } from './effects/aionui-compat.ts'
 import { installLayoutBridge } from './effects/layout-bridge.ts'
@@ -13,6 +15,7 @@ import { installSidebarSwipe } from './effects/sidebar-swipe.ts'
 import { installOverlayMenuTapGuard } from './effects/overlay-menu-tap-guard.ts'
 import { installHeroPresetMenuFix } from './effects/preset-menu-fix.ts'
 import { installComposerKeyboardTouch } from './effects/composer-keyboard-touch.ts'
+import { installComposerPlusToggle } from './effects/composer-plus-toggle.ts'
 import { installSessionMenuDelete } from './effects/session-menu.ts'
 import { installDebugBadge } from './debug.ts'
 import { NS, en, zh } from './i18n/locales.ts'
@@ -37,21 +40,10 @@ export const inject = ['slots', 'layout', 'locale', 'sessionLogDownload', 'sessi
 export function apply(ctx: ClientContext): void {
   ctx.effect(() => ctx.locale.register(NS, { zh, en }), 'dsh-maestro-mobile: dictionaries')
 
-  ctx.effect(() => {
-    const tag = document.createElement('style')
-    tag.dataset.plugin = '@ddtcorex/dsh-maestro-mobile'
-    tag.dataset.pluginCss = '@ddtcorex/dsh-maestro-mobile/mobile.css'
-    tag.textContent = MOBILE_CSS
-    document.head.appendChild(tag)
-    // Keep this stylesheet last in <head> so its overrides win over the
-    // host UI's own styles (some host rules also use !important).
-    setTimeout(() => {
-      if (tag.isConnected) document.head.appendChild(tag)
-    }, 0)
-    return () => {
-      tag.remove()
-    }
-  }, 'dsh-maestro-mobile: styles')
+  ctx.effect(
+    () => mountPluginStylesheet(MOBILE_CSS),
+    'dsh-maestro-mobile: styles',
+  )
 
   // Opt-in diagnostics (?dsh-maestro-mobile-debug=1): live state overlay plus
   // the captured-event trace used to diagnose touch behaviour on a platform
@@ -159,6 +151,14 @@ export function apply(ctx: ClientContext): void {
     }
   }, 'dsh-maestro-mobile: reconciler infrastructure')
 
+  // Sidebar panel exit: a panel REPLACES the conversation and the host ships no
+  // way back, so one shared exit action serves the system back key (a
+  // reconciler task), a re-tap of the already-selected panel row, and the FAB's
+  // exit-panel face. Registered after the reconciler so its task is active.
+  const panelExit = createPanelExit(ctx.layout)
+  ctx.effect(() => addReconcilerTask(panelExit.task), 'dsh-maestro-mobile: panel back exit')
+  installPanelRowExit(ctx, panelExit.exit)
+
 
 
   // Drawer close interactions: Escape and navigation taps inside the drawer.
@@ -196,6 +196,11 @@ export function apply(ctx: ClientContext): void {
   // keyboard on each phone tap of Commands / Stop / Send.
   installComposerKeyboardTouch(ctx)
 
+  // Composer "+" command menu: the host's second-tap close is unreachable
+  // because focusing the editor re-tracks and clears the menu launcher. This
+  // finishes the tap through the host's own Escape path.
+  installComposerPlusToggle(ctx)
+
   // Session deletion on touch-primary devices (every width): injects a delete
   // item into the host's per-session row menu and drives a confirmation-first
   // dialog against the host route. The host menu knows rename / fork / archive
@@ -212,6 +217,7 @@ export function apply(ctx: ClientContext): void {
     locale: NS,
     inject: () => ({
       toggleSidebar: () => ctx.layout.toggleSidebar(),
+      exitPanel: () => panelExit.exit(),
     }),
   }, ShellOverlay))
 

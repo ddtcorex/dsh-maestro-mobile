@@ -36,18 +36,41 @@ const PANEL_PAGE_SELECTOR = '[data-plugin-panel]'
 const ACTIVE_PANEL_ROW_SELECTOR = 'nav[aria-label] button[aria-current="page"]'
 
 /**
- * Pure display decision for the drawer FAB, kept separate from the DOM probes
- * so the table is testable without a browser.
- * @param state - the shell's three live inputs.
- * @returns true when the floating drawer button should be rendered.
+ * What the shell FAB means right now.
+ *
+ * The button has two faces. While a sidebar panel owns the main column it reads
+ * as "back to conversation" and leaves the panel; on the hero screen it opens
+ * the drawer. It is the only control on screen in the panel case — the panel
+ * replaces the conversation, so the session header (and with it the drawer
+ * toggle) does not render, and the panel's own page head carries no way back
+ * either. Hidden while the drawer is open, because the backdrop owns that state.
+ *
+ * `panelOpen` deliberately wins over `heroPhase`: a panel page carries no
+ * `[data-phase="active"]`, so "no active phase" is ALSO true there (that
+ * absence-based inference is what once put the FAB over the panel's subtitle
+ * with no meaning at all). Now the same geometry carries a real action, and the
+ * exit-panel face is anchored to the top-left corner in base.css.ts instead of
+ * the hero seat.
  */
-export function shouldShowFab(state: {
+export type FabMode = 'hidden' | 'open-drawer' | 'exit-panel'
+
+/** The shell's three live inputs for the FAB decision. */
+export interface ShellFabState {
   heroPhase: boolean
   drawerOpen: boolean
   panelOpen: boolean
-}): boolean {
-  if (state.panelOpen) return false
-  return state.heroPhase && !state.drawerOpen
+}
+
+/**
+ * Pure display decision for the shell FAB, kept separate from the DOM probes so
+ * the table is testable without a browser.
+ * @param state - the shell's three live inputs.
+ * @returns which face to render (`hidden` renders nothing).
+ */
+export function fabMode(state: ShellFabState): FabMode {
+  if (state.drawerOpen) return 'hidden'
+  if (state.panelOpen) return 'exit-panel'
+  return state.heroPhase ? 'open-drawer' : 'hidden'
 }
 
 /**

@@ -5,6 +5,7 @@ export const NS = 'mobileNav'
 export const zh = {
   'open': 'Open directory',
   'close': 'Close directory',
+  'backToConversation': 'Back to conversation',
   'backdrop': 'Click to close directory',
   'sessionLog': 'Session log',
   'previewFullscreen': 'Fullscreen preview',
@@ -25,6 +26,7 @@ export const zh = {
 export const en: Record<MobileNavKey, string> = {
   'open': 'Open directory',
   'close': 'Close directory',
+  'backToConversation': 'Back to conversation',
   'backdrop': 'Click to close directory',
   'sessionLog': 'Session log',
   'previewFullscreen': 'Fullscreen preview',

@@ -186,27 +186,66 @@ async function main() {
       }
     }
 
-    // ------------------------------------------------- fix C: FAB on a panel
+    // ------------------------------------------- fix C: the FAB on a panel
     // A global panel replaces the conversation, so it carries no [data-phase]
-    // and heroPhase was true there: the drawer FAB mounted over the panel's own
-    // content at 10,72 with pointer-events auto, covering its subtitle and
-    // swallowing taps. It must be absent while the panel is open.
-    const fabState = await client.evaluate(`(() => ({
-      fab: document.querySelector('[data-mobile-nav="fab"]') !== null,
-      panelOpen: document.querySelector('[data-plugin-panel]') !== null
-        || document.querySelector('nav[aria-label] button[aria-current="page"]') !== null,
-    }))()`)
+    // and heroPhase is true there: the drawer FAB used to mount over the panel's
+    // own content at 10,72 with pointer-events auto, covering its subtitle and
+    // swallowing taps. Hiding it was the interim fix; since the panel-exit work
+    // the SAME button is the way back to the conversation, so the contract is
+    // now: present, in the exit-panel face, labelled for what it does, and clear
+    // of the panel's own controls (it moved to the top-left corner for that).
+    const fabState = await client.evaluate(`(() => {
+      const overlaps = (a, b) => a.width > 0 && b.width > 0
+        && a.left < b.right && b.left < a.right && a.top < b.bottom && b.top < a.bottom;
+      const fab = document.querySelector('[data-mobile-nav="fab"]');
+      const panelOpen = document.querySelector('[data-plugin-panel]') !== null
+        || document.querySelector('nav[aria-label] button[aria-current="page"]') !== null;
+      let collisions = 0;
+      if (fab !== null) {
+        const box = fab.getBoundingClientRect();
+        const scope = document.querySelector('[data-plugin-panel]') || document;
+        for (const control of scope.querySelectorAll('button, a[href], input, select, textarea')) {
+          if (fab.contains(control)) continue;
+          const other = control.getBoundingClientRect();
+          if (other.width === 0 || other.height === 0) continue;
+          if (overlaps(box, other)) collisions += 1;
+        }
+      }
+      return {
+        panelOpen,
+        fab: fab !== null,
+        mode: fab === null ? null : fab.getAttribute('data-mobile-nav-fab-mode'),
+        label: fab === null ? null : fab.getAttribute('aria-label'),
+        collisions,
+      };
+    })()`)
     if (!fabState.panelOpen) {
       fail('panel-fab.panel-open', 'no panel detected after the tap')
-    } else if (fabState.fab) {
-      fail('panel-fab.hidden', 'drawer FAB still floats over the open panel')
+    } else if (!fabState.fab || fabState.mode !== 'exit-panel') {
+      fail('panel-fab.back-face', `panel has no way back: fab=${fabState.fab} mode=${fabState.mode}`)
+    } else if (fabState.label !== 'Back to conversation') {
+      fail('panel-fab.back-face', `label=${fabState.label}`)
+    } else if (fabState.collisions > 0) {
+      fail('panel-fab.back-face', `overlaps ${fabState.collisions} panel control(s)`)
     } else {
-      pass('panel-fab.hidden', 'no FAB over the panel')
+      pass('panel-fab.back-face', `mode=${fabState.mode} label=${fabState.label}`)
     }
 
     // ---------------------------------------------------------------- fix B
-    // Open a session so real message prose exists, then raise the host axis
-    // above the floor and read the COMPUTED size of the prose.
+    // Leave the panel through the FAB's exit face, then raise the host axis above
+    // the floor and read the COMPUTED size of real message prose.
+    //
+    // KNOWN RED ON THIS HOST (pre-existing, unrelated to the panel/composer
+    // batch): the prose selector below matches nothing on 0.1.7-alpha.2 for the
+    // session this probe reaches - measured with the composer enabled and the app
+    // in an active phase, `[data-phase] p`, `[data-phase] [class*="_text_"]` and
+    // `[data-phase] li` all return 0 elements while the flow holds message text -
+    // so `font-axis.prose-present` FAILs. The rule it guards
+    // (layout.css.ts `[class*="_scroll"]:not([class*="_scrollBody"]):has(p)`)
+    // is untouched by this batch (git diff of the batch shows base.css.ts only),
+    // and the row failed before any probe edit as well. Fixing the probe needs a
+    // session whose message cards are rendered (and then maybe a fresh selector);
+    // it is tracked as a follow-up, not silently skipped.
     await client.evaluate(`document.querySelector('[data-mobile-nav="fab"], [data-mobile-nav="toggle"]')?.click()`)
     await sleep(500)
 

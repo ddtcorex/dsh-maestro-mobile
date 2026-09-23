@@ -330,7 +330,7 @@
    "owner": "dsh-client-ui-plugin-manager",
    "lazy": true,
    "state": "open the Plugins panel",
-   "note": "positive panel-open signal for the shell overlay: hides the drawer FAB over panel content"
+   "note": "positive panel-open signal for the shell overlay: turns the drawer FAB into the back-to-conversation face"
   },
   {
    "id": "active-panel-row",
@@ -340,6 +340,24 @@
    "lazy": true,
    "state": "open any global panel",
    "note": "second panel-open signal, covers a panel whose page ships no marker of its own"
+  },
+  {
+   "id": "active-panel-row-button",
+   "kind": "marker",
+   "needle": "[class*=\"panelRow\"][aria-current=\"page\"]",
+   "owner": "dsh-client-ui-sidebar",
+   "lazy": true,
+   "state": "open any global panel",
+   "note": "selected panel row on the row button itself: the panel-exit back entry, the FAB exit face and the re-tap route all read it"
+  },
+  {
+   "id": "composer-add-button",
+   "kind": "marker",
+   "needle": "[data-composer-card] button[aria-haspopup=\"listbox\"]",
+   "owner": "dsh-client-ui-conversation",
+   "lazy": true,
+   "state": "open a session",
+   "note": "the composer + popup trigger: the second-tap close and the editor focus release are scoped to it (aria-expanded is NOT a menu-open signal, the launcher is cleared by track())"
   },
   {
    "id": "session-header-row-div",

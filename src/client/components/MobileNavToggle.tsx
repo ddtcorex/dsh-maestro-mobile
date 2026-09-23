@@ -1,5 +1,5 @@
 import type { PropsLocale, PropsRuntime } from '@deepseek-ai/dsh-client-ui-slots'
-import { IconPanelLeftOutlineMedium } from '@deepseek-ai/dsh-client-ui-primitives'
+import { IconPanelLeft } from '../core/icon-compat.ts'
 import { NS } from '../i18n/locales.ts'
 
 /** Full props for the session-header directory toggle. */
@@ -24,7 +24,7 @@ export function MobileNavToggle({ toggleSidebar, t }: MobileNavToggleProps) {
       title={t('open')}
       onClick={() => toggleSidebar()}
     >
-      <IconPanelLeftOutlineMedium size={16} />
+      <IconPanelLeft size={16} />
     </button>
   )
 }

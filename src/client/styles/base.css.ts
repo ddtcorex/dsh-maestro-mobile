@@ -95,6 +95,15 @@ export const BASE_CSS = `
 [data-mobile-nav="fab"]:hover {
   background: var(--dsw-alias-button-floating-hover, rgba(0, 0, 0, .08));
 }
+/* Panel page: the same button is the way back to the conversation, and it
+   belongs in the top-left corner there. The hero seat (safe-area + 72px) is
+   where the session header sits, so a panel page — which renders no header —
+   had the button floating over its own head content at that offset and
+   swallowing taps aimed at the panel (docs/maintenance/pitfalls.md, "Never
+   infer a panel from the absence of a conversation"). */
+[data-mobile-nav="fab"][data-mobile-nav-fab-mode="exit-panel"] {
+  top: calc(env(safe-area-inset-top, 0px) + 12px);
+}
 [data-mobile-nav="fab"]:focus-visible {
   outline: 2px solid var(--dsw-alias-state-business-primary, #4f6ef7);
   outline-offset: 2px;
