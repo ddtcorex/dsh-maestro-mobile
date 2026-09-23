@@ -131,7 +131,12 @@ The delete route is destructive; validate it in this order:
 
 - **iOS Safari**: focus a settings input, the market search box, and the
   composer — the page must not zoom; pinch in and out must work; with the
-  keyboard dismissed, tapping Send / Stop / `+` must not re-raise it.
+  keyboard dismissed, tapping Send / Stop / `+` must not re-raise it. Then tap
+  the editor itself: the keyboard MUST come back (the focus override has to have
+  lifted — a shadow that outlives the tap makes the composer unusable).
+  `probe:composer-plus` gates the DOM half of this (menu open with the editor
+  unfocused at a fixed 900ms sample, and programmatic focus working again after
+  the interaction); the keyboard itself is device-only.
 - **Notched phone**: safe-area insets still applied after a host rewrite of the
   `viewport` meta.
 - **Desktop**: a narrow mouse-driven window (≈900px) is a complete no-op.

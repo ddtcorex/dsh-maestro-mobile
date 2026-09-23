@@ -5,6 +5,10 @@ import {
   ADD_BUTTON_SELECTOR,
   EDITOR_SELECTOR,
   FOCUS_RELEASE_DELAYS_MS,
+  FOCUS_SHADOW_MAX_MS,
+  KEYBOARD_MIN_INSET_PX,
+  keyboardIsVisible,
+  shouldDropEditorFocus,
   isComposerAddButton,
   isEditorSurface,
   menuIsVisible,
@@ -122,4 +126,49 @@ test('the effect is installed by the client entry point', () => {
   const entry = readFileSync(new URL('../src/client/index.tsx', import.meta.url), 'utf8')
   assert.match(entry, /installComposerPlusToggle\(ctx\)/)
   assert.match(entry, /from '\.\/effects\/composer-plus-toggle\.ts'/)
+})
+
+test('the focus shadow is bounded, so a stuck override is impossible', () => {
+  // The shadow blocks the host's programmatic focus(); the cap is what keeps it
+  // from outliving the interaction (the community plugin shipped an unbounded
+  // guard and the editor could never be focused again).
+  assert.ok(FOCUS_SHADOW_MAX_MS > FOCUS_RELEASE_DELAYS_MS[FOCUS_RELEASE_DELAYS_MS.length - 1]!)
+  assert.ok(FOCUS_SHADOW_MAX_MS <= 3000, 'the override must not survive the interaction by long')
+})
+
+test('the blur is skipped while the keyboard is up, so the composer cannot jump', () => {
+  // Reported on iOS after the first fix: the FIRST tap moved the composer row,
+  // because blurring an editor whose keyboard is up starts the hide animation and
+  // the keyboard is the composer's floor. Later taps looked fine only because the
+  // keyboard was already down.
+  const android = { iosViewportPan: false }
+  assert.equal(shouldDropEditorFocus({ editorFocused: true, keyboardVisible: true, ...android }), false)
+  assert.equal(shouldDropEditorFocus({ editorFocused: true, keyboardVisible: false, ...android }), true)
+  // Nothing focused: nothing to release.
+  assert.equal(shouldDropEditorFocus({ editorFocused: false, keyboardVisible: false, ...android }), false)
+  assert.equal(shouldDropEditorFocus({ editorFocused: false, keyboardVisible: true, ...android }), false)
+})
+
+test('iOS never blurs, because a blur there nudges the visual viewport', () => {
+  // Reported from a phone: the composer bounced up and back within 10-20ms - far
+  // too fast for a keyboard (iOS takes ~250ms), which is what a programmatic blur
+  // costs there. On iOS the focus shadow is the whole defence, so nothing moves.
+  const ios = { iosViewportPan: true }
+  assert.equal(shouldDropEditorFocus({ editorFocused: true, keyboardVisible: false, ...ios }), false)
+  assert.equal(shouldDropEditorFocus({ editorFocused: true, keyboardVisible: true, ...ios }), false)
+  assert.equal(shouldDropEditorFocus({ editorFocused: false, keyboardVisible: false, ...ios }), false)
+})
+
+test('the keyboard signal reads the visual viewport, not the layout viewport', () => {
+  // No API: treat the keyboard as hidden (the blur is the safe default).
+  assert.equal(keyboardIsVisible(null, 844), false)
+  // Keyboard up: the visual viewport shrinks by the keyboard height.
+  assert.equal(keyboardIsVisible({ height: 471, scale: 1 }, 844), true)
+  assert.equal(keyboardIsVisible({ height: 844 - KEYBOARD_MIN_INSET_PX - 1, scale: 1 }, 844), true)
+  // An address bar collapsing (~60px) is not a keyboard.
+  assert.equal(keyboardIsVisible({ height: 844 - 60, scale: 1 }, 844), false)
+  assert.equal(keyboardIsVisible({ height: 844 - KEYBOARD_MIN_INSET_PX, scale: 1 }, 844), false)
+  // A pinch shrinks the visual viewport too, and must not be read as a keyboard:
+  // that would skip the blur exactly when the user is zoomed in.
+  assert.equal(keyboardIsVisible({ height: 400, scale: 2.5 }, 844), false)
 })

@@ -52,6 +52,33 @@ All notable changes to this project are documented in this file. Format follows
   no DOM event reaching the page). A tap on "+" now drops the focus before the
   click fires and repeats the release at 120/320/640ms while the menu is on
   screen, cancelled the moment the user touches the editor.
+- **Tapping "+" no longer raises the keyboard on iOS** — the Android half of
+  this (blur the editor after the tap) is not enough there: iOS follows DOM
+  focus, so once the host's `focusDraftEditor` inside the button's `onClick` has
+  run the keyboard is up and a later `blur()` does not take it back (reported on
+  iOS after the first fix landed). The editor's programmatic `focus` is now
+  neutralised for the length of the interaction (armed on pointerdown and again
+  in the click capture phase, which is what covers a click with no pointerdown
+  at all), and it is always given back — on the next tap anywhere, as soon as the
+  menu leaves the DOM, on a hard 1.5s cap, and on dispose — because an override
+  that outlives the interaction is worse than the bug it prevents: the editor
+  could never be focused again (the exact bug the community plugin fixed in
+  v3.0.1). The blur the Android fix introduced is now conditional — it runs only
+  while the keyboard is already hidden (`shouldDropEditorFocus`, read from the
+  visual viewport). Blurring an editor whose keyboard is UP starts the hide
+  animation, and the keyboard is the composer's floor, so the row slid down under
+  the finger on the FIRST tap only (reported from the iPhone after the first iOS
+  fix); blurring one whose keyboard is already down is the state the IME re-rises
+  from, and there the blur is what keeps the row still. `probe:composer-plus` now
+  gates all of it, including a typing-state scene (emulated keyboard) where the
+  focus must survive the tap. A second phone report pinned the blur itself as the
+  remaining movement: the composer bounced up and back within 10-20ms, which no
+  keyboard can do (iOS takes ~250ms to show or hide one) but a programmatic blur
+  on iOS can, because it nudges the visual viewport. iOS therefore never blurs —
+  the focus shadow is the whole defence there — while Android keeps the blur,
+  which is what stops the IME re-rising into a hidden-keyboard editor. The shadow
+  is also armed on `touchstart` now (idempotent), because iOS can fire the touch
+  before the pointer event.
 - **Host icons are resolved by name at runtime** — the host's icon exports are
   generation-specific (`IconXxxOutline16` on the 0.1.0-rc line versus
   `IconXxxOutlineRegular` / `…Medium` on 0.1.7) and the two generations share no

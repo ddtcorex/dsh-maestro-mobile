@@ -1,5 +1,6 @@
 import type { Context as ClientContext } from '@deepseek-ai/cordis'
-import { installMobileEffect } from './phone-chrome.ts'
+import { createFocusShadow } from './editor-focus-shadow.ts'
+import { detectIosWebKit, installMobileEffect } from './phone-chrome.ts'
 
 /**
  * Composer "+" (commands) menu: a second tap must close it.
@@ -50,10 +51,22 @@ import { installMobileEffect } from './phone-chrome.ts'
  * tap had just dismissed. Android then slides the composer row up by the
  * keyboard height and the user's second tap lands on the keyboard (measured
  * upstream: visual viewport 754 -> 471 about 170ms after the tap, with the page
- * receiving no DOM event at all). So a tap on "+" releases the editor focus
- * before the click even fires, and the release is repeated at
- * `FOCUS_RELEASE_DELAYS_MS` while the menu is on screen to defeat the host's own
- * late re-focus — cancelled the moment the user touches the editor.
+ * receiving no DOM event at all).
+ *
+ * Two defences, and the ORDER matters for what the user sees:
+ *  1. the editor's programmatic `focus` is neutralised for the interaction
+ *     (editor-focus-shadow.ts), so the host cannot re-focus at all; and
+ *  2. the editor is blurred on the tap — but ONLY while the keyboard is already
+ *     hidden.
+ *
+ * The condition on (2) is the difference between fixing the bug and creating a
+ * worse one. Blurring an editor whose keyboard is UP starts the hide animation,
+ * and the keyboard is the composer's floor: the whole row slides down under the
+ * user's finger while they are still typing (reported on iOS as "the composer
+ * jumps on the first tap"). Blurring an editor whose keyboard is already DOWN is
+ * the state upstream measured the IME *re-rising* from, and there the blur is
+ * what keeps the row still. So: never take the keyboard away from someone who is
+ * using it, and never let it come back for someone who is not.
  */
 
 /** The host's "+" button: the composer capsule's own listbox popup trigger. */
@@ -89,6 +102,15 @@ export function isEditorSurface(target: Element | null): boolean {
  * whole ladder.
  */
 export const FOCUS_RELEASE_DELAYS_MS = [120, 320, 640] as const
+
+/**
+ * Hard cap on the focus shadow. Every path that arms it also has a normal
+ * release (next tap, menu closed, dispose); this is the backstop that makes a
+ * stuck shadow impossible - a shadow that outlives the interaction is worse than
+ * the keyboard bug it prevents, because the user can no longer focus the editor
+ * at all.
+ */
+export const FOCUS_SHADOW_MAX_MS = 1500
 
 /**
  * Is this event target (or an ancestor of it) the composer "+" button?
@@ -146,13 +168,77 @@ function editorElement(): HTMLElement | null {
 }
 
 /**
- * Release the editor's DOM focus so the soft keyboard has nothing to attach to.
- * A no-op when the editor is not the active element, so a mouse user who is
- * typing is never disturbed.
+ * Inset, in CSS pixels, above which the visual viewport is treated as shrunk by
+ * a soft keyboard. iOS keyboards take ~300px and Android ~250px; an address bar
+ * collapsing takes ~60px, so the threshold sits safely between them.
  */
-function dropEditorFocus(): void {
+export const KEYBOARD_MIN_INSET_PX = 120
+
+/**
+ * Whether the soft keyboard is currently up, read from the visual viewport.
+ *
+ * Pure and injectable so the decision table is unit-testable without a browser.
+ * The zoom guard matters: a pinch shrinks the visual viewport too, and treating
+ * that as a keyboard would skip the blur while the user is zoomed.
+ * @param viewport - the visual viewport metrics, or null when unsupported.
+ * @returns true when a keyboard appears to occupy part of the screen.
+ */
+export function keyboardIsVisible(
+  viewport: { height: number; scale: number } | null,
+  innerHeight: number,
+): boolean {
+  if (viewport === null) return false
+  if (viewport.scale > 1.01) return false
+  return innerHeight - viewport.height > KEYBOARD_MIN_INSET_PX
+}
+
+/**
+ * Should the tap release the editor's DOM focus?
+ *
+ * Only when the editor holds focus AND the keyboard is already hidden: that is
+ * the state the IME re-rises from, and the blur is what keeps the composer row
+ * still. Blurring while the keyboard is up would start hiding it, which moves the
+ * composer under the user's finger — the jump reported on iOS.
+ * @param editorFocused - the editor is the active element.
+ * @param keyboardVisible - the soft keyboard is up.
+ * @returns true when the focus must be released.
+ */
+export function shouldDropEditorFocus(state: {
+  editorFocused: boolean
+  keyboardVisible: boolean
+  iosViewportPan: boolean
+}): boolean {
+  if (!state.editorFocused || state.keyboardVisible) return false
+  // iOS reacts to a programmatic blur by nudging the visual viewport, which is a
+  // 10-20ms up-and-back bounce of the whole composer row - reported from a phone
+  // as "it jumps up and drops straight back". There the focus shadow alone is the
+  // defence (it stops the host's focus() from landing at all), so the blur is
+  // skipped entirely and nothing moves. Android does not pan; there the blur is
+  // what stops the IME re-rising into a hidden-keyboard editor, so it stays.
+  return !state.iosViewportPan
+}
+
+/** The visual viewport metrics, or null where the API is missing. */
+function visualViewportMetrics(): { height: number; scale: number } | null {
+  const viewport = window.visualViewport
+  if (viewport === null || viewport === undefined) return null
+  return { height: viewport.height, scale: viewport.scale }
+}
+
+/**
+ * Release the editor's DOM focus so the soft keyboard has nothing to attach to —
+ * unless the keyboard is up, in which case releasing it is what makes the
+ * composer jump (see shouldDropEditorFocus).
+ */
+function dropEditorFocus(iosViewportPan: boolean): void {
   const editor = editorElement()
-  if (editor !== null && document.activeElement === editor) editor.blur()
+  if (editor === null) return
+  const release = shouldDropEditorFocus({
+    editorFocused: document.activeElement === editor,
+    keyboardVisible: keyboardIsVisible(visualViewportMetrics(), window.innerHeight),
+    iosViewportPan,
+  })
+  if (release) editor.blur()
 }
 
 /**
@@ -185,33 +271,118 @@ export function installComposerPlusToggle(ctx: ClientContext): void {
     let openBeforeClick = false
     /** Pending focus-release timers while the command menu is open. */
     let releaseTimers: number[] = []
+    /**
+     * Blocks the host's programmatic `editor.focus()` for the length of the
+     * "+" interaction. Measured on iOS: a blur after the fact does NOT take the
+     * keyboard back, because the keyboard follows DOM focus and is already up
+     * by then — the only thing that works is never letting that focus land.
+     * See editor-focus-shadow.ts for the never-restored failure mode this
+     * helper is built to avoid.
+     */
+    const shadow = createFocusShadow(() => editorElement())
+    /**
+     * iOS WebKit responds to a programmatic blur by nudging the visual viewport.
+     * Read once per arm: the check is a CSS/UA probe, not a per-tap question.
+     */
+    const iosViewportPan = detectIosWebKit(
+      navigator,
+      typeof CSS === 'undefined' ? null : (condition: string) => CSS.supports(condition),
+    )
+    /** Hard cap: whatever happens, the shadow lifts. */
+    let shadowCap: number | null = null
+    /**
+     * Watches for the menu leaving the DOM while the shadow is armed. The shadow
+     * must lift the moment the interaction is over, and the ladder's ticks are
+     * too coarse to guarantee that: a probe (or a fast user) can observe the menu
+     * already gone while the next tick is still ~100ms away, and until the shadow
+     * lifts the editor cannot be focused at all.
+     */
+    let menuWatcher: MutationObserver | null = null
 
     const cancelRelease = (): void => {
       for (const id of releaseTimers) window.clearTimeout(id)
       releaseTimers = []
     }
 
+    const stopMenuWatch = (): void => {
+      menuWatcher?.disconnect()
+      menuWatcher = null
+    }
+
+    const restoreShadow = (): void => {
+      if (shadowCap !== null) {
+        window.clearTimeout(shadowCap)
+        shadowCap = null
+      }
+      stopMenuWatch()
+      shadow.restore()
+      publishShadowState(false)
+    }
+
+    /** Restore as soon as the menu is gone (checked per mutation batch). */
+    const startMenuWatch = (): void => {
+      if (menuWatcher !== null) return
+      menuWatcher = new MutationObserver(() => {
+        if (openMenu() === null) restoreShadow()
+      })
+      menuWatcher.observe(document.documentElement, { childList: true, subtree: true })
+    }
+
     /**
-     * A finger on the editor means "I want to type", so every pending release is
-     * dropped immediately; a finger on the "+" releases the editor before the
-     * browser even synthesizes the click, which is what stops Android from
-     * re-raising the just-dismissed IME.
+     * Mirror the shadow's state onto <html>. Cheaper than reaching into the
+     * effect from the debug badge, and it makes "was the tap's focus blocked?"
+     * readable on a phone screenshot (?dsh-maestro-mobile-debug=1).
+     */
+    const publishShadowState = (armed: boolean): void => {
+      document.documentElement.toggleAttribute('data-mobile-nav-focus-shadow', armed)
+    }
+
+    const armShadow = (): void => {
+      shadow.arm()
+      publishShadowState(shadow.armed)
+      if (shadowCap !== null) window.clearTimeout(shadowCap)
+      shadowCap = window.setTimeout(() => {
+        shadowCap = null
+        shadow.restore()
+      }, FOCUS_SHADOW_MAX_MS)
+    }
+
+    /**
+     * A finger on the editor means "I want to type": every pending release is
+     * dropped and the shadow lifts, so focus works again immediately. A finger on
+     * the "+" releases the editor and shadows its focus before the browser even
+     * synthesizes the click, which is what stops the IME from coming back. Any
+     * other tap means the user moved on, so the shadow lifts too — that keeps the
+     * override from outliving the interaction (and lets a menu pick restore the
+     * caret, which is the host's own focus path).
      */
     const onPointerDown = (event: Event): void => {
       const target = event.target
       if (!(target instanceof Element)) return
       if (isEditorSurface(target)) {
         cancelRelease()
+        restoreShadow()
         return
       }
-      if (isComposerAddButton(target)) dropEditorFocus()
+      if (isComposerAddButton(target)) {
+        dropEditorFocus(iosViewportPan)
+        armShadow()
+        return
+      }
+      restoreShadow()
     }
 
     const onClickCapture = (event: Event): void => {
-      openBeforeClick =
-        event.target instanceof Element &&
-        isComposerAddButton(event.target) &&
-        openMenu() !== null
+      const onAdd = event.target instanceof Element && isComposerAddButton(event.target)
+      openBeforeClick = onAdd && openMenu() !== null
+      if (!onAdd) return
+      // Capture runs before React's root-delegated onClick, which is where the
+      // host focuses the editor. Arming here (and not only on pointerdown) is
+      // what makes the keyboard stay down for a click path with no pointerdown
+      // at all — a synthetic click, an assistive-technology activation, or a
+      // shell that synthesizes the click without a matching pointer sequence.
+      dropEditorFocus(iosViewportPan)
+      armShadow()
     }
 
     const onClickBubble = (event: Event): void => {
@@ -221,25 +392,54 @@ export function installComposerPlusToggle(ctx: ClientContext): void {
       // React's root-delegated onClick has already run: if the menu survived it,
       // the host's close branch lost the launcher and we close it here.
       if (shouldCloseCommandMenu(wasOpen, openMenu() !== null)) escapeEditor()
-      // The host re-focuses the editor from that same onClick; keep releasing it
-      // for as long as the menu is on screen, and let a tap on the editor end
-      // the ladder (see onPointerDown).
+      // The host re-focuses the editor from that same onClick (now a no-op) and
+      // may do it again from a menu effect; keep both defences running while the
+      // menu is on screen, and lift the shadow as soon as it is gone.
       cancelRelease()
+      if (openMenu() === null) {
+        // The tap closed the menu (or never opened one): nothing is left to
+        // defend, so give focus back on the next task rather than waiting for the
+        // ladder. The editor must be focusable again the moment the interaction
+        // is over.
+        window.setTimeout(() => {
+          if (openMenu() === null) restoreShadow()
+        }, 0)
+      } else {
+        startMenuWatch()
+      }
       for (const delay of FOCUS_RELEASE_DELAYS_MS) {
         releaseTimers.push(
           window.setTimeout(() => {
-            if (openMenu() !== null) dropEditorFocus()
+            if (openMenu() !== null) dropEditorFocus(iosViewportPan)
+            else restoreShadow()
           }, delay),
         )
       }
     }
 
+    /**
+     * Event-order insurance: iOS has historically fired `touchstart` before
+     * `pointerdown`, and the host's focus must already be blocked when the tap
+     * turns into a click. Arming here is idempotent and the normal release paths
+     * (next tap, menu gone, cap, dispose) still apply.
+     */
+    const onTouchStartAdd = (event: Event): void => {
+      const target = event.target
+      if (!(target instanceof Element) || !isComposerAddButton(target)) return
+      dropEditorFocus(iosViewportPan)
+      armShadow()
+    }
+
     document.addEventListener('pointerdown', onPointerDown, true)
+    document.addEventListener('touchstart', onTouchStartAdd, true)
     document.addEventListener('click', onClickCapture, true)
     document.addEventListener('click', onClickBubble, false)
     return () => {
       cancelRelease()
+      restoreShadow()
+      stopMenuWatch()
       document.removeEventListener('pointerdown', onPointerDown, true)
+      document.removeEventListener('touchstart', onTouchStartAdd, true)
       document.removeEventListener('click', onClickCapture, true)
       document.removeEventListener('click', onClickBubble, false)
     }
