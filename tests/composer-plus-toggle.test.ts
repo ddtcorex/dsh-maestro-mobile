@@ -4,7 +4,9 @@ import test from 'node:test'
 import {
   ADD_BUTTON_SELECTOR,
   EDITOR_SELECTOR,
+  FOCUS_RELEASE_DELAYS_MS,
   isComposerAddButton,
+  isEditorSurface,
   menuIsVisible,
   shouldCloseCommandMenu,
 } from '../src/client/effects/composer-plus-toggle.ts'
@@ -95,6 +97,25 @@ test('only a laid-out menu counts as open', () => {
   assert.equal(menuIsVisible({ width: 0, height: 0 }, 1), false)
   assert.equal(menuIsVisible({ width: 240, height: 180 }, 0), false)
   assert.equal(menuIsVisible(null, 3), false)
+})
+
+test('the editor surface predicate is scoped to the Lexical root', () => {
+  const card = new FakeElement({ composerCard: true })
+  const editor = new FakeElement({ editor: true }, card)
+  assert.equal(isEditorSurface(asElement(editor)), true)
+  // A tap on a node inside the editable area still counts as the editor.
+  assert.equal(isEditorSurface(asElement(new FakeElement({}, editor))), true)
+  assert.equal(isEditorSurface(asElement(card)), false)
+  assert.equal(isEditorSurface(asElement(new FakeElement({ add: true }, card))), false)
+  assert.equal(isEditorSurface(null), false)
+})
+
+test('the focus-release ladder re-drops the keyboard early and late', () => {
+  // The host re-focuses the editor from its onClick; one drop is not enough
+  // because the IME is already animating (measured upstream: viewport 754 -> 471
+  // about 170ms after the tap).
+  assert.deepEqual([...FOCUS_RELEASE_DELAYS_MS], [120, 320, 640])
+  for (const delay of FOCUS_RELEASE_DELAYS_MS) assert.ok(delay > 0)
 })
 
 test('the effect is installed by the client entry point', () => {

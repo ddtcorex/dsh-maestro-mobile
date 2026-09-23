@@ -8,6 +8,12 @@
 // host its own closing Escape; without it the menu simply stays open — which is
 // exactly what this probe asserts, and why it fails on the pre-fix bundle.
 //
+// The same button's focus/IME half is reported as INFO, never as a gate: headless
+// Chrome's synthesized touch hands DOM focus to the button (which the host's
+// caret span does not survive), so the focus timeline here is evidence, and the
+// phone check in docs/upstream/upgrade-runbook.md §5 stays authoritative for the
+// keyboard itself.
+//
 // Env: DSH_PROBE_URL (default http://127.0.0.1:3082/?token=…),
 //      DSH_PROBE_SESSION_ID (required), DSH_PROBE_CHROME (default chromium),
 //      DSH_PROBE_TIMEOUT_MS (default 30000).
@@ -30,6 +36,7 @@ const report = (status, name, detail = '') => {
 }
 const pass = (name, detail = '') => report('PASS', name, detail)
 const fail = (name, detail = '') => report('FAIL', name, detail)
+const info = (name, detail = '') => report('INFO', name, detail)
 
 function allocatePort() {
   return new Promise((resolvePort, reject) => {
@@ -100,6 +107,19 @@ const MENU_STATE = `(() => {
 })()`
 
 const menuState = (client) => client.evaluate(MENU_STATE)
+
+/**
+ * Tap "+" the way the page receives it on a phone.
+ *
+ * Deliberately a synthetic `element.click()`, NOT `Input.dispatchTouchEvent`:
+ * measured on this host, headless Chrome's synthesized touch moves DOM focus to
+ * the button, and the host's `keyboard.caretSpan()` does not survive that blur,
+ * so a real-touch probe cannot even open the menu (it fails on a correct build
+ * too). A phone keeps the editable focused, which is the state the launcher
+ * needs. The click path below is exactly what the host's React `onClick` and
+ * this plugin's capture/bubble pair observe, so it is still a faithful gate for
+ * the open/close contract.
+ */
 const clickAdd = (client) =>
   client.evaluate(`(() => {
     const add = document.querySelector(${JSON.stringify(ADD_SELECTOR)});
@@ -107,6 +127,30 @@ const clickAdd = (client) =>
     add.click();
     return true;
   })()`)
+
+/**
+ * The editor-focus face of the same button, reported as INFO only: the soft
+ * keyboard attaches to whatever holds DOM focus, but the host re-focuses the
+ * editor on its own schedule (observed again after the release ladder ends), so
+ * this cannot discriminate a fix from a regression headless. It is recorded as
+ * evidence, not as a gate — the IME behaviour itself is verified on a phone
+ * (docs/upstream/upgrade-runbook.md §5).
+ */
+const FOCUS_STATE = `(() => {
+  const editor = document.querySelector('[data-composer-input]');
+  const menus = [...document.querySelectorAll(${JSON.stringify(MENU_SELECTOR)})];
+  const visible = (element) => {
+    if (element === null) return false;
+    const rect = element.getBoundingClientRect();
+    return getComputedStyle(element).display !== 'none' && rect.width > 0 && rect.height > 0;
+  };
+  return {
+    editorFocused: editor !== null && document.activeElement === editor,
+    menuVisible: menus.some(visible),
+  };
+})()`
+
+const focusState = (client) => client.evaluate(FOCUS_STATE)
 
 async function main() {
   const url = process.env.DSH_PROBE_URL || DEFAULT_URL
@@ -243,6 +287,18 @@ async function main() {
 
     // 1st tap: the host opens its menu.
     let ok = await tapAndExpect('composer.plus-opens', true)
+    if (ok) {
+      // Evidence for the IME half of the fix: the release ladder should take the
+      // DOM focus off the editor early, and the host may take it back later —
+      // neither state is asserted, because a phone (not this synthetic click)
+      // decides whether the IME follows. See FOCUS_STATE and runbook §5.
+      const timeline = []
+      for (const delay of [200, 800]) {
+        await sleep(delay === 200 ? 200 : 600)
+        timeline.push({ at: `${delay}ms`, ...(await focusState(client).catch(() => ({}))) })
+      }
+      info('composer.focus-after-tap', JSON.stringify(timeline))
+    }
     // 2nd tap: THE regression gate. Pre-fix the host re-opens instead of closing.
     if (ok) ok = await tapAndExpect('composer.plus-closes', false)
     // 3rd tap: opening must still work (the close takeover must not eat it).
@@ -257,7 +313,10 @@ async function main() {
   }
 
   const failures = results.filter((entry) => entry.status === 'FAIL').length
-  console.log(`SUMMARY pass=${results.filter((entry) => entry.status === 'PASS').length} fail=${failures}`)
+  console.log(
+    `SUMMARY pass=${results.filter((entry) => entry.status === 'PASS').length} fail=${failures}`
+    + ` info=${results.filter((entry) => entry.status === 'INFO').length}`,
+  )
   process.exitCode = failures > 0 ? 1 : 0
 }
 
