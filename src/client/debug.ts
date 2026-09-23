@@ -1,3 +1,4 @@
+import { EDITOR_SELECTOR } from './core/composer-dom.ts'
 import type { Context as ClientContext } from '@deepseek-ai/cordis'
 import { DESKTOP_QUERY, MOBILE_QUERY } from './effects/phone-chrome.ts'
 
@@ -178,7 +179,7 @@ export function installDebugBadge(ctx: ClientContext): void {
         `css ${q('style[data-plugin-css*="mobile"]')}  frame ${!!frame}`,
         `previewCol ${vis('[data-aionui-preview-col]')}  explorerCol ${vis('[data-aionui-explorer-col]')}`,
         `previewOpen ${frame?.hasAttribute('data-aionui-preview-open') ?? '?'}  explorerOpen ${frame?.hasAttribute('data-aionui-explorer-open') ?? '?'}  previewFull ${frame?.hasAttribute('data-mobile-preview-full') ?? '?'}`,
-        `header ${vis('[data-phase] header')}  composer ${q('[data-composer-input]')}`,
+        `header ${vis('[data-phase] header')}  composer ${q(EDITOR_SELECTOR)}`,
         `phase ${document.querySelector('[data-phase]')?.getAttribute('data-phase') ?? '?'}`,
         `errs ${errors.slice(-5).join(' | ') || 'none'}`,
       ]

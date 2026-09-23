@@ -6,6 +6,26 @@ All notable changes to this project are documented in this file. Format follows
 
 ## [Unreleased]
 
+### Removed
+
+- **Dead modules, and the composer marker got one home** — a reachability +
+  reference scan over `src/` (every module reachable from the two entries, every
+  export referenced somewhere, `tsc --noUnusedLocals --noUnusedParameters` clean
+  on both faces) left four things to delete:
+  `components/BottomSheet.tsx` and its `styles/sheet.css.ts` section — the
+  component had no importer and its `[data-mobile-sheet]` rules therefore styled
+  nothing; the walker that builds the client bundle never inlined it, so only the
+  stylesheet section was being shipped. `effects/overlay-backdrop-fab.ts` — the
+  legacy manual `frame.appendChild` backdrop/FAB task: nothing installed it, and
+  because its `fadeHook` was the only thing that ever set it, the swipe-close
+  call `fadeOverlayOut()` had been a silent no-op. `isGestureConsumed` — a
+  `gesture-guard.ts` export referenced nowhere, not even by its own tests. The
+  `[data-composer-input]` literal now lives once, in `core/composer-dom.ts`,
+  together with the `editorElement()` copy both composer effects carried and the
+  visual-viewport reader; five modules used to spell the marker out.
+  `probe:composer-plus` 17/17, `probe:pointer-gating` 6/6 and
+  `probe:multi-width` 33/33 after the deletions, `pnpm test` 223/223.
+
 ### Fixed
 
 - **The composer "+" stops raising the keyboard on the host's second focus** —

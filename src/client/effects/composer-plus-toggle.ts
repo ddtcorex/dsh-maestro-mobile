@@ -1,4 +1,5 @@
 import type { Context as ClientContext } from '@deepseek-ai/cordis'
+import { EDITOR_SELECTOR, editorElement } from '../core/composer-dom.ts'
 import { createFocusShadow } from './editor-focus-shadow.ts'
 import { detectIosWebKit, installMobileEffect } from './phone-chrome.ts'
 
@@ -74,9 +75,6 @@ export const ADD_BUTTON_SELECTOR = '[data-composer-card] button[aria-haspopup="l
 
 /** Command/slash candidate menu root (`ui-input-trigger` MenuView). */
 export const TRIGGER_MENU_SELECTOR = '[data-trigger-menu]'
-
-/** Lexical editing surface: Escape is only mapped to a command here. */
-export const EDITOR_SELECTOR = '[data-composer-input]'
 
 /**
  * Is this event target (or an ancestor of it) the Lexical editing surface?
@@ -216,12 +214,6 @@ function openMenu(): Element | null {
     if (menuIsVisible(element.getBoundingClientRect(), element.getClientRects().length)) return element
   }
   return null
-}
-
-/** The Lexical editing surface, or null when this session has none. */
-function editorElement(): HTMLElement | null {
-  const editor = document.querySelector(EDITOR_SELECTOR)
-  return editor instanceof HTMLElement ? editor : null
 }
 
 /**

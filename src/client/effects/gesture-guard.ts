@@ -65,12 +65,3 @@ export function consumeIfGestured(event: Event): boolean {
   return false
 }
 
-export function isGestureConsumed(target: Element): boolean {
-  const until = consumed.get(target)
-  if (until === undefined) return false
-  if (until <= performance.now()) {
-    consumed.delete(target)
-    return false
-  }
-  return true
-}

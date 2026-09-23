@@ -61,7 +61,7 @@ test('every 768px media query also caps the width and requires a coarse pointer'
 test('the tablet override follows the mobile gate in the same file', (context) => {
   // Same specificity, so only source order decides: the tablet block must come
   // after the gate it narrows.
-  for (const file of ['sheet.css.ts', 'settings-sheet.css.ts']) {
+  for (const file of ['settings-sheet.css.ts']) {
     const css = stripComments(read(file))
     const tabletIndex = css.indexOf(TABLET_MIN_WIDTH)
     if (tabletIndex === -1) {

@@ -1,9 +1,9 @@
 import assert from 'node:assert/strict'
 import { readFileSync } from 'node:fs'
 import test from 'node:test'
+import { EDITOR_SELECTOR } from '../src/client/core/composer-dom.ts'
 import {
   ADD_BUTTON_SELECTOR,
-  EDITOR_SELECTOR,
   FOCUS_RELEASE_DELAYS_MS,
   FOCUS_SHADOW_MAX_MS,
   FOCUS_SHADOW_MIN_MS,

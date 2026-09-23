@@ -38,7 +38,7 @@ export const SETTINGS_SHEET_CSS = `
     --dsh-scrollbar-thumb: var(--dsw-alias-scrollbar-bg-l2) !important;
     --dsh-scrollbar-thumb-hover: var(--dsw-alias-scrollbar-hover-l2) !important;
   }
-  /* Drag handle — matches BottomSheet 36x4 centered */
+  /* Drag handle — 36x4, centered (same grabber the retired BottomSheet used) */
   [class*="_panel"]:has([class*="_navList"])::before {
     content: '' !important;
     align-self: center !important;

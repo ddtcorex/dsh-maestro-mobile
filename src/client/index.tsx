@@ -215,10 +215,9 @@ export function apply(ctx: ClientContext): void {
   // only; archive hides a row without removing its log.
   installSessionMenuDelete(ctx)
 
-  // DSH-native overlay: backdrop + FAB via AppFrame's overlayLayer (z20)
-  // Replaces manual frame.appendChild in overlay-backdrop-fab.ts — keeps
-  // the legacy task as compat until the next major, but the slot is the
-  // source of truth for backdrop/FAB now.
+  // DSH-native overlay: backdrop + FAB via AppFrame's overlayLayer (z20).
+  // The slot is the only writer: the legacy manual frame.appendChild task
+  // (overlay-backdrop-fab.ts) was deleted 2026-09-24 — nothing installed it.
   ctx.slots.inject('shell.overlay', () => ctx.slots.register({
     name: 'shell.overlay',
     id: 'mobile-shell-overlay',

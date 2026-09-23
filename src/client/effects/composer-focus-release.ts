@@ -1,4 +1,6 @@
 import type { Context as ClientContext } from '@deepseek-ai/cordis'
+import { EDITOR_SELECTOR, editorElement, viewportMetrics } from '../core/composer-dom.ts'
+import type { ViewportMetrics } from '../core/composer-dom.ts'
 import { KEYBOARD_MIN_INSET_PX } from './composer-plus-toggle.ts'
 import { detectIosWebKit, installMobileEffect } from './phone-chrome.ts'
 
@@ -83,12 +85,6 @@ export const TYPING_QUIET_MS = 1500
  * run at all" - the question the previous round could not answer.
  */
 export const RELEASE_MARKER = 'data-mobile-nav-focus-release'
-
-/** The visual viewport fields the readability check reads. */
-export interface ViewportMetrics {
-  readonly height: number
-  readonly scale: number
-}
 
 /**
  * Whether the visual viewport can answer "is a keyboard up?".
@@ -194,12 +190,6 @@ export function shouldRestoreScroll(driftPx: number, keyboardVisible: boolean): 
   return Math.abs(driftPx) <= NUDGE_MAX_PX
 }
 
-/** The composer editor, or null when this session has none. */
-function editorElement(): HTMLElement | null {
-  const editor = document.querySelector('[data-composer-input]')
-  return editor instanceof HTMLElement ? editor : null
-}
-
 /**
  * Events that mean "a finger is typing in the editor". `beforeinput` covers the
  * input itself, `keydown` covers a key the contenteditable swallows, and
@@ -207,13 +197,6 @@ function editorElement(): HTMLElement | null {
  * keyboard fires nothing else for a whole syllable).
  */
 const TYPING_EVENTS = ['beforeinput', 'input', 'keydown', 'compositionupdate'] as const
-
-/** The visual viewport metrics, or null where the API is missing. */
-function viewportMetrics(): ViewportMetrics | null {
-  const viewport = window.visualViewport
-  if (viewport === null || viewport === undefined) return null
-  return { height: viewport.height, scale: viewport.scale }
-}
 
 /**
  * Release the composer editor's DOM focus while the keyboard is hidden, on iOS.
@@ -298,7 +281,7 @@ export function installComposerFocusRelease(ctx: ClientContext): void {
 
     const onFocusIn = (event: Event): void => {
       const target = event.target
-      if (!(target instanceof Element) || target.closest('[data-composer-input]') === null) return
+      if (!(target instanceof Element) || target.closest(EDITOR_SELECTOR) === null) return
       schedule()
     }
 
@@ -311,7 +294,7 @@ export function installComposerFocusRelease(ctx: ClientContext): void {
      */
     const onPointer = (event: Event): void => {
       const target = event.target
-      if (target instanceof Element && target.closest('[data-composer-input]') !== null) {
+      if (target instanceof Element && target.closest(EDITOR_SELECTOR) !== null) {
         gestureUntil = Date.now() + RELEASE_GESTURE_GRACE_MS
       }
       schedule()
@@ -336,7 +319,7 @@ export function installComposerFocusRelease(ctx: ClientContext): void {
      */
     const onEditorInput = (event: Event): void => {
       const target = event.target
-      if (!(target instanceof Element) || target.closest('[data-composer-input]') === null) return
+      if (!(target instanceof Element) || target.closest(EDITOR_SELECTOR) === null) return
       typingUntil = Date.now() + TYPING_QUIET_MS
     }
 

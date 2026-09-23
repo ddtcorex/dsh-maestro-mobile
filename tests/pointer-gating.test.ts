@@ -11,7 +11,6 @@ const STYLE_FILES = [
   'layout.css.ts',
   'misc.css.ts',
   'settings-sheet.css.ts',
-  'sheet.css.ts',
 ]
 
 test('every narrow-width media query also requires a coarse pointer', () => {
