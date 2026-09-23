@@ -45,6 +45,7 @@
     "probe:panel-font": "node scripts/probes/panel-and-font-axis-probe.mjs",
     "probe:composer-plus": "node scripts/probes/composer-plus-probe.mjs",
     "probe:panel-exit": "node scripts/probes/panel-exit-probe.mjs",
+    "probe:multi-width": "node scripts/probes/multi-width-layout-probe.mjs",
     "test:core": "node --test tests/reconciler-core.test.ts tests/composer-keyboard-touch.test.ts",
     "prepack": "npm run build"
   },
