@@ -18,15 +18,23 @@ silently — the checks below are ordered cheapest first.
 - Hashed class fragments (substring match only): `_composerStack`, `_modes`,
   `_tools`, `_trailing`, `_triggerLabel`, `_actions`, `_bubble`, `_sessionRow`,
   `_title`, `_groupSection`, `_projectRow`, `_itemLabel`, `_itemIcon`,
-  `_viewport`, `_panel`, `_navList`, `_navTitle`, `_fieldMirror`, plus the
-  market's `irow`, `irowActions`, `irowTrailing`, and the chips'
-  `_trigger` / `_count` / `_triggerDot`.
+  `_viewport`, `_panel`, `_navList`, `_navTitle`, `_fieldMirror`, `_menu`, plus
+  the market's `irow`, `irowActions`, `irowTrailing`, and the chips'
+  `_trigger` / `_count` / `_triggerDot`. Never a fragment that *carries* the
+  build hash (`ZKlsPq_menu`): that dies on the next rebuild, silently — scope
+  with a marker this plugin sets (`data-lineage-root`) or a role upstream draws
+  unconditionally (`role="tree"`), and let `tests/no-hashed-class-prefix.test.ts`
+  fail the build if one creeps back in.
 - Band residents a chip identity rule must exclude: the subagent catalog
   (`aria-haspopup="tree"`, order -30), the Team action
   (`aria-haspopup="dialog"`, order -20), the schedule catalog (order 10, leads
   with a clock icon so its count badge is not its first child) and the mode
   label (not a button). The order is what makes "the first accordion" wrong; the
   roles and the leading badge are what an identity rule can rely on.
+- The lineage chip's own scope: its box marker `data-lineage-root` (set by
+  `lineage-badge.ts`) plus its catalog, which upstream portals to
+  `document.body` — `[class*="_menu"] > [role="tree"]`. Both are read by the
+  touch shim's synthetic-hover swallow.
 - Host services read at runtime: `sessionPersistence`, `sessions`, `agents`,
   `workspaceRegistry`, `webServer`, and (client) `sessions`, `workspaces`.
 - The full, machine-readable list is `docs/upstream/compat-contracts.json`.
@@ -77,6 +85,7 @@ pnpm probe:pointer-gating # narrow touch = mobile, narrow mouse = no-op, re-arm 
 pnpm probe:swipe          # swipe control, overlay / selection / drag / pinch yields
 pnpm probe:session-delete # item injection, dialog, Escape-cancel, route liveness
 pnpm probe:jobs-chip      # jobs marker identity, 28px chip, one gap across the header band
+pnpm probe:lineage-chip   # lineage chip box marker, catalog scope, hover swallow, one tap one toggle
 pnpm probe:panel-font     # panel row collapses the drawer; prose follows the content font axis
 pnpm probe:composer-plus  # composer "+" opens/closes across four taps
 pnpm probe:panel-exit     # panel back face, back key, re-tap exit, history bookkeeping
@@ -86,10 +95,11 @@ pnpm probe:multi-width    # layout tiers, see below
 All of them need `DSH_PROBE_URL` (with the current launch token when probing
 `:3082`), `DSH_PROBE_SESSION_ID`, and `DSH_PROBE_CHROME`. Add
 `DSH_PROBE_WORKSPACE=<title>` when the cold-start picker must select a specific
-workspace. `probe:jobs-chip` is the exception: it takes no session id (the DOM
-exposes none) and reads whichever session the drawer opens, so pass
-`DSH_PROBE_SESSION_LABEL=<row text>` to measure one that holds a background job —
-its compact-chip row is state-gated and reports `SKIP` without a live job.
+workspace. `probe:jobs-chip` and `probe:lineage-chip` are the exceptions: they
+take no session id (the DOM exposes none) and read whichever session the drawer
+opens, so pass `DSH_PROBE_SESSION_LABEL=<row text>` to measure one that holds a
+background job, respectively one with subagents — their chip rows are
+state-gated and report `SKIP` without that state.
 
 The multi-width probe must run at all three tiers in one invocation — phones
 (320/360/390/430), tablets (768/1023) and desktop (1280, touch off) — because a

@@ -27,6 +27,12 @@ import { installMobileEffect } from './phone-chrome.ts'
  *    the panel flashes open for a frame and is gone (「闪退」), and the
  *    chip reads as unresponsive.
  *
+ * 3. 0.1.7 brought the hover timers back (the catalog and the Team panel share
+ *    one grace-timed hover-open/close pair) and renders the open catalog through
+ *    a portal on document.body. The timers make step 3 below load-bearing again
+ *    — and the scope it named had gone stale, so the swallow silently stopped
+ *    firing. See HOVER_SUBTREE_SELECTOR.
+ *
  * Fix strategy, scoped to touch pointers (mouse users keep native hover):
  * 1. Toggle the card ourselves along the component's own keyboard path —
  *    ArrowDown keydown on the trigger opens (+focus first row), Escape
@@ -50,12 +56,21 @@ const CHIP_TRIGGER_SELECTOR =
   '[data-mobile-nav="frame"] button[class*="_trigger"][aria-haspopup="tree"][aria-expanded]:not([class*="_switcherTrigger"])'
 
 /**
- * Lineage root plus its menu. NOTE: `ZKlsPq` (hover-only era) and `h8S2Va`
- * (0.1.0-rc.6) are the dsh-client-ui-subagent CSS-module hashes — audit
- * these selectors when the package upgrades.
+ * The chip's own box, plus its open catalog. The box carries the stable marker
+ * the lineage reconciler sets (`data-lineage-root`); upstream renders the
+ * catalog through a portal on `document.body`, so it sits outside that box and
+ * needs its own name — the popover holding the `role="tree"` list upstream draws
+ * unconditionally.
+ *
+ * The literal CSS-module hashes this used to name (`ZKlsPq`, `h8S2Va`) stopped
+ * matching when the package was rebuilt: measured live on 0.1.7 at 390px, all
+ * four matched nothing while the chip's box is `IwR9Qa_root` and its catalog
+ * `IwR9Qa_menu`. The swallow then never fired, and the trusted hover events it
+ * exists to silence still reached every later document listener (31 of them over
+ * three taps, one targeting the chip itself) — the very events era-1 hover
+ * timers feed on.
  */
-const HOVER_SUBTREE_SELECTOR =
-  '[class*="ZKlsPq_root"], [class*="ZKlsPq_menu"], [class*="h8S2Va_root"], [class*="h8S2Va_menu"]'
+const HOVER_SUBTREE_SELECTOR = '[data-lineage-root], [class*="_menu"]:has(> [role="tree"])'
 
 /** How long after touch activity synthesized hover events stay suppressed. */
 const SWALLOW_WINDOW_MS = 800

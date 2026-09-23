@@ -61,8 +61,13 @@ test('a live job keeps upstream’s animated state dot', () => {
 })
 
 test('the compact control removes its markers so desktop stays a no-op', () => {
-  assert.match(effect, /setAttribute\('data-mobile-nav', 'jobs'\)/)
-  assert.match(effect, /setAttribute\(\s*'data-jobs-count',/)
+  // Writes go through setMarker (core/dom-marks.ts): this task re-runs on every
+  // reconciler flush, and an unconditional write would queue a mutation per frame
+  // — measured 120 of them a second from this task alone (probe:lineage-chip's
+  // host page, 2026-09-24), a flush loop with nothing driving it.
+  assert.match(effect, /setMarker\(trigger, 'data-mobile-nav', 'jobs'\)/)
+  assert.match(effect, /setMarker\(\s*trigger,\s*'data-jobs-count',/)
+  assert.doesNotMatch(effect, /trigger\.setAttribute\(/)
   assert.match(effect, /removeAttribute\('data-mobile-nav'\)/)
   assert.match(effect, /removeAttribute\('data-jobs-count'\)/)
 })
