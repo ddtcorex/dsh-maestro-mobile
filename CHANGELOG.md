@@ -63,7 +63,15 @@ All notable changes to this project are documented in this file. Format follows
   menu leaves the DOM, on a hard 1.5s cap, and on dispose — because an override
   that outlives the interaction is worse than the bug it prevents: the editor
   could never be focused again (the exact bug the community plugin fixed in
-  v3.0.1). `probe:composer-plus` now gates both halves.
+  v3.0.1). The blur the Android fix introduced is now conditional — it runs only
+  while the keyboard is already hidden (`shouldDropEditorFocus`, read from the
+  visual viewport). Blurring an editor whose keyboard is UP starts the hide
+  animation, and the keyboard is the composer's floor, so the row slid down under
+  the finger on the FIRST tap only (reported from the iPhone after the first iOS
+  fix); blurring one whose keyboard is already down is the state the IME re-rises
+  from, and there the blur is what keeps the row still. `probe:composer-plus` now
+  gates all of it, including a typing-state scene (emulated keyboard) where the
+  focus must survive the tap.
 - **Host icons are resolved by name at runtime** — the host's icon exports are
   generation-specific (`IconXxxOutline16` on the 0.1.0-rc line versus
   `IconXxxOutlineRegular` / `…Medium` on 0.1.7) and the two generations share no
