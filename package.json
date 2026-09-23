@@ -43,6 +43,7 @@
     "probe:session-delete": "node scripts/probes/session-delete-probe.mjs",
     "probe:pointer-gating": "node scripts/probes/pointer-gating-probe.mjs",
     "probe:panel-font": "node scripts/probes/panel-and-font-axis-probe.mjs",
+    "probe:composer-plus": "node scripts/probes/composer-plus-probe.mjs",
     "test:core": "node --test tests/reconciler-core.test.ts tests/composer-keyboard-touch.test.ts",
     "prepack": "npm run build"
   },

@@ -13,6 +13,7 @@ import { installSidebarSwipe } from './effects/sidebar-swipe.ts'
 import { installOverlayMenuTapGuard } from './effects/overlay-menu-tap-guard.ts'
 import { installHeroPresetMenuFix } from './effects/preset-menu-fix.ts'
 import { installComposerKeyboardTouch } from './effects/composer-keyboard-touch.ts'
+import { installComposerPlusToggle } from './effects/composer-plus-toggle.ts'
 import { installSessionMenuDelete } from './effects/session-menu.ts'
 import { installDebugBadge } from './debug.ts'
 import { NS, en, zh } from './i18n/locales.ts'
@@ -195,6 +196,11 @@ export function apply(ctx: ClientContext): void {
   // the contenteditable for every toolbar mousedown, which pops the soft
   // keyboard on each phone tap of Commands / Stop / Send.
   installComposerKeyboardTouch(ctx)
+
+  // Composer "+" command menu: the host's second-tap close is unreachable
+  // because focusing the editor re-tracks and clears the menu launcher. This
+  // finishes the tap through the host's own Escape path.
+  installComposerPlusToggle(ctx)
 
   // Session deletion on touch-primary devices (every width): injects a delete
   // item into the host's per-session row menu and drives a confirmation-first
