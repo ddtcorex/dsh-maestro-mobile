@@ -1,4 +1,5 @@
 import type { Context as ClientContext } from '@deepseek-ai/cordis'
+import { fadeDrawerBackdrop } from './backdrop-fade.ts'
 import { installMobileEffect, getFrame } from './phone-chrome.ts'
 import { markGestureConsumed, consumeIfGestured, markStrokeLocked, clearStrokeLocked } from './gesture-guard.ts'
 import { dragMarkYields, floatingWidgetYields, isClosestLike } from './drag-yield.ts'
@@ -777,14 +778,11 @@ function commitWithAnimation(ctx: ClientContext, el: HTMLElement, targetTx: stri
   // would jump straight to the target.
   void el.getBoundingClientRect()
   el.style.setProperty('transform', targetTx, 'important')
-  // The dimming SHOULD fade in step with this slide-out: the collapsed marker
-  // flips only when the drawer lands, so the backdrop otherwise snaps away
-  // ~260ms after the drawer already left (the screen reads drawer-then-dark).
-  // That fade used to be a hook set by the legacy overlay task, which nothing
-  // installed any more - so the call was a no-op and was removed with the module
-  // (2026-09-24). The live backdrop belongs to the shell.overlay slot
-  // (components/ShellOverlay.tsx), which owns no fade handle yet: wiring one is
-  // an open follow-up, not dead code.
+  // Fade the dimming in step with the slide-out: the collapsed marker flips only
+  // when the drawer lands, so the backdrop would otherwise snap away ~280ms after
+  // the drawer already left (the screen reads drawer-then-dark). The duration is
+  // this commit's own, because that is the window the backdrop stays mounted in.
+  fadeDrawerBackdrop(COMMIT_ANIM_MS)
   cooldownUntil = performance.now() + COOLDOWN_MS
   pendingCommit = {
     el,
