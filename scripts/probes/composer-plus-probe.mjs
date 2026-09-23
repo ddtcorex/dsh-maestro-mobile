@@ -330,6 +330,69 @@ async function main() {
     // 4th tap: and closing still works on the re-opened menu.
     if (ok) ok = await tapAndExpect('composer.plus-closes-again', false)
 
+    // --- the host's SECOND focus (the community plugin's device trace) -------
+    // The host focuses the editor again from the effect that runs when its menu
+    // opens, ~200ms after the click; a shadow that lifts with the click blocks
+    // nothing. And the shadow only covers focus(): a focus that reaches the
+    // element another way has to be answered by a SYNCHRONOUS blur in the
+    // focusin capture phase, because a macrotask blur is too late (the IME has
+    // started - measured on device by the community plugin).
+    const addBox = await client.evaluate(`(() => {
+      const add = document.querySelector(${JSON.stringify(ADD_SELECTOR)});
+      if (add === null) return null;
+      const rect = add.getBoundingClientRect();
+      return { x: Math.round(rect.x + rect.width / 2), y: Math.round(rect.y + rect.height / 2) };
+    })()`)
+    const tapAdd = async () => {
+      await client.send('Input.dispatchTouchEvent', { type: 'touchStart', touchPoints: [{ x: addBox.x, y: addBox.y, radiusX: 8, radiusY: 8, force: 1 }] })
+      await sleep(60)
+      await client.send('Input.dispatchTouchEvent', { type: 'touchEnd', touchPoints: [] })
+    }
+    if (addBox === null) {
+      fail('composer.shadow-window-outlives-the-click', 'no add button to tap')
+    } else {
+      // A real finger gives the document focus (Blink dispatches no focus events
+      // while the document is unfocused, so a synthetic path would test nothing).
+      await tapAdd()
+      const menuForRow = await waitFor('menu open for the shadow rows', releaseRowTimeoutMs, async () => {
+        const state = await menuState(client)
+        return state.visible ? state : null
+      }).catch(() => null)
+      const armedNow = menuForRow === null
+        ? false
+        : await client.evaluate(`document.documentElement.hasAttribute('data-mobile-nav-focus-shadow')`)
+      if (menuForRow === null || !armedNow) {
+        fail('composer.shadow-window-outlives-the-click', `no live interaction to test (menu=${menuForRow !== null} armed=${armedNow})`)
+      } else {
+        // NOTE: the take-back blur (a focus that reaches the editor during the
+        // window) is NOT gated here: in this host's own menu-open state the
+        // editor is unfocusable, so a row that drives focus would pass whether
+        // or not the blur exists (measured: a plain div focuses, the editor does
+        // not, with the override deleted). tests/composer-plus-toggle.test.ts
+        // pins the rule instead, and the runbook's device pass owns the IME.
+        // Closing tap: the shadow must NOT lift with the click (the second host
+        // focus has not run yet), and must lift on its own once the window ends.
+        await tapAdd()
+        await sleep(250)
+        const heldAfterClose = await client.evaluate(`document.documentElement.hasAttribute('data-mobile-nav-focus-shadow')`).catch(() => null)
+        const menuGone = await menuState(client).catch(() => null)
+        if (heldAfterClose === true && menuGone !== null && menuGone.visible === false) {
+          pass('composer.shadow-window-outlives-the-click', 'still armed 250ms after the closing tap')
+        } else {
+          fail('composer.shadow-window-outlives-the-click', `armed=${heldAfterClose} menu=${JSON.stringify(menuGone)}`)
+        }
+        const lifted = await waitFor('shadow lifted on its own', releaseRowTimeoutMs, async () => {
+          try {
+            return await client.evaluate(`!document.documentElement.hasAttribute('data-mobile-nav-focus-shadow')`) ? true : null
+          } catch {
+            return null
+          }
+        }).catch(() => null)
+        if (lifted === null) fail('composer.shadow-lifts-on-its-own', 'the shadow outlived its window')
+        else pass('composer.shadow-lifts-on-its-own', 'released without another tap')
+      }
+    }
+
     // The "typing" state: keyboard UP, editor focused. Tapping "+" here must NOT
     // release the focus, because the keyboard is the composer's floor - blurring
     // it starts the hide animation and the row slides down under the finger (the

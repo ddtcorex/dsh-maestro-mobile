@@ -177,6 +177,12 @@ The delete route is destructive; validate it in this order:
   stamp reads `af=div` still had the editable focused, which is the bug. The same
   badge's `vv=` / `seat=` samples are what say whether the release's viewport
   nudge is visible; the compensation is `shouldRestoreScroll`.
+- **iOS Safari, the "+" second focus**: with the keyboard dismissed, tap `+` —
+  the menu must open and the keyboard must stay down. The host focuses the editor
+  again from its menu-open effect about 200ms after the click (timing from the
+  community plugin's device trace), so the focus shadow holds for a 700ms floor
+  and a `focusin` blur takes back any focus that lands; neither is visible in
+  headless, where this host's menu-open state leaves the editor unfocusable.
 - **Notched phone**: safe-area insets still applied after a host rewrite of the
   `viewport` meta.
 - **Desktop**: a narrow mouse-driven window (≈900px) is a complete no-op.

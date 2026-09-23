@@ -6,6 +6,9 @@ import {
   EDITOR_SELECTOR,
   FOCUS_RELEASE_DELAYS_MS,
   FOCUS_SHADOW_MAX_MS,
+  FOCUS_SHADOW_MIN_MS,
+  shouldHoldShadow,
+  shouldTakeBackArmedFocus,
   KEYBOARD_MIN_INSET_PX,
   keyboardIsVisible,
   shouldDropEditorFocus,
@@ -171,4 +174,37 @@ test('the keyboard signal reads the visual viewport, not the layout viewport', (
   // A pinch shrinks the visual viewport too, and must not be read as a keyboard:
   // that would skip the blur exactly when the user is zoomed in.
   assert.equal(keyboardIsVisible({ height: 400, scale: 2.5 }, 844), false)
+})
+
+test('the focus shadow may not end with the click that armed it', () => {
+  // The host focuses the editor again from the effect that runs when its menu
+  // opens: measured on a phone by the community plugin, the keyboard rose about
+  // 200ms AFTER the click, once their shadow had already been restored. A window
+  // that ends with the click blocks nothing - which is reported as "tapping +
+  // still raises the keyboard".
+  assert.equal(shouldHoldShadow({ menuOpen: false, armedMs: 0 }), true)
+  assert.equal(shouldHoldShadow({ menuOpen: false, armedMs: FOCUS_SHADOW_MIN_MS - 1 }), true)
+  assert.equal(shouldHoldShadow({ menuOpen: false, armedMs: FOCUS_SHADOW_MIN_MS }), false)
+})
+
+test('an open menu holds the shadow beyond the window', () => {
+  // While its menu is on screen the host may focus the editor at any point, so
+  // the window is a floor, not the release condition.
+  assert.equal(shouldHoldShadow({ menuOpen: true, armedMs: 10_000 }), true)
+})
+
+test('the window outlives the host second focus and stays under the hard cap', () => {
+  assert.ok(FOCUS_SHADOW_MIN_MS >= 600, 'the host re-focuses ~200ms after the click; the window needs margin')
+  assert.ok(FOCUS_SHADOW_MIN_MS < FOCUS_SHADOW_MAX_MS, 'the cap must still be able to end a stuck window')
+})
+
+test('a focus that lands during the "+" interaction is taken back synchronously', () => {
+  // The shadow only covers focus(); this is the fallback for a focus path it
+  // does not patch. Blurring in a macrotask is too late - the IME has started -
+  // so the rule is evaluated in the focusin capture phase.
+  const live = { shadowArmed: true, targetIsEditor: true, editorFocused: true }
+  assert.equal(shouldTakeBackArmedFocus(live), true)
+  assert.equal(shouldTakeBackArmedFocus({ ...live, shadowArmed: false }), false, 'never outside the interaction')
+  assert.equal(shouldTakeBackArmedFocus({ ...live, targetIsEditor: false }), false, 'a tap elsewhere is not ours')
+  assert.equal(shouldTakeBackArmedFocus({ ...live, editorFocused: false }), false, 'nothing holds the focus')
 })

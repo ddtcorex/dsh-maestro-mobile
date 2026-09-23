@@ -113,6 +113,63 @@ export const FOCUS_RELEASE_DELAYS_MS = [120, 320, 640] as const
 export const FOCUS_SHADOW_MAX_MS = 1500
 
 /**
+ * Shortest life of the focus shadow, measured from the tap that armed it. The
+ * window may NOT end with the click: the host focuses the editor again from the
+ * effect that runs when its menu opens, which is after this effect's bubble
+ * handler has already decided the menu "is not open" (the node is mounted but
+ * not yet laid out). The community plugin measured exactly that on a phone -
+ *
+ *   click / shadow:ON -> shadow:off (its old restore) -> visual viewport
+ *   754 -> 471 about 200ms later, when the menu effect focused the editor
+ *
+ * - and their fix was to stop tying the window to the click. A shadow that lifts
+ * before that second focus blocks nothing, which is the reported "tapping + still
+ * raises the keyboard". Bounded by FOCUS_SHADOW_MAX_MS; a tap anywhere (and a tap
+ * on the editor in particular) still lifts it immediately, so this only ever
+ * delays a release nothing is waiting for.
+ */
+export const FOCUS_SHADOW_MIN_MS = 700
+
+/**
+ * Whether the focus shadow must stay armed.
+ *
+ * Two reasons to hold: the menu is on screen (the host may focus again at any
+ * point while it is), and the minimum window has not elapsed (the menu-open
+ * effect has not run yet).
+ * @param state - menu visibility and how long this interaction has been armed.
+ * @returns true when the override must remain in place.
+ */
+export function shouldHoldShadow(state: { menuOpen: boolean; armedMs: number }): boolean {
+  if (state.menuOpen) return true
+  return state.armedMs < FOCUS_SHADOW_MIN_MS
+}
+
+/**
+ * Should a focus that landed on the editor during a live "+" interaction be
+ * taken back?
+ *
+ * Pure so the rule is testable without a browser: the case it exists for cannot
+ * be staged in headless Chrome, where the host's own menu-open state leaves the
+ * editor unfocusable (measured: a plain div focuses, the editor does not, with
+ * this plugin's override deleted). The community plugin validated the technique
+ * on a real iPhone instead - a `focusin` blur in a macrotask still let the
+ * visual viewport collapse (754 -> 471) while a synchronous one never let the
+ * keyboard appear - so the rule is pinned here and the wiring is covered by the
+ * interaction's armed window plus the device pass in the upgrade runbook.
+ * @param state - interaction, event target and focus state.
+ * @returns true when the focus must be released synchronously.
+ */
+export function shouldTakeBackArmedFocus(state: {
+  shadowArmed: boolean
+  targetIsEditor: boolean
+  editorFocused: boolean
+}): boolean {
+  if (!state.shadowArmed) return false
+  if (!state.targetIsEditor) return false
+  return state.editorFocused
+}
+
+/**
  * Is this event target (or an ancestor of it) the composer "+" button?
  * @param target - the event target.
  * @returns true when the tap belongs to the add button.
@@ -290,6 +347,14 @@ export function installComposerPlusToggle(ctx: ClientContext): void {
     )
     /** Hard cap: whatever happens, the shadow lifts. */
     let shadowCap: number | null = null
+    /** When the current interaction armed the shadow (minimum-window clock). */
+    let armedAt = 0
+    /**
+     * Re-evaluates the hold as the minimum window closes. Without it the shadow
+     * would stay armed until the hard cap whenever the menu leaves before the
+     * window does - up to 1.5s in which a programmatic focus is still blocked.
+     */
+    let minTimer: number | null = null
     /**
      * Watches for the menu leaving the DOM while the shadow is armed. The shadow
      * must lift the moment the interaction is over, and the ladder's ticks are
@@ -314,16 +379,34 @@ export function installComposerPlusToggle(ctx: ClientContext): void {
         window.clearTimeout(shadowCap)
         shadowCap = null
       }
+      if (minTimer !== null) {
+        window.clearTimeout(minTimer)
+        minTimer = null
+      }
       stopMenuWatch()
       shadow.restore()
       publishShadowState(false)
+    }
+
+    /**
+     * Lift the shadow only once nothing is left to defend: the menu is off
+     * screen AND the minimum window has passed, so the host's menu-open effect
+     * (the second focus, ~200ms after the click) has had its chance to land on
+     * the override instead of the editor.
+     */
+    const liftWhenSettled = (): void => {
+      const held = shouldHoldShadow({
+        menuOpen: openMenu() !== null,
+        armedMs: Date.now() - armedAt,
+      })
+      if (!held) restoreShadow()
     }
 
     /** Restore as soon as the menu is gone (checked per mutation batch). */
     const startMenuWatch = (): void => {
       if (menuWatcher !== null) return
       menuWatcher = new MutationObserver(() => {
-        if (openMenu() === null) restoreShadow()
+        liftWhenSettled()
       })
       menuWatcher.observe(document.documentElement, { childList: true, subtree: true })
     }
@@ -340,11 +423,42 @@ export function installComposerPlusToggle(ctx: ClientContext): void {
     const armShadow = (): void => {
       shadow.arm()
       publishShadowState(shadow.armed)
+      armedAt = Date.now()
+      if (minTimer !== null) window.clearTimeout(minTimer)
+      minTimer = window.setTimeout(() => {
+        minTimer = null
+        liftWhenSettled()
+      }, FOCUS_SHADOW_MIN_MS + 20)
       if (shadowCap !== null) window.clearTimeout(shadowCap)
       shadowCap = window.setTimeout(() => {
         shadowCap = null
-        shadow.restore()
+        // Through restoreShadow, not shadow.restore(): the marker on <html> is
+        // what the composer focus release reads as "this interaction owns the
+        // focus", so a cap that only disarmed the element would leave that guard
+        // refusing to release for the rest of the session.
+        restoreShadow()
       }, FOCUS_SHADOW_MAX_MS)
+    }
+
+    /**
+     * The shadow only covers `focus()`. If the host reaches the editor another
+     * way while the interaction is live, the keyboard is one frame away, and a
+     * blur in a macrotask does not take it back - the IME has already started.
+     * Blur synchronously, in the capture phase of the focus event itself: the
+     * community plugin measured that a `setTimeout` blur still let the visual
+     * viewport collapse (754 -> 471) while the synchronous one never let the
+     * keyboard appear. Gated on `shadow.armed`, so an editor the user taps to
+     * type is never touched - that pointerdown lifts the shadow first.
+     */
+    const onFocusIn = (event: Event): void => {
+      const target = event.target
+      const editor = editorElement()
+      const takeBack = shouldTakeBackArmedFocus({
+        shadowArmed: shadow.armed,
+        targetIsEditor: target instanceof Element && target.closest(EDITOR_SELECTOR) !== null,
+        editorFocused: editor !== null && document.activeElement === editor,
+      })
+      if (takeBack && editor !== null) editor.blur()
     }
 
     /**
@@ -369,7 +483,7 @@ export function installComposerPlusToggle(ctx: ClientContext): void {
         armShadow()
         return
       }
-      restoreShadow()
+      liftWhenSettled()
     }
 
     const onClickCapture = (event: Event): void => {
@@ -401,9 +515,7 @@ export function installComposerPlusToggle(ctx: ClientContext): void {
         // defend, so give focus back on the next task rather than waiting for the
         // ladder. The editor must be focusable again the moment the interaction
         // is over.
-        window.setTimeout(() => {
-          if (openMenu() === null) restoreShadow()
-        }, 0)
+        window.setTimeout(liftWhenSettled, 0)
       } else {
         startMenuWatch()
       }
@@ -411,7 +523,7 @@ export function installComposerPlusToggle(ctx: ClientContext): void {
         releaseTimers.push(
           window.setTimeout(() => {
             if (openMenu() !== null) dropEditorFocus(iosViewportPan)
-            else restoreShadow()
+            else liftWhenSettled()
           }, delay),
         )
       }
@@ -432,6 +544,7 @@ export function installComposerPlusToggle(ctx: ClientContext): void {
 
     document.addEventListener('pointerdown', onPointerDown, true)
     document.addEventListener('touchstart', onTouchStartAdd, true)
+    document.addEventListener('focusin', onFocusIn, true)
     document.addEventListener('click', onClickCapture, true)
     document.addEventListener('click', onClickBubble, false)
     return () => {
@@ -440,6 +553,7 @@ export function installComposerPlusToggle(ctx: ClientContext): void {
       stopMenuWatch()
       document.removeEventListener('pointerdown', onPointerDown, true)
       document.removeEventListener('touchstart', onTouchStartAdd, true)
+      document.removeEventListener('focusin', onFocusIn, true)
       document.removeEventListener('click', onClickCapture, true)
       document.removeEventListener('click', onClickBubble, false)
     }

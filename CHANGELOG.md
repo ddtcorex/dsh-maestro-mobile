@@ -8,6 +8,22 @@ All notable changes to this project are documented in this file. Format follows
 
 ### Fixed
 
+- **The composer "+" stops raising the keyboard on the host's second focus** —
+  reported after the release above landed: tapping `+` with the keyboard dismissed
+  still brought it up. The focus shadow was lifting too early — the host focuses
+  the editor again from the effect that runs when its menu opens, which is after
+  this plugin's bubble handler has read the menu as "not open" (mounted, not yet
+  laid out). `FOCUS_SHADOW_MIN_MS` (700ms, still bounded by the 1.5s cap) makes
+  the window a floor rather than a click-scoped one, and a `focusin` capture-phase
+  blur takes back any focus that reaches the editor during the window, because a
+  blur in a macrotask is too late (the IME has started). Both come from the
+  community plugin `mexiaosqwq/dsh-web-mobile`'s `composer-keyboard-guard.ts`,
+  which measured the timing on a real iPhone; their v3.0.2 does not touch this
+  path. `probe:composer-plus` gates the window (`shadow-window-outlives-the-click`,
+  `shadow-lifts-on-its-own`), and the take-back rule is unit-tested
+  (`shouldTakeBackArmedFocus`) because this host leaves the editor unfocusable
+  while its menu is open, so a focus-driving probe row would pass either way.
+  Refs: mexiaosqwq/dsh-web-mobile v3.0.0/v3.0.1.
 - **The composer no longer drops the keyboard while it is being typed in** —
   reported from the phone as "the keyboard hides by itself" after the fix above
   landed. The release trusts the keyboard reading, and that reading was the
