@@ -4,6 +4,65 @@ All notable changes to this project are documented in this file. Format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); this project uses
 [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.6.2] - 2026-09-25
+
+### Fixed
+
+- **The session-row Delete item is back on 0.1.7 hosts** — the host composes
+  the row menu from a slot list and 0.1.7 prepended "Pin session", so the menu
+  holds four items and the old `labels.length === 3` signature stopped matching:
+  Delete disappeared with no error anywhere. The gate is now an inclusive label
+  signature (rename + fork + archive present, the unarchive twin rejected, extra
+  items allowed), read from the live host locale so wording changes stay
+  harmless. Verified live on 0.1.7-rc.2: five items with Delete injected;
+  `pnpm probe:session-delete` 7/1/0 (the skip is the destructive step, which
+  needs an explicit session id).
+- **The Settings sheet is a bottom sheet again** — the overlay guard was written
+  as `:has()` nested inside `:has()`, which is an invalid selector: Chrome
+  throws and drops the whole rule from the CSSOM with no error, so the four
+  overlay rules never applied a single declaration and the sheet rendered as a
+  floating centred card (equal 56.5px gaps on an 844px viewport) since
+  2026-08-30, while every source-text assertion kept passing. Flattened to
+  `overlay:has(navList)`; measured after: 4 overlay rules in the CSSOM,
+  `align-items: flex-end` landed, panel bottom flush with the viewport. Guards:
+  `tests/css-selector-validity.test.ts` fails the build on the nested shape and
+  `pnpm probe:settings-sheet` asserts the CSSOM rule count plus the
+  bottom-anchored geometry (8/8) — a text regex cannot see a rule the browser
+  rejected.
+- **An oversized delete body is answered, not cut off** — the route destroyed
+  the socket at the overflow point, racing the error response so the client saw
+  an empty reply instead of the reason. The reader drains to the natural end
+  and the route answers 413 `payload-too-large`; the cap stays at 64 KiB.
+  Verified live after the host restart: a 70 KB body returns the 413 JSON.
+- **`end(callback)` no longer writes the callback's source into the response**
+  — the deferred-response replay forwarded the `end()` tail blindly: a function
+  argument was buffered as body text (and the callback never fired), an
+  encoding token was written as a second body chunk, and a buffered `write()`'s
+  callback was dropped. Arguments are now classified (function = callback,
+  encoding = consumed by the buffering, buffered write callbacks replay once,
+  in order, right after the real `end()`).
+  `tests/compress-response.test.ts` drives a real HTTP server through the patch
+  and fails all three behaviours against the pre-fix code.
+
+### Added
+
+- **Deleted session logs are recoverable for 24 hours** — the directory moves
+  into `<root>/.sessions-trash/` with every canonical payload renamed to
+  `<name>.trash` plus a best-effort `manifest.json`, instead of `rm -rf`. The
+  rename precedes the move because the host scans every directory under the
+  storage root as a project directory, trash included, and a canonical payload
+  name there breaks the whole session list; entries older than 24h are purged
+  inline on a later deletion, never on a timer. A stash failure after a live
+  teardown answers `cleanup-failed` with `deletedLiveSession: true` and still
+  settles the workspace accounting, so the caller is never told a session is
+  intact when it is already gone — and the client refreshes the list on that
+  code for the same reason.
+- **A reparent-leak probe** — `pnpm probe:reparent-leak` drives a Settings
+  open/close cycle and a session switch and asserts no moved host node is
+  orphaned and no page exception or `console.error` is raised (5/5 on rc.2).
+  That measurement is why the three reparent sites stay: same hazard class as
+  upstream's #104/#105, no observable fault here.
+
 ## [1.6.1] - 2026-09-24
 
 ### Removed
