@@ -27,17 +27,66 @@
  * `projectKey` / `encodeSegment` here mirror
  * `@deepseek-ai/dsh-session-persistence-jsonl` `src/format.ts` byte for byte and
  * are pinned by unit tests against goldens taken from that module plus this
- * machine's live storage layout. The directory is removed recursively, and the
- * resolved path is refused when it does not sit inside the storage root.
+ * machine's live storage layout. The resolved path is refused when it does not
+ * sit inside the storage root.
+ *
+ * The directory is MOVED INTO A TRASH, not removed: the canonical payloads are
+ * renamed with a `.trash` suffix and the directory is stashed under
+ * `<root>/.sessions-trash/<timestamp>-<project>-<id>/`, with a best-effort
+ * `manifest.json` recording the restore mapping. The rename order is
+ * load-bearing — see `moveToTrash`. Entries older than 24 hours are purged,
+ * best effort, on a later deletion; no timer is ever created. A failure after a
+ * LIVE session was already stopped reports `cleanup-failed` with
+ * `deletedLiveSession`, so the caller is never told a session is intact when it
+ * is already gone.
  *
  * Attachment bytes are content-addressed in a shared backend and are NOT
  * removed; they only become unreachable garbage once no log references them.
  */
-import { rm } from 'node:fs/promises'
+import { mkdir, readdir, rename, rm, stat, writeFile } from 'node:fs/promises'
+import type { Dirent } from 'node:fs'
 import { join, relative, resolve, sep } from 'node:path'
 
 /** How long to wait for a live agent to converge to idle before refusing. */
 const IDLE_TIMEOUT_MS = 20_000
+
+/** Where deleted session directories are stashed, under the storage root. */
+export const TRASH_DIR_NAME = '.sessions-trash'
+
+/** Trash entries older than this are purged (best effort) after a later move. */
+export const TRASH_TTL_MS = 24 * 60 * 60 * 1000
+
+/**
+ * The canonical payload names the host's session scan recognizes, mirroring
+ * `sessionFormatLogFilename` + the compression suffix
+ * (`packages/session/session-format/src/filename.ts`): the v0 name is
+ * `session.jsonl`, later generations are `session.vN.jsonl`, and either carries
+ * `.zstd` under the compressed encoding. Temporary, uppercase, leading-zero and
+ * `.v0`-tagged names are not canonical, so the pattern must not widen to accept
+ * them — its whole job is to decide which files the host is still able to see.
+ */
+const PAYLOAD_NAME = /^session(?:\.v[1-9][0-9]*)?\.jsonl(?:\.zstd)?$/
+
+/**
+ * Which stage of the trash move failed, carried on the thrown error so the
+ * caller can describe the state that actually obtains.
+ *
+ * - `rename-payloads`: no canonical payload was renamed, the directory is
+ *   exactly as it was;
+ * - `stash`: the payloads were renamed (the session is already hidden from the
+ *   host list) but the directory itself is still in place.
+ */
+type TrashStage = 'rename-payloads' | 'stash'
+
+/** A failed trash move, tagged with the stage it failed in. */
+class TrashMoveError extends Error {
+  readonly stage: TrashStage
+
+  constructor(stage: TrashStage, cause: unknown) {
+    super(errorMessage(cause))
+    this.stage = stage
+  }
+}
 
 /** One entry of `persistence.list()` in either host generation's shape. */
 export interface PersistenceListEntry {
@@ -70,7 +119,17 @@ export type DeleteSessionResult =
   | { status: 200; ok: true; deleted: string }
   | { status: 404; ok: false; error: { code: 'session-not-found'; message: string } }
   | { status: 409; ok: false; error: { code: 'session-busy'; message: string } }
-  | { status: 500; ok: false; error: { code: 'delete-lookup-failed' | 'delete-failed'; message: string } }
+  | {
+    status: 500
+    ok: false
+    /**
+     * Set when the session was already stopped and unregistered before the
+     * failure, so the caller can tell "nothing happened" from "the session is
+     * gone, only the leftovers remain".
+     */
+    deletedLiveSession?: true
+    error: { code: 'delete-lookup-failed' | 'delete-failed' | 'cleanup-failed'; message: string }
+  }
   | { status: 503; ok: false; error: { code: 'persistence-unavailable'; message: string } }
 
 /**
@@ -175,6 +234,118 @@ function detachLiveSession(sessions: DeleteSessionDeps['sessions'] | undefined, 
 
 function errorMessage(error: unknown): string {
   return error instanceof Error ? error.message : String(error)
+}
+
+/** Whether one failure means "the path is not there" (an idempotent delete). */
+function isEnoent(error: unknown): boolean {
+  return typeof error === 'object' && error !== null
+    && (error as { code?: unknown }).code === 'ENOENT'
+}
+
+/**
+ * Remove a deleted session from every workspace account. Optional per
+ * workspace, and never allowed to fail an already-finished deletion: a stale id
+ * stays in the record until the host reconciles it.
+ */
+async function detachFromWorkspaces(deps: DeleteSessionDeps, sessionId: string): Promise<void> {
+  if (deps.workspaceRegistry === undefined) return
+  for (const workspace of deps.workspaceRegistry.list()) {
+    try {
+      await workspace.detachSession?.(sessionId)
+    } catch {
+      // Accounting is best-effort; the log is already gone.
+    }
+  }
+}
+
+/**
+ * Move one session's stored directory into the trash instead of removing it.
+ *
+ * The two stages are ordered deliberately. The canonical payloads are renamed
+ * with a `.trash` suffix FIRST, because the host treats every directory under
+ * the storage root as a project directory and scans each of its children as a
+ * session directory — so it descends into the trash root. A canonical payload
+ * name there makes the host compare a stored header against the trash
+ * directory's derived identity, and the plain error that raises is not among
+ * the failures `listArtifacts` filters, so the WHOLE session list fails to
+ * load. Renaming first makes the entry invisible before it moves.
+ *
+ * `manifest.json` records the restore mapping, but the mapping is also
+ * deterministic without it: strip the `.trash` suffix.
+ * @param root - the resolved session storage root.
+ * @param dir - the session directory to stash.
+ * @param cwd - the session's project directory, for the trash entry name.
+ * @param sessionId - the session being deleted.
+ */
+async function moveToTrash(
+  root: string,
+  dir: string,
+  cwd: string | undefined,
+  sessionId: string,
+): Promise<void> {
+  let entries: Dirent[]
+  try {
+    entries = await readdir(dir, { withFileTypes: true })
+  } catch (error) {
+    // Nothing stored: the delete is idempotent and there is nothing to stash.
+    if (isEnoent(error)) return
+    throw new TrashMoveError('rename-payloads', error)
+  }
+
+  const renamed: { from: string; to: string }[] = []
+  for (const entry of entries) {
+    if (!entry.isFile() || !PAYLOAD_NAME.test(entry.name)) continue
+    const to = `${entry.name}.trash`
+    try {
+      await rename(join(dir, entry.name), join(dir, to))
+    } catch (error) {
+      throw new TrashMoveError('rename-payloads', error)
+    }
+    renamed.push({ from: entry.name, to })
+  }
+
+  const trashRoot = join(root, TRASH_DIR_NAME)
+  const project = cwd === undefined ? '_no-cwd' : projectKey(cwd)
+  const trashDir = join(trashRoot, `${new Date().toISOString().replaceAll(':', '-')}-${project}-${encodeSegment(sessionId)}`)
+  try {
+    await mkdir(trashRoot, { recursive: true })
+    await rename(dir, trashDir)
+  } catch (error) {
+    throw new TrashMoveError('stash', error)
+  }
+
+  try {
+    const manifest = { id: sessionId, cwd, deletedAt: new Date().toISOString(), files: renamed }
+    await writeFile(join(trashDir, 'manifest.json'), `${JSON.stringify(manifest, null, 2)}\n`)
+  } catch {
+    // The entry is already invisible to the host scan, so a failed manifest
+    // only degrades the restore info; the mapping stays deterministic.
+  }
+
+  await purgeStaleTrash(trashRoot)
+}
+
+/**
+ * Delete trash entries older than {@link TRASH_TTL_MS}. Runs inline after a
+ * successful move rather than on a timer: the plugin owns no long-lived
+ * background work, and a deletion is exactly when trash grows.
+ */
+async function purgeStaleTrash(trashRoot: string): Promise<void> {
+  try {
+    const cutoff = Date.now() - TRASH_TTL_MS
+    for (const name of await readdir(trashRoot)) {
+      try {
+        const stats = await stat(join(trashRoot, name))
+        if (stats.mtimeMs < cutoff) await rm(join(trashRoot, name), { recursive: true, force: true })
+      } catch {
+        // An entry that vanished or cannot be stat-ed is skipped; the purge is
+        // best effort and must never fail the deletion that triggered it.
+      }
+    }
+  } catch {
+    // An unreadable trash root only skips the purge; the deletion already
+    // succeeded and is not affected.
+  }
 }
 
 /**
@@ -296,29 +467,39 @@ export async function deleteSession(deps: DeleteSessionDeps, sessionId: string):
     }
   }
   try {
-    await rm(dir, { recursive: true, force: true })
+    await moveToTrash(resolvedRoot, dir, snapshot.cwd, sessionId)
   } catch (error) {
+    const stage = error instanceof TrashMoveError ? error.stage : 'stash'
+    if (live !== undefined) {
+      // The live session was already stopped, flushed and unregistered above, so
+      // settle the workspace accounting now and name the real state: a plain
+      // failure would imply a session that no longer exists and would leave the
+      // account holding a zombie id.
+      await detachFromWorkspaces(deps, sessionId)
+      return {
+        status: 500,
+        ok: false,
+        deletedLiveSession: true,
+        error: {
+          code: 'cleanup-failed',
+          message: stage === 'rename-payloads'
+            ? `session '${sessionId}' was stopped and unregistered, but its log directory could not be moved to the trash and remains untouched in place: ${errorMessage(error)}; the session will not resume — retry the delete to clean up the leftover files`
+            : `session '${sessionId}' was stopped and unregistered, but its log directory could only be partially stashed (payloads renamed, directory still in place): ${errorMessage(error)}; the session will not resume — its payloads carry a ".trash" suffix and the session is hidden from the list: restore the original names (strip the suffix) and delete again to finish the move, or remove the directory manually`,
+        },
+      }
+    }
     return {
       status: 500,
       ok: false,
       error: {
         code: 'delete-failed',
-        message: `failed to remove the session log: ${errorMessage(error)}`,
+        message: stage === 'rename-payloads'
+          ? `failed to move the session log to the trash: ${errorMessage(error)} (the directory is untouched)`
+          : `failed to stash the session log directory: ${errorMessage(error)} (payloads were renamed, so the session is hidden from the list until restored)`,
       },
     }
   }
 
-  // Workspace accounting: remove the deleted session from every workspace
-  // account. Optional per workspace, and never allowed to fail an
-  // already-finished deletion.
-  if (deps.workspaceRegistry !== undefined) {
-    for (const workspace of deps.workspaceRegistry.list()) {
-      try {
-        await workspace.detachSession?.(sessionId)
-      } catch {
-        // Accounting is best-effort; the log is already gone.
-      }
-    }
-  }
+  await detachFromWorkspaces(deps, sessionId)
   return { status: 200, ok: true, deleted: sessionId }
 }

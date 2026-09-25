@@ -1,7 +1,14 @@
 import assert from 'node:assert/strict'
+import { Readable } from 'node:stream'
+import type { IncomingMessage } from 'node:http'
 import test from 'node:test'
 
-import { isTrustedDeleteRequest, parseDeleteBody } from '../src/delete-route.ts'
+import {
+  isTrustedDeleteRequest,
+  MAX_DELETE_BODY_BYTES,
+  parseDeleteBody,
+  readDeleteBody,
+} from '../src/delete-route.ts'
 
 test('only POST is accepted', () => {
   assert.equal(isTrustedDeleteRequest({ method: 'POST' }), true)
@@ -56,4 +63,53 @@ test('the body parser accepts exactly one non-empty string sessionId', () => {
   assert.equal(parseDeleteBody('not json'), null)
   assert.equal(parseDeleteBody(''), null)
   assert.equal(parseDeleteBody('[{"sessionId":"abc"}]'), null)
+})
+
+/** Drive readDeleteBody over a real Readable, tracking how it was consumed. */
+async function read(chunks: readonly string[], limitBytes?: number) {
+  const req = Readable.from(chunks)
+  let ended = false
+  req.on('end', () => { ended = true })
+  const result = await readDeleteBody(req as unknown as IncomingMessage, limitBytes)
+  return { result, ended }
+}
+
+test('a body within the limit is read whole', async () => {
+  const { result, ended } = await read(['{"sessionId":', '"abc"}'])
+  assert.deepEqual(result, { outcome: 'ok', body: '{"sessionId":"abc"}' })
+  assert.equal(ended, true)
+})
+
+test('an oversized body is refused WITHOUT destroying the request', async () => {
+  // Destroying the socket at the overflow point races the error response: the
+  // reader rejects, the handler writes 413 into a dying socket, and the client
+  // sees an empty reply instead of the reason. Drain instead — the request runs
+  // to its natural end, so the response is still deliverable.
+  const { result, ended } = await read(['{"sessionId":"', 'x'.repeat(MAX_DELETE_BODY_BYTES), '"}'])
+  assert.equal(result.outcome, 'too-large')
+  assert.equal(result.limitBytes, MAX_DELETE_BODY_BYTES)
+  assert.equal(ended, true, 'the oversized request must be drained, not cut off')
+})
+
+test('exactly the limit is still accepted', async () => {
+  const { result } = await read(['abcde'], 5)
+  assert.deepEqual(result, { outcome: 'ok', body: 'abcde' })
+})
+
+test('the limit is measured in bytes, not code units', async () => {
+  // A 3-byte character is one code unit: a code-unit cap would let a body of
+  // multibyte characters through at three times the intended size.
+  const { result } = await read(['€'.repeat(4)], 6)
+  assert.equal(result.outcome, 'too-large')
+})
+
+test('a transport error is reported as an error, not as an oversized body', async () => {
+  const req = new Readable({
+    read() {
+      this.destroy(new Error('socket hang up'))
+    },
+  })
+  const result = await readDeleteBody(req as unknown as IncomingMessage)
+  assert.equal(result.outcome, 'error')
+  assert.match(result.message, /socket hang up/)
 })

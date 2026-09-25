@@ -2,18 +2,27 @@
 // Reuses DSH SettingsRoot tokens: --dsw-alias-bg-layer-2, --dsw-alias-bg-mask-1, --dsw-mask-blur,
 // --dsw-shadow-lv3, --dsw-alias-border-l1/l2/inverted, --dsw-alias-label-primary, --ds-ease-out
 // See design-system/pages/settings.md
-// Scope is SettingsRoot only: panel:has(navList) isolates Settings from other dialogs.
+// Scope is SettingsRoot only: overlay:has(navList) isolates Settings from other dialogs.
+// The overlay guard is deliberately SINGLE-LEVEL: an `:has()` whose argument list
+// contains another `:has()` is an invalid selector, and Chrome drops the whole rule
+// when it is (no error, no warning — the declarations simply never apply). This file
+// carried that nested shape from 2026-08-30, so the overlay rules below were dead and
+// the Settings sheet rendered as a floating centred card instead of a bottom sheet
+// until 2026-09-25. tests/css-selector-validity.test.ts now fails the build on the
+// nested shape; scripts/probes/settings-sheet-probe.mjs asserts the CSSOM and the
+// bottom-anchored geometry in a real browser.
 // Guard: [class*="_nav"] is prefix of _navTitle/_navList/_navCell/... — outer nav uses :not guards.
 
 export const SETTINGS_SHEET_CSS = `
 @media (max-width: 1023px) and (pointer: coarse) {
-  /* Overlay anchor: only when it hosts the Settings panel (panel:has(navList)) */
-  [class*="_overlay"]:has([class*="_panel"]:has([class*="_navList"])) {
+  /* Overlay anchor: only when it hosts the Settings nav (single-level :has — see
+     the header note on why the nested form was dropped by Chrome). */
+  [class*="_overlay"]:has([class*="_navList"]) {
     align-items: flex-end !important;
     justify-content: center !important;
     padding: 0 !important;
   }
-  [class*="_overlay"]:has([class*="_panel"]:has([class*="_navList"])) [class*="_mask"] {
+  [class*="_overlay"]:has([class*="_navList"]) [class*="_mask"] {
     background: var(--dsw-alias-bg-mask-1, rgba(0,0,0,.24)) !important;
     backdrop-filter: var(--dsw-mask-blur, blur(2px)) !important;
     animation: dsh-maestro-mobile-fade .18s var(--ds-ease-out, ease-in-out) !important;
@@ -208,7 +217,7 @@ export const SETTINGS_SHEET_CSS = `
 
 /* Tablet 768-1023: centered constrained sheet, r24 all corners */
 @media (min-width: 768px) and (max-width: 1023px) and (pointer: coarse) {
-  [class*="_overlay"]:has([class*="_panel"]:has([class*="_navList"])) {
+  [class*="_overlay"]:has([class*="_navList"]) {
     align-items: center !important;
     padding: 24px 16px calc(16px + env(safe-area-inset-bottom, 0px)) !important;
   }
@@ -225,7 +234,7 @@ export const SETTINGS_SHEET_CSS = `
 }
 
 @media (prefers-reduced-motion: reduce) {
-  [class*="_overlay"]:has([class*="_panel"]:has([class*="_navList"])) [class*="_mask"],
+  [class*="_overlay"]:has([class*="_navList"]) [class*="_mask"],
   [class*="_panel"]:has([class*="_navList"]) {
     animation: none !important;
   }
