@@ -40,7 +40,7 @@
     "smoke:cdp": "node scripts/cdp-probe.mjs",
     "contracts:cdp": "node scripts/cdp-compat-contracts.mjs",
     "probe:swipe": "node scripts/probes/swipe-yield-probe.mjs",
-    "probe:session-delete": "node scripts/probes/session-delete-probe.mjs",
+    "probe:settings-sheet": "node scripts/probes/settings-sheet-probe.mjs",
     "probe:jobs-chip": "node scripts/probes/jobs-chip-probe.mjs",
     "probe:lineage-chip": "node scripts/probes/lineage-chip-probe.mjs",
     "probe:pointer-gating": "node scripts/probes/pointer-gating-probe.mjs",
