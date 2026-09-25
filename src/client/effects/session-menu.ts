@@ -176,7 +176,23 @@ interface MenuAnchor {
 interface DeleteResponse {
   ok?: true
   deleted?: string
+  /** The session was stopped and unregistered before the failure. */
+  deletedLiveSession?: true
   error?: { code?: string; message?: string }
+}
+
+/**
+ * Whether a failed delete still requires a list refresh.
+ *
+ * `cleanup-failed` means the host already stopped and unregistered the session
+ * and only its leftovers could not be stashed, so the row must not survive in
+ * the list. Every other failure leaves the session in place, where a refresh
+ * would only churn the list.
+ * @param code - the structured error code the delete route answered with.
+ * @returns true when the session is gone and the list must be re-read.
+ */
+export function refreshAfterDeleteFailure(code: string | undefined): boolean {
+  return code === 'cleanup-failed'
 }
 
 /**
@@ -340,6 +356,13 @@ export function installSessionMenuDelete(ctx: ClientContext): void {
             const payload = await response.json().catch(() => null) as DeleteResponse | null
             if (!response.ok || payload === null || payload.ok !== true) {
               fail(mapError(payload, new Error(`HTTP ${response.status}`)))
+              // The session may be gone even though the request failed: a
+              // cleanup failure means the host already stopped and unregistered
+              // it, so the row would otherwise survive as a zombie.
+              if (refreshAfterDeleteFailure(payload?.error?.code)) {
+                if (wasCurrent) sessions.clear?.()
+                await sessions.refresh?.()
+              }
               return
             }
           } catch (reason) {

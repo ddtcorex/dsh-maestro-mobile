@@ -5,6 +5,7 @@ import test from 'node:test'
 import {
   isCurrentSession,
   isSessionMenuLabels,
+  refreshAfterDeleteFailure,
   resolveSessionId,
   type SessionMenuInput,
   type SessionMenuLabels,
@@ -110,6 +111,18 @@ test('an unrelated menu is never mistaken for the session menu', () => {
   assert.equal(isSessionMenuLabels(['Rename', 'Archive session'], LABELS), false)
   assert.equal(isSessionMenuLabels(['Rename', 'Fork session'], LABELS), false)
   assert.equal(isSessionMenuLabels(['Archive session', 'Fork session'], LABELS), false)
+})
+
+test('a cleanup failure still refreshes the list, because the session is gone', () => {
+  // `cleanup-failed` means the host already stopped and unregistered the
+  // session and only the leftovers could not be stashed — so the row must
+  // disappear. Every other failure leaves the session in place and refreshing
+  // would only churn the list.
+  assert.equal(refreshAfterDeleteFailure('cleanup-failed'), true)
+  assert.equal(refreshAfterDeleteFailure('delete-failed'), false)
+  assert.equal(refreshAfterDeleteFailure('session-busy'), false)
+  assert.equal(refreshAfterDeleteFailure('session-not-found'), false)
+  assert.equal(refreshAfterDeleteFailure(undefined), false)
 })
 
 const source = readFileSync(new URL('../src/client/effects/session-menu.ts', import.meta.url), 'utf8')
