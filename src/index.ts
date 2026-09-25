@@ -15,7 +15,7 @@
 import type { IncomingMessage, ServerResponse } from 'node:http'
 import { installResponseCompression } from './compress.js'
 import { deleteSession, type DeleteSessionDeps } from './delete-session.js'
-import { isTrustedDeleteRequest, parseDeleteBody } from './delete-route.js'
+import { isTrustedDeleteRequest, parseDeleteBody, readDeleteBody } from './delete-route.js'
 
 /** Minimal structural slice of the host cordis Context that apply() needs. */
 export interface HostContext {
@@ -46,26 +46,6 @@ export interface ScopedContext extends HostContext {
  * consistent with the markers it drives.
  */
 export const DELETE_ROUTE_PATH = '/api/mobile-nav.session.delete'
-
-/** Drain a request body as UTF-8 text with a hard size cap. */
-function readBody(req: IncomingMessage, limitBytes = 64 * 1024): Promise<string> {
-  return new Promise((resolve, reject) => {
-    let data = ''
-    let size = 0
-    req.setEncoding('utf8')
-    req.on('data', (chunk: string) => {
-      size += Buffer.byteLength(chunk)
-      if (size > limitBytes) {
-        reject(new Error('request body too large'))
-        req.destroy()
-        return
-      }
-      data += chunk
-    })
-    req.on('end', () => resolve(data))
-    req.on('error', reject)
-  })
-}
 
 /** Write one JSON response with a fixed content type. */
 function respond(res: ServerResponse, status: number, body: unknown): void {
@@ -110,19 +90,23 @@ export function apply(ctx: HostContext): void {
           respond(res, 403, { error: { code: 'forbidden', message: 'POST from the same site required' } })
           return
         }
-        let body: string
-        try {
-          body = await readBody(req)
-        } catch (error) {
-          respond(res, 400, {
+        const read = await readDeleteBody(req)
+        if (read.outcome === 'too-large') {
+          respond(res, 413, {
             error: {
-              code: 'invalid-body',
-              message: error instanceof Error ? error.message : 'unreadable body',
+              code: 'payload-too-large',
+              message: `request body exceeds the ${read.limitBytes}-byte limit`,
             },
           })
           return
         }
-        const sessionId = parseDeleteBody(body)
+        if (read.outcome === 'error') {
+          respond(res, 400, {
+            error: { code: 'invalid-body', message: read.message },
+          })
+          return
+        }
+        const sessionId = parseDeleteBody(read.body)
         if (sessionId === null) {
           respond(res, 400, {
             error: {
