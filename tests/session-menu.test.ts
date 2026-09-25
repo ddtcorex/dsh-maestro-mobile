@@ -2,7 +2,13 @@ import assert from 'node:assert/strict'
 import { readFileSync } from 'node:fs'
 import test from 'node:test'
 
-import { isCurrentSession, resolveSessionId, type SessionMenuInput } from '../src/client/effects/session-menu.ts'
+import {
+  isCurrentSession,
+  isSessionMenuLabels,
+  resolveSessionId,
+  type SessionMenuInput,
+  type SessionMenuLabels,
+} from '../src/client/effects/session-menu.ts'
 
 // Shape of `ctx.sessions.list.getSnapshot()`: ids + byId of client-side
 // SessionSummary rows (id, title, displayTitle, cwd), never the wire summary.
@@ -70,15 +76,52 @@ test('isCurrentSession follows the main-view retention, not a current field', ()
   assert.equal(isCurrentSession(nobodyRetained, 's-main'), false)
 })
 
+// The host's workspace dictionary keys the signature matches, resolved from the
+// live locale at runtime; these are the 0.1.7 English strings.
+const LABELS: SessionMenuLabels = {
+  rename: 'Rename',
+  fork: 'Fork session',
+  archive: 'Archive session',
+  unarchive: 'Unarchive session',
+}
+
+test('the session menu is identified inclusively, so a host that adds an item still matches', () => {
+  // 0.1.7 added "Pin session" ahead of Rename (Pin/Rename/Fork/Archive). The
+  // former `labels.length === 3` signature silently stopped matching on that
+  // release and the injected Delete item disappeared with no error.
+  assert.equal(isSessionMenuLabels(['Pin session', 'Rename', 'Fork session', 'Archive session'], LABELS), true)
+  assert.equal(isSessionMenuLabels(['Unpin session', 'Rename', 'Fork session', 'Archive session'], LABELS), true)
+  // The pre-0.1.7 three-item shape keeps working.
+  assert.equal(isSessionMenuLabels(['Rename', 'Fork session', 'Archive session'], LABELS), true)
+  // A few more added actions must not break it either.
+  assert.equal(isSessionMenuLabels(['Pin session', 'Rename', 'Duplicate', 'Fork session', 'Archive session'], LABELS), true)
+})
+
+test('an archived row is not the session menu, so Delete is never injected there', () => {
+  // The host swaps the archive item for its unarchive twin on an archived row:
+  // deleting goes through unarchive first, and the flow must not offer it.
+  assert.equal(isSessionMenuLabels(['Rename', 'Fork session', 'Unarchive session'], LABELS), false)
+  assert.equal(isSessionMenuLabels(['Pin session', 'Rename', 'Fork session', 'Unarchive session'], LABELS), false)
+})
+
+test('an unrelated menu is never mistaken for the session menu', () => {
+  assert.equal(isSessionMenuLabels([], LABELS), false)
+  assert.equal(isSessionMenuLabels(['Rename workspace', 'Delete workspace'], LABELS), false)
+  assert.equal(isSessionMenuLabels(['Rename', 'Archive session'], LABELS), false)
+  assert.equal(isSessionMenuLabels(['Rename', 'Fork session'], LABELS), false)
+  assert.equal(isSessionMenuLabels(['Archive session', 'Fork session'], LABELS), false)
+})
+
 const source = readFileSync(new URL('../src/client/effects/session-menu.ts', import.meta.url), 'utf8')
 
 test('the delete item is injected only into the host session menu', () => {
-  // Signature: exactly the three host items, so no other menu is touched.
-  assert.match(source, /rename/)
+  // The signature is inclusive and label-based; an exact item COUNT is the
+  // regression this pins against (0.1.7's pinned item broke it silently).
   assert.match(source, /menu\.fork/)
   assert.match(source, /menu\.archiveSession/)
-  assert.match(source, /isSessionMenu/)
+  assert.match(source, /isSessionMenuLabels/)
   assert.match(source, /data-mobile-nav', 'session-delete'/)
+  assert.doesNotMatch(source, /labels\.length === 3/)
 })
 
 test('deletion is confirmation-first', () => {

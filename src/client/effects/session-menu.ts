@@ -8,7 +8,11 @@
  * into the portaled `[role="menu"]` list by cloning the host's own item markup
  * (reusing the hashed classes keeps the styling identical) and re-injected
  * whenever React recreates the menu. The host menu is identified by its own
- * contents — exactly the three workspace items — so no other menu is touched.
+ * contents — an INCLUSIVE label signature (rename + fork + archive, no
+ * unarchive twin) — so no other menu is touched and a host release that adds
+ * another row action (0.1.7 added "Pin session") cannot silently stop the
+ * match. Never identify it by item COUNT: an exact count is a host-release
+ * tripwire that fails closed and invisibly.
  *
  * Row → session id is by display title, because rows carry no id in the DOM.
  * When two visible sessions share a title the owning workspace disambiguates;
@@ -129,6 +133,36 @@ export function resolveSessionId(input: SessionMenuInput): string | undefined {
     workspace.sessionIds.includes(id) || byId[id]?.cwd === workspace.path,
   )
   return scoped.length === 1 ? scoped[0] : undefined
+}
+
+/** The host's workspace dictionary labels the session-menu signature matches. */
+export interface SessionMenuLabels {
+  rename: string
+  fork: string
+  archive: string
+  /** Present on an archived row's menu in place of `archive`. */
+  unarchive?: string
+}
+
+/**
+ * Whether a menu's item labels are the host's per-session row menu.
+ *
+ * The signature is INCLUSIVE on purpose: the host composes this menu from a
+ * slot list and may add actions at any release (0.1.7 prepended "Pin session"),
+ * so requiring an exact item count makes the injected Delete item vanish on the
+ * next host upgrade with no error anywhere. Requiring the three labels we know,
+ * and rejecting the unarchive twin that replaces `archive` on an archived row,
+ * identifies the menu across host generations.
+ * @param labels - the trimmed text of every `[role="menuitem"]` in the menu.
+ * @param t - the host's own labels, read from the live locale.
+ * @returns true when the menu is the session row menu of a non-archived session.
+ */
+export function isSessionMenuLabels(labels: readonly string[], t: SessionMenuLabels): boolean {
+  if (!labels.includes(t.rename)) return false
+  if (!labels.includes(t.fork)) return false
+  if (!labels.includes(t.archive)) return false
+  if (t.unarchive !== undefined && t.unarchive !== '' && labels.includes(t.unarchive)) return false
+  return true
 }
 
 /** One captured session-row menu anchor. */
@@ -340,10 +374,12 @@ export function installSessionMenuDelete(ctx: ClientContext): void {
     const isSessionMenu = (menu: HTMLElement): boolean => {
       const labels = [...menu.querySelectorAll<HTMLElement>('[role="menuitem"]')]
         .map((element) => (element.textContent ?? '').trim())
-      const rename = wsT('rename')
-      const fork = wsT('menu.fork')
-      const archive = wsT('menu.archiveSession')
-      return labels.length === 3 && labels.includes(rename) && labels.includes(fork) && labels.includes(archive)
+      return isSessionMenuLabels(labels, {
+        rename: wsT('rename'),
+        fork: wsT('menu.fork'),
+        archive: wsT('menu.archiveSession'),
+        unarchive: wsT('menu.unarchiveSession'),
+      })
     }
 
     /** Inject the delete item into one open session menu (idempotent). */
