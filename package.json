@@ -40,6 +40,7 @@
     "smoke:cdp": "node scripts/cdp-probe.mjs",
     "contracts:cdp": "node scripts/cdp-compat-contracts.mjs",
     "probe:swipe": "node scripts/probes/swipe-yield-probe.mjs",
+    "probe:session-delete": "node scripts/probes/session-delete-probe.mjs",
     "probe:settings-sheet": "node scripts/probes/settings-sheet-probe.mjs",
     "probe:reparent-leak": "node scripts/probes/reparent-leak-probe.mjs",
     "probe:jobs-chip": "node scripts/probes/jobs-chip-probe.mjs",
