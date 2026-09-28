@@ -14,7 +14,7 @@ const manifest = JSON.parse(readFileSync(resolve(here, '../package.json'), 'utf8
   peerDependencies?: Record<string, string>
 }
 
-const NORMALIZED = '>=0.1.6-alpha.2 <0.2.0-0'
+const NORMALIZED = '>=0.1.6-alpha.2 <0.3.0-0'
 const FORBIDDEN_PEER_PREFIX = '@deepseek-ai/dsh'
 
 function dshPeers(): Array<[string, string]> {
@@ -29,7 +29,7 @@ function violations(): string[] {
     const reasons: string[] = []
     if (/^\d/.test(range.trim())) reasons.push('exact pin')
     if (!/<\s*0\.\d/.test(range)) reasons.push('missing ceiling')
-    else if (!/0\.2\.0-0/.test(range)) reasons.push('ceiling lacks -0 suffix')
+    else if (!/0\.3\.0-0/.test(range)) reasons.push('ceiling lacks -0 suffix')
     const earlyFloor = /(?:>=|\^|~)?\s*0\.1\.\d/.test(range)
     if (!earlyFloor) reasons.push('floor too late')
     if (reasons.length > 0) found.push(`${name}: ${reasons.join(', ')}`)
@@ -54,6 +54,6 @@ test('flags an exact pin (the 2026-09-23 incident)', () => {
 })
 
 test('flags a ceiling that lacks the -0 suffix', () => {
-  assert.equal(/0\.2\.0-0/.test('^0.1.0-rc.6 || >=0.1.1-rc.0 <0.2.0'), false)
-  assert.equal(/0\.2\.0-0/.test(NORMALIZED), true)
+  assert.equal(/0\.3\.0-0/.test('^0.1.0-rc.6 || >=0.1.1-rc.0 <0.3.0'), false)
+  assert.equal(/0\.3\.0-0/.test(NORMALIZED), true)
 })
