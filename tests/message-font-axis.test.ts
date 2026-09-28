@@ -25,9 +25,49 @@ test('message text follows the host content font-size axis', () => {
   )
   assert.match(
     css,
-    /\[class\*="_text_"\]\s*\{[^}]*font-size:\s*max\(15px,\s*var\(--dsh-content-font-size,\s*14px\)\)\s*!important;/s,
-    'message paragraphs / list items must derive their size from the same axis',
+    /\[class\*="_markdown"\]:not\(\[data-markdown-variant="compact"\]\)\s*p\s*,\s*\[data-phase\]\s*\[class\*="_scroll"\]:not\(\[class\*="_scrollBody"\]\):has\(p\)\s*\[class\*="_markdown"\]:not\(\[data-markdown-variant="compact"\]\)\s*li\s*\{[^}]*font-size:\s*max\(15px,\s*var\(--dsh-content-font-size,\s*14px\)\)\s*!important;/s,
+    'markdown paragraphs / list items must derive their size from the same axis, and skip the compact variant',
   )
+})
+
+/**
+ * The floor is a prose floor. The in-flow chrome around the prose deliberately
+ * sits one step under the body setting — tool rows, tool output, the reasoning
+ * summary and the diff stat all read --dsh-content-font-size-secondary (13px at
+ * the default 14px). A bare descendant selector (every p / li / _text_ under the
+ * flow container) hoisted all of it to 15px: measured on a real 1170-edit
+ * session, ~1900 elements grew 13px -> 15px.
+ *
+ * Markdown rendered at the secondary tier carries a stable host marker,
+ * data-markdown-variant="compact" (ui-primitives MarkdownText; used by the
+ * thinking/reasoning body and the trajectory table), so the floor must exclude
+ * it. Anchoring on the class alone is not enough — both variants share the
+ * _markdown root.
+ */
+test('the phone floor is scoped to prose, not the whole flow', () => {
+  const floorRule = /\[data-phase\][^{]*\{[^}]*font-size:\s*max\(15px,\s*var\(--dsh-content-font-size/gs
+  const rules = css.match(floorRule) ?? []
+  assert.ok(rules.length > 0, 'expected to find the phone-floor rules')
+  for (const rule of rules) {
+    // The container rule is the one legitimate blanket: it only changes what
+    // descendants INHERIT, and each descendant's own declaration still wins.
+    if (/\[class\*="_scroll"\]:not\(\[class\*="_scrollBody"\]\):has\(p\)\s*\{/.test(rule)) continue
+    assert.doesNotMatch(
+      rule,
+      /:has\(p\)\s+(?:p|li)\s*[,{]/,
+      `a bare p/li under the flow container escapes the prose scope: ${rule.trim().slice(0, 90)}`,
+    )
+    assert.doesNotMatch(
+      rule,
+      /\[class\*="_text_"\]/,
+      `[class*="_text_"] matches tool-card text on the 13px secondary tier: ${rule.trim().slice(0, 90)}`,
+    )
+    assert.match(
+      rule,
+      /\[class\*="_markdown"\]:not\(\[data-markdown-variant="compact"\]\)/,
+      `a markdown floor must skip the compact variant (the thinking block): ${rule.trim().slice(0, 90)}`,
+    )
+  }
 })
 
 test('no message rule pins a bare 15px over the host setting', () => {

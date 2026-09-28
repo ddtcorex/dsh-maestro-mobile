@@ -288,22 +288,44 @@ export const LAYOUT_CSS = `/* ---------- mobile-only layout ---------- */
     padding-right: 20px;
     font-size: max(15px, var(--dsh-content-font-size, 14px)) !important;
   }
-  /* The official markdown styles set an explicit 16px on paragraphs and
-     list items, so the container's inherited size is not enough. User
-     messages render their text in a div whose class carries _text_
-     (16px too) — cover it as well.
+  /* Phone floor for assistant prose, and ONLY for assistant prose.
+
+     The host keeps the in-flow chrome one step under the body setting:
+     --dsh-content-font-size-secondary (13px at the default 14px). Tool rows,
+     tool output, the reasoning summary and the diff stat all read that tier,
+     and the host marks the two places that render *markdown* at it with a
+     stable data attribute — data-markdown-variant="compact" on MarkdownText
+     (ui-primitives), used by the thinking/reasoning body (ReasoningRow) and
+     the trajectory table. Those must keep the host's tier; flooring them is
+     what made the thinking block read oversized on a phone.
+
+     So the floor is scoped to the non-compact markdown root
+     ([class*="_markdown"], MarkdownText.module.css) and raised paragraphs
+     and list items only.
+
+     It used to be a bare descendant list — every p / li / [class*="_text_"]
+     under the flow container — which swept up all that chrome as well:
+     measured on a real 1170-edit session, ~1900 elements jumped from the
+     host's 13px/14px tiers to 15px (+15% on the 13px tier). The container
+     rule above already handles plain inheritance; only an explicit markdown
+     size needs the floor.
+
+     The _text_ clause is gone rather than rescoped: it was written for a
+     user-message text div, and since 0.1.7 the bubble itself declares
+     var(--dsh-content-font-size) (MessageItem.module.css .bubble), so the
+     fragment now only matches tool-card text that belongs on the secondary
+     tier.
 
      The size comes from the host's own content axis, never a bare px. The
      host publishes the user's setting as --dsh-content-font-size on <body>
      (ui-layout ThemePresenter.apply) and derives --dsw-font-markdown-base
      from it, so a hardcoded !important would make the typography setting a
      dead control on every touch device. max() keeps 15px as the phone
-     floor: the default setting is 14px, so nothing moves today, while a
-     user who picks 17px actually gets 17px. The floor also preserves the
-     iOS focus-zoom guarantee for the composer field, which is separate. */
-  [data-phase] [class*="_scroll"]:not([class*="_scrollBody"]):has(p) p,
-  [data-phase] [class*="_scroll"]:not([class*="_scrollBody"]):has(p) li,
-  [data-phase] [class*="_scroll"]:not([class*="_scrollBody"]):has(p) [class*="_text_"] {
+     floor while letting a larger user setting through. The floor also
+     preserves the iOS focus-zoom guarantee for the composer field, which is
+     separate. */
+  [data-phase] [class*="_scroll"]:not([class*="_scrollBody"]):has(p) [class*="_markdown"]:not([data-markdown-variant="compact"]) p,
+  [data-phase] [class*="_scroll"]:not([class*="_scrollBody"]):has(p) [class*="_markdown"]:not([data-markdown-variant="compact"]) li {
     font-size: max(15px, var(--dsh-content-font-size, 14px)) !important;
   }
 
