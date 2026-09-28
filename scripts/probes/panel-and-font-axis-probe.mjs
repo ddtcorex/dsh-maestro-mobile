@@ -175,10 +175,19 @@ async function main() {
 
     if (await onHero()) {
       // Cold start: connect a workspace first, or the sidebar renders no sessions.
+      //
+      // The candidate list is menu roles ONLY. It used to include a bare `li,
+      // button`, and `.find()` takes the FIRST match in document order — on this
+      // host that was a session-log action, which opened a "Session download
+      // started" dialog. Nothing closed it, and the leftover dialog then made
+      // every later assertion measure a screen it was covering: the plugin
+      // correctly refuses to collapse the drawer behind [aria-modal="true"], and
+      // the dialog's mask is what actually sits over the panel row, so the tap
+      // never reached it. Two red rows, one self-inflicted modal.
       await client.evaluate(`document.querySelector('button[aria-label="Choose workspace"]')?.click()`)
       await sleep(400)
       await client.evaluate(`(() => {
-        const items = [...document.querySelectorAll('[role="menuitem"], [role="option"], li, button')];
+        const items = [...document.querySelectorAll('[role="menuitem"], [role="option"]')];
         const target = items.find((item) => (item.textContent ?? '').trim() !== '');
         if (target === undefined) return false;
         target.click();
@@ -294,13 +303,50 @@ async function main() {
     }
 
     // ---------------------------------------------------------------- fix A
-    // Open the drawer, then tap a REAL panel row through the DOM click path the
-    // plugin's capture listener observes: the drawer must collapse so the panel
-    // gets the whole screen.
+    // Open the drawer, then tap a REAL panel row with a REAL touch sequence:
+    // the drawer must collapse so the panel gets the whole screen.
     if (!(await drawerOpen(client))) {
       await client.evaluate(`document.querySelector('button[aria-label="Open sidebar"], [data-mobile-nav="fab"], [data-mobile-nav="toggle"]')?.click()`)
       await waitFor('drawer open for the panel row', timeoutMs, () => drawerOpen(client))
     }
+    // The attribute alone lies while the column animates: data-sidebar-collapsed
+    // is already cleared at colX -56, and the row is still sliding off screen.
+    // Wait for the GEOMETRY, not the attribute.
+    await waitFor('drawer column settled on screen', timeoutMs, async () => {
+      try {
+        return await client.evaluate(`(() => {
+          const frame = document.querySelector('[data-mobile-nav="frame"]');
+          const col = frame === null ? null : frame.querySelector(':scope > :first-child');
+          if (col === null || frame.hasAttribute('data-sidebar-collapsed')) return false;
+          const box = col.getBoundingClientRect();
+          return box.left >= -1 && box.right > 0;
+        })()`)
+      } catch {
+        return false
+      }
+    }).catch(() => null)
+    // A leftover dialog makes this phase unfalsifiable, so it is a CHECKED
+    // precondition, not an assumption. The plugin yields to [aria-modal="true"]
+    // by design, and the dialog's mask is what a tap would physically hit — so
+    // with one open, "the drawer stayed open" and "there is no way back" are
+    // both true for a reason that has nothing to do with panel rows. Measured
+    // here: a "Session download started" dialog left by the cold-start click
+    // below sat over the row, and both rows went red on the healthy product.
+    const clearModals = async () => {
+      for (let attempt = 0; attempt < 3; attempt++) {
+        if ((await client.evaluate(`document.querySelectorAll('[aria-modal="true"]').length`)) === 0) return true
+        await client.evaluate(`(() => {
+          const dialog = document.querySelector('[aria-modal="true"]');
+          if (dialog === null) return;
+          const close = [...dialog.querySelectorAll('button')].find((b) => /^close|dismiss/i.test(b.getAttribute('aria-label') || ''));
+          (close ?? dialog).click();
+        })()`)
+        await sleep(500)
+      }
+      return (await client.evaluate(`document.querySelectorAll('[aria-modal="true"]').length`)) === 0
+    }
+    if (await clearModals()) pass('panel-close.no-modal', 'no dialog left open by an earlier step')
+    else fail('panel-close.no-modal', 'a dialog from an earlier step is still open; the tap cannot reach the row')
     const rowCount = await client.evaluate(`document.querySelectorAll(${JSON.stringify(PANEL_ROW_SELECTOR)}).length`)
     if (rowCount === 0) {
       fail('panel-close.row-present', 'no sidebar panel row on this host/state')
@@ -309,19 +355,41 @@ async function main() {
       const beforeTap = await drawerOpen(client)
       if (!beforeTap) fail('panel-close.precondition', 'drawer not open before the tap')
       else pass('panel-close.precondition', 'drawer open')
-      const tapped = await client.evaluate(`(() => {
+      // A real touch, not element.click(). The plugin closes the drawer from a
+      // CAPTURE-phase click listener gated on isStrokeLocked() /
+      // consumeIfGestured(), and a synthetic click carries no pointer stream, so
+      // the gesture guard judges it alone. On real touch the pointerup path owns
+      // the close, which is what a phone actually sends. Measured on the same
+      // host/state: a CDP touch on the row gives drawerClosed=true, panel open,
+      // fab=exit-panel; the synthetic click gives neither.
+      const row = await client.evaluate(`(() => {
         const row = [...document.querySelectorAll(${JSON.stringify(PANEL_ROW_SELECTOR)})].find((candidate) => candidate.getAttribute('aria-label') !== null) ?? document.querySelector(${JSON.stringify(PANEL_ROW_SELECTOR)});
         if (row === null) return null;
-        row.click();
-        return row.getAttribute('aria-label');
+        const box = row.getBoundingClientRect();
+        return {
+          label: row.getAttribute('aria-label'),
+          onScreen: box.left >= 0 && box.right <= window.innerWidth && box.top >= 0,
+          x: Math.round(box.left + box.width / 2),
+          y: Math.round(box.top + box.height / 2),
+        };
       })()`)
-      if (tapped === null) fail('panel-close.tap', 'no panel row to tap')
+      if (row === null) fail('panel-close.tap', 'no panel row to tap')
+      else if (!row.onScreen) fail('panel-close.tap', `panel row "${row.label}" is off canvas at x=${row.x}`)
       else {
+        const touch = (type, x, y) => client.send('Input.dispatchTouchEvent', {
+          type,
+          touchPoints: type === 'touchEnd' ? [] : [{ x, y, radiusX: 8, radiusY: 8, force: 1, id: 1 }],
+        })
+        await touch('touchStart', row.x, row.y)
+        await sleep(60)
+        await touch('touchMove', row.x, row.y + 1)
+        await sleep(40)
+        await touch('touchEnd', row.x, row.y)
         try {
           await waitFor('drawer collapsed after the panel tap', timeoutMs, async () => !(await drawerOpen(client)))
-          pass('panel-close.drawer-collapsed', `panel=${tapped}`)
+          pass('panel-close.drawer-collapsed', `panel=${row.label} (touch)`)
         } catch {
-          fail('panel-close.drawer-collapsed', `drawer stayed open after tapping ${tapped}`)
+          fail('panel-close.drawer-collapsed', `drawer stayed open after touching ${row.label}`)
         }
       }
     }
