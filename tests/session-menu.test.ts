@@ -69,6 +69,94 @@ test('an unresolvable duplicate is refused rather than guessed', () => {
   assert.equal(resolveSessionId({ ...base, rowTitle: 'Same title', groupTitle: 'Unknown' }), undefined)
 })
 
+// 0.2.0-rc.2 changed what the sidebar row PRINTS. `sessionTitle()` stopped
+// projecting `displayTitle` and now carries the trimmed durable title, and the
+// row substitutes a localized "Untitled" when there is none. The snapshot's
+// `displayTitle` still falls back to the cwd basename and then the id, so a
+// title-less session's row text ("Untitled") matched no snapshot label and
+// every delete attempt on such a row refused with deleteErrorResolve.
+const UNTITLED = 'Untitled'
+const untitledSessions = {
+  ids: ['s-bare', 's-named'],
+  byId: {
+    's-bare': { id: 's-bare', title: '', displayTitle: 'shop', cwd: '/srv/shop', blank: false },
+    's-named': { id: 's-named', title: 'Fix the drawer', displayTitle: 'Fix the drawer', blank: false },
+  },
+}
+const untitledBase: SessionMenuInput = {
+  rowTitle: UNTITLED,
+  groupTitle: undefined,
+  sessions: untitledSessions,
+  workspaces: WORKSPACES,
+  untitledLabel: UNTITLED,
+}
+
+test('a title-less session resolves through the host "Untitled" label', () => {
+  assert.equal(resolveSessionId(untitledBase), 's-bare')
+})
+
+test('the pre-0.2.0-rc.2 displayTitle row label still resolves', () => {
+  // Through 0.2.0-rc.1 the row printed `displayTitle`, so a host that has not
+  // moved on must keep resolving. The legacy label is accepted unconditionally:
+  // it can only be selected by a row that literally shows it.
+  assert.equal(
+    resolveSessionId({ ...untitledBase, rowTitle: 'shop' }),
+    's-bare',
+  )
+})
+
+test('a trimmed durable title resolves, as 0.2.0-rc.2 renders it', () => {
+  const padded = {
+    ids: ['s-padded'],
+    byId: { 's-padded': { id: 's-padded', title: '  Padded  ', displayTitle: '  Padded  ', blank: false } },
+  }
+  assert.equal(
+    resolveSessionId({ ...base, rowTitle: 'Padded', sessions: padded, untitledLabel: UNTITLED }),
+    's-padded',
+  )
+})
+
+test('two title-less sessions are still refused, never guessed apart', () => {
+  const both = {
+    ids: ['s-bare-a', 's-bare-b'],
+    byId: {
+      's-bare-a': { id: 's-bare-a', title: '', displayTitle: 'alpha', cwd: '/srv/alpha', blank: false },
+      's-bare-b': { id: 's-bare-b', title: '', displayTitle: 'beta', cwd: '/srv/beta', blank: false },
+    },
+  }
+  assert.equal(
+    resolveSessionId({ ...untitledBase, sessions: both, groupTitle: undefined }),
+    undefined,
+  )
+})
+
+test('a session literally titled like the untitled label is disambiguated, not guessed', () => {
+  // "Untitled" as a durable title and "Untitled" as the fallback label both
+  // render the same text; the owning workspace still decides.
+  const collide = {
+    ids: ['s-fallback', 's-titled'],
+    byId: {
+      's-fallback': { id: 's-fallback', title: '', displayTitle: 'gamma', cwd: '/srv/shop', blank: false },
+      's-titled': { id: 's-titled', title: UNTITLED, displayTitle: UNTITLED, cwd: '/srv/other', blank: false },
+    },
+  }
+  assert.equal(
+    resolveSessionId({ ...untitledBase, sessions: collide, groupTitle: 'Shop' }),
+    's-fallback',
+  )
+  assert.equal(
+    resolveSessionId({ ...untitledBase, sessions: collide, groupTitle: undefined }),
+    undefined,
+  )
+})
+
+test('an older host without the untitled dictionary entry still resolves by legacy label', () => {
+  // `wsT('session.untitled')` has no key before 0.2.0-rc.2; a missing or empty
+  // label must not suppress the legacy match or throw.
+  assert.equal(resolveSessionId({ ...base, untitledLabel: '' }), 's-main')
+  assert.equal(resolveSessionId({ ...untitledBase, untitledLabel: undefined, rowTitle: 'shop' }), 's-bare')
+})
+
 test('isCurrentSession follows the main-view retention, not a current field', () => {
   assert.equal(isCurrentSession(SESSIONS, 's-main'), true)
   assert.equal(isCurrentSession(SESSIONS, 's-other'), false)
