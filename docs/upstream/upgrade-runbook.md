@@ -35,6 +35,21 @@ silently — the checks below are ordered cheapest first.
   `lineage-badge.ts`) plus its catalog, which upstream portals to
   `document.body` — `[class*="_menu"] > [role="tree"]`. Both are read by the
   touch shim's synthetic-hover swallow.
+- The session row's LABEL — the only row → session key the DOM offers, since
+  rows carry no id. This is a RULE dependency, not a needle, so it is not in
+  `compat-contracts.json` and has to be re-read by hand after every host
+  upgrade. Through 0.2.0-rc.1 the row printed the projected `displayTitle`
+  (durable title, else cwd basename, else id). From 0.2.0-rc.2
+  `sessionTitle()` carries the **trimmed durable title** and the row substitutes
+  the localized `session.untitled` ("Untitled" / "未命名") when there is none,
+  while the snapshot's `displayTitle` still falls back to the basename and then
+  the id. `resolveSessionId` accepts every label the host could have printed —
+  legacy `displayTitle`, trimmed `title`, and the untitled label read from the
+  host's `workspace` dictionary — and the existing ambiguity rules still refuse
+  anything that stays uncertain. Re-check
+  `packages/client/ui-workspace/src/client/{tree.ts,rows/Rows.tsx}` after a host
+  upgrade: a title-less session whose row prints a label no snapshot field
+  carries resolves to nothing and the delete flow shows `deleteErrorResolve`.
 - Host services read at runtime: `sessionPersistence`, `sessions`, `agents`,
   `workspaceRegistry`, `webServer`, and (client) `sessions`, `workspaces`.
 - The full, machine-readable list is `docs/upstream/compat-contracts.json`.
