@@ -22,6 +22,10 @@
  * `core/composer-dom.ts` as EDITOR_SELECTOR). Re-audit when the conversation
  * package upgrades — see docs/upstream/compat-contracts.json.
  */
+import type { Context as ClientContext } from '@deepseek-ai/cordis'
+import { EDITOR_SELECTOR, editorElement } from '../core/composer-dom.ts'
+import { createFocusShadow } from './editor-focus-shadow.ts'
+import { installMobileEffect } from './phone-chrome.ts'
 
 /**
  * How long after a session switch the guard stays armed.
@@ -133,4 +137,136 @@ export function shouldBlurInWindow(state: GuardWindowState): boolean {
   if (!state.windowOpen) return false
   if (!state.targetIsEditor) return false
   return state.editorFocused
+}
+
+/**
+ * Keep the session-switch autofocus from raising the soft keyboard.
+ *
+ * Suppression is TWO layers, and the second is not redundant:
+ *
+ *  1. `focus()` on the editor is shadowed with a no-op own property. A real tap
+ *     is unaffected — the browser focuses natively and never routes through
+ *     the JS method.
+ *  2. Any `focusin` landing on the editor inside the window is blurred
+ *     SYNCHRONOUSLY, in the capture phase. This layer exists because the
+ *     shadow alone was measured failing on a device: when `InputBar` remounts
+ *     for the new session, the host's focus runs inside the commit's
+ *     SYNCHRONOUS layout-effect phase — before any MutationObserver microtask —
+ *     so the freshly mounted editor was focused while it still had no shadow
+ *     (upstream measured `focusin` at t=314ms with the marker absent). A
+ *     deferred blur is too late for the same reason: the IME has begun.
+ *
+ * The window is bounded and self-lifting — timeout, early close on a tap, and
+ * disposal. A guard that never lifts is the known failure of this technique
+ * (a shadow left in place blocks focus forever); `createFocusShadow`'s
+ * idempotent `restore()` is what makes the teardown safe.
+ *
+ * No iOS gate: the platform fact being relied on is "does this engine raise the
+ * IME for DOM focus on a contenteditable", and both iOS and Android WebViews
+ * do. Gating on iOS would leave the defect open on Android, where
+ * `composer-focus-release.ts` is already skipped entirely.
+ * @param ctx - client root context.
+ */
+export function installSessionFocusGuard(ctx: ClientContext): void {
+  installMobileEffect(ctx, 'dsh-maestro-mobile: session focus guard', () => {
+    const sessions = ctx.sessions as unknown as {
+      list: {
+        getSnapshot(): Parameters<typeof currentSessionId>[0]
+        subscribe(fn: () => void): () => void
+      }
+    }
+    const shadow = createFocusShadow(() => editorElement())
+    // Snapshot at install: subscribing must not arm the window by itself, only
+    // a CHANGE of the current session may.
+    let lastSessionId = currentSessionId(sessions.list.getSnapshot())
+    let windowTimer = 0
+    let windowOpen = false
+
+    /**
+     * Close the window and undo everything it did.
+     *
+     * The marker is swept from the live document rather than from a tracked
+     * list on purpose: a tracked Set would retain editors the host has already
+     * unmounted, and a retained reference is how a `focus` override ends up
+     * stranded on a detached node. This sweep re-derives from the DOM, so it
+     * cannot leak. It runs at most a few times per session switch.
+     */
+    const restore = (): void => {
+      window.clearTimeout(windowTimer)
+      windowTimer = 0
+      windowOpen = false
+      shadow.restore()
+      for (const el of document.querySelectorAll(`[${SESSION_GUARD_MARKER}]`)) {
+        el.removeAttribute(SESSION_GUARD_MARKER)
+      }
+    }
+
+    /** Open the window on the editor currently in the document. */
+    const arm = (): void => {
+      restore()
+      windowOpen = true
+      const editor = editorElement()
+      if (editor !== null) {
+        shadow.arm()
+        editor.setAttribute(SESSION_GUARD_MARKER, '')
+      }
+      windowTimer = window.setTimeout(restore, FOCUS_GUARD_WINDOW_MS)
+    }
+
+    /**
+     * A remount inside the window needs a fresh shadow: the editor is
+     * Session-owned, so a switch can replace the element this module resolved
+     * at arm time, and the host focuses it before this microtask can react.
+     */
+    const observer = new MutationObserver(() => {
+      if (!windowOpen) return
+      const editor = editorElement()
+      if (editor === null) return
+      shadow.arm()
+      editor.setAttribute(SESSION_GUARD_MARKER, '')
+    })
+    observer.observe(document.documentElement, { childList: true, subtree: true })
+
+    /**
+     * A finger on the editing surface is the user saying "I want to type":
+     * close the window on the spot so the browser's native focus of that tap
+     * finds an unshadowed editor.
+     */
+    const onPointerDown = (event: Event): void => {
+      const target = event.target
+      const close = shouldCloseWindowOnPointer({
+        windowOpen,
+        targetIsEditor: target instanceof Element && target.closest(EDITOR_SELECTOR) !== null,
+        editorFocused: false,
+      })
+      if (close) restore()
+    }
+
+    /** Timing fallback for the window's whole lifetime. */
+    const onFocusIn = (event: Event): void => {
+      const target = event.target
+      const editor = editorElement()
+      const take = shouldBlurInWindow({
+        windowOpen,
+        targetIsEditor: target instanceof Element && target.closest(EDITOR_SELECTOR) !== null,
+        editorFocused: editor !== null && document.activeElement === editor,
+      })
+      if (take && editor !== null) editor.blur()
+    }
+
+    const unsubscribe = sessions.list.subscribe(() => {
+      const next = currentSessionId(sessions.list.getSnapshot())
+      if (!shouldArmSessionGuard(lastSessionId, next)) return
+      lastSessionId = next
+      arm()
+    })
+
+    return () => {
+      unsubscribe()
+      observer.disconnect()
+      document.removeEventListener('pointerdown', onPointerDown, true)
+      document.removeEventListener('focusin', onFocusIn, true)
+      restore()
+    }
+  })
 }

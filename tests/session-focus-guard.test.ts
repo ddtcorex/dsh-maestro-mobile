@@ -92,3 +92,8 @@ test('a focus on some other control inside the window is untouched', () => {
     false,
   )
 })
+
+test('the effect is exported and is the only entry point', async () => {
+  const mod = await import('../src/client/effects/session-focus-guard.ts')
+  assert.equal(typeof mod.installSessionFocusGuard, 'function')
+})
