@@ -97,3 +97,95 @@ test('the effect is exported and is the only entry point', async () => {
   const mod = await import('../src/client/effects/session-focus-guard.ts')
   assert.equal(typeof mod.installSessionFocusGuard, 'function')
 })
+
+/**
+ * Install the effect against a hand-built fake DOM and return the listeners it
+ * actually registered.
+ *
+ * This exists because a `typeof fn === 'function'` test passes on an effect
+ * whose listeners are never attached — which is exactly the defect the whole-
+ * branch review caught (handlers defined and disposed, never added). Asserting
+ * on the SOURCE with a grep would be brittle; asserting that a registered
+ * `focusin` handler actually runs is the behaviour that matters.
+ */
+function installWithFakeDom(snapshot) {
+  const listeners = new Map()
+  const doc = {
+    addEventListener: (type, handler) => listeners.set(type, [...(listeners.get(type) ?? []), handler]),
+    removeEventListener: (type, handler) => {
+      listeners.set(type, (listeners.get(type) ?? []).filter((each) => each !== handler))
+    },
+    querySelectorAll: () => [],
+    querySelector: () => null,
+    documentElement: { hasAttribute: () => false },
+    activeElement: null,
+  }
+  const win = { setTimeout: () => 0, clearTimeout: () => {}, matchMedia: () => ({ matches: true, addEventListener: () => {}, removeEventListener: () => {} }) }
+  const globals = { document: doc, window: win, MutationObserver: class { observe() {} disconnect() {} } }
+  for (const [key, value] of Object.entries(globals)) {
+    globalThis[key] = value
+  }
+  globalThis.Element = class Element {}
+  return {
+    listeners,
+    sessions: { list: { getSnapshot: () => snapshot, subscribe: () => () => {} } },
+    restore: () => { for (const k of Object.keys(globals)) delete globalThis[k] },
+  }
+}
+
+test('the effect registers BOTH document listeners it later removes', async () => {
+  // The symmetry is the contract: the disposer calls removeEventListener for
+  // pointerdown and focusin, so the installer must attach exactly those two in
+  // the capture phase. An add/remove asymmetry is silent at runtime — the
+  // handlers simply never run — and no pure-predicate test can see it.
+  const { installSessionFocusGuard } = await import('../src/client/effects/session-focus-guard.ts')
+  const fake = installWithFakeDom({ byId: { a: { id: 'a', retainedBy: { mainView: 1 } } } })
+  const ctx = { sessions: fake.sessions, effect: (fn) => { fn() } }
+  try {
+    installSessionFocusGuard(ctx)
+    assert.deepEqual(
+      [...fake.listeners.keys()].sort(),
+      ['focusin', 'pointerdown'],
+      'both listeners must be attached, in the capture phase',
+    )
+    for (const type of ['focusin', 'pointerdown']) {
+      assert.equal(fake.listeners.get(type).length, 1, `${type} registered exactly once`)
+    }
+  } finally {
+    fake.restore()
+  }
+})
+
+test('two shadow owners on one editor cannot clobber each other', async () => {
+  // createFocusShadow deletes the own-property on restore, and two independent
+  // instances share that one property. Order: the session guard arms, the "+"
+  // guard arms, then the "+" guard restores FIRST (its window is shorter) —
+  // that delete removes the session guard's no-op too, so the native focus()
+  // runs and the keyboard pops inside the window the guard still believes is
+  // armed. Modelled on a prototype chain, matching editor-focus-shadow.ts.
+  const { createFocusShadow } = await import('../src/client/effects/editor-focus-shadow.ts')
+  let nativeFocusCalls = 0
+  class FakeEditor {}
+  Object.defineProperty(FakeEditor.prototype, 'focus', {
+    value: () => { nativeFocusCalls += 1 }, configurable: true, writable: true,
+  })
+  const editor = new FakeEditor()
+  const sessionGuard = createFocusShadow(() => editor)
+  const plusGuard = createFocusShadow(() => editor)
+
+  sessionGuard.arm()
+  plusGuard.arm()
+  editor.focus()
+  assert.equal(nativeFocusCalls, 0, 'both shadows active: native focus must not run')
+
+  // The shorter-lived owner releases first.
+  plusGuard.restore()
+  editor.focus()
+  assert.equal(nativeFocusCalls, 0,
+    'releasing one shadow must NOT unblock native focus while another still holds it')
+  assert.equal(sessionGuard.armed, true, 'the surviving owner still reports armed')
+
+  sessionGuard.restore()
+  editor.focus()
+  assert.equal(nativeFocusCalls, 1, 'once every owner released, focus is unblocked again')
+})

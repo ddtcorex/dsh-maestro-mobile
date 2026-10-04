@@ -254,6 +254,15 @@ export function installSessionFocusGuard(ctx: ClientContext): void {
       if (take && editor !== null) editor.blur()
     }
 
+    // Both listeners live for the whole window, not just while it is armed:
+    // they are how the window is closed early and how a focus that slipped
+    // past the shadow is taken back. Attaching them HERE is the pair the
+    // disposer below removes — an add/remove asymmetry is silent at runtime
+    // (the handlers simply never run), and it disabled both suppression
+    // layers once already. Symmetry is pinned by a unit test.
+    document.addEventListener('pointerdown', onPointerDown, true)
+    document.addEventListener('focusin', onFocusIn, true)
+
     const unsubscribe = sessions.list.subscribe(() => {
       const next = currentSessionId(sessions.list.getSnapshot())
       if (!shouldArmSessionGuard(lastSessionId, next)) return
