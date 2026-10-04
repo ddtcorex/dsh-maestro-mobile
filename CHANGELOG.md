@@ -4,6 +4,45 @@ All notable changes to this project are documented in this file. Format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); this project uses
 [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.7.0] - 2026-10-04
+
+### Added
+
+- **Opening or switching to a session no longer raises the soft keyboard**:
+  the host's `InputBar` focuses the Lexical editor from a React effect keyed on
+  `sessionId` (`InputBar.tsx:178-182`), so every switch handed the WebView a DOM
+  focus and both iOS and Android put the IME over half the screen. A new
+  `session-focus-guard` effect arms an 800 ms window on a real current-session
+  change and suppresses that focus in two layers, because one is not enough: an
+  own-property shadow over the editor's `focus()`, plus a **synchronous**
+  `focusin`-capture blur. The blur must be synchronous because a remount's host
+  focus runs in the commit's synchronous layout-effect phase, before any
+  `MutationObserver` microtask, so the freshly mounted editor is focused while
+  it still carries no shadow; a deferred blur does not help either, since the
+  IME has already begun by the next macrotask. The window arms only on a real
+  switch (`retainedBy.mainView > 0`, the same rule `session-menu.ts:73` uses,
+  because `0.1.6-alpha.2` dropped `SessionListState.current`), so list churn
+  cannot flash the guard, and a `pointerdown` on the editor closes the window
+  early so a user's own tap always opens the keyboard. The guard owns its own
+  `data-mobile-nav-session-guard` marker and deliberately does not touch
+  `data-mobile-nav-focus-shadow`, which `composer-plus-toggle.ts` owns on
+  `documentElement` and `composer-focus-release.ts:269` reads. Added
+  `pnpm probe:session-focus`, an INFO probe that reports the DOM half of the
+  guard against a live host and exits 0 unconditionally. Gated on a device: the
+  soft-keyboard behaviour cannot be settled headless.
+
+### Fixed
+
+- **`createFocusShadow` is now reference counted per element.** The composer's
+  `+` menu shadow and the new session guard can hold the same editor at once, and
+  they were independent instances: whichever restored first ran
+  `delete element.focus` and unblocked native `focus()` for the other, so the
+  surviving guard still reported `armed` while the keyboard rose inside the
+  window it believed it owned. Holds now live in a `WeakMap<FocusableLike, number>`
+  and only the last holder deletes the override, which protects every existing
+  caller; a repeated `restore()` stays a no-op, so a stranded hold can never
+  block focus forever.
+
 ## [1.6.2] - 2026-09-25
 
 ### Fixed
