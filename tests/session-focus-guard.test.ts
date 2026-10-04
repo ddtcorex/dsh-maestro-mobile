@@ -5,6 +5,8 @@ import {
   SESSION_GUARD_MARKER,
   currentSessionId,
   shouldArmSessionGuard,
+  shouldBlurInWindow,
+  shouldCloseWindowOnPointer,
 } from '../src/client/effects/session-focus-guard.ts'
 
 test('the guard window is 800ms', () => {
@@ -46,4 +48,47 @@ test('list churn with the same current session never arms the guard', () => {
   // a focus the user earned.
   assert.equal(shouldArmSessionGuard('a', 'a'), false)
   assert.equal(shouldArmSessionGuard(undefined, undefined), false)
+})
+
+test('a tap on the editor closes the window so the keyboard still opens', () => {
+  // Review Focus #1: if the window survived the pointerdown, the browser's own
+  // focus of that tap would land on a shadowed element and the user could not
+  // type at all for the remainder of the window.
+  const tap = { windowOpen: true, targetIsEditor: true, editorFocused: false }
+  assert.equal(shouldCloseWindowOnPointer(tap), true)
+})
+
+test('a pointerdown outside the editor does not close the window', () => {
+  assert.equal(
+    shouldCloseWindowOnPointer({ windowOpen: true, targetIsEditor: false, editorFocused: false }),
+    false,
+  )
+})
+
+test('a pointerdown with the window closed is a no-op', () => {
+  assert.equal(
+    shouldCloseWindowOnPointer({ windowOpen: false, targetIsEditor: true, editorFocused: false }),
+    false,
+  )
+})
+
+test('a focus landing on the editor inside the window is taken back', () => {
+  // The shadow alone is not enough: when InputBar remounts, the host focuses
+  // in the commit's synchronous layout-effect phase, before any
+  // MutationObserver microtask can shadow the fresh element.
+  assert.equal(shouldBlurInWindow({ windowOpen: true, targetIsEditor: true, editorFocused: true }), true)
+})
+
+test('the blur fallback stays out of the way outside the window', () => {
+  assert.equal(
+    shouldBlurInWindow({ windowOpen: false, targetIsEditor: true, editorFocused: true }),
+    false,
+  )
+})
+
+test('a focus on some other control inside the window is untouched', () => {
+  assert.equal(
+    shouldBlurInWindow({ windowOpen: true, targetIsEditor: false, editorFocused: true }),
+    false,
+  )
 })

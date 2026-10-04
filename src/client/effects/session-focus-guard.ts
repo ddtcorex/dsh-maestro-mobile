@@ -87,3 +87,50 @@ export function shouldArmSessionGuard(
 ): boolean {
   return previous !== next
 }
+
+/** Everything the in-window decisions read, injectable for the unit tests. */
+export interface GuardWindowState {
+  /** The window is currently armed. */
+  readonly windowOpen: boolean
+  /** The event target is the editor or inside it. */
+  readonly targetIsEditor: boolean
+  /** The editor is `document.activeElement`. */
+  readonly editorFocused: boolean
+}
+
+/**
+ * Should this in-window pointer event close the guard?
+ *
+ * `pointerdown` is the phase that PRECEDES the browser's native focus of a tap,
+ * so closing here is what keeps a user tap working: by the time the browser
+ * focuses the editor, the window is closed and the editor is unshadowed. If the
+ * window survived it, that focus would land on a no-op and the user could not
+ * open the keyboard at all until the window timed out — the worst failure this
+ * guard has.
+ * @param state - window, target and focus state.
+ * @returns true when the window must close now.
+ */
+export function shouldCloseWindowOnPointer(state: GuardWindowState): boolean {
+  if (!state.windowOpen) return false
+  return state.targetIsEditor
+}
+
+/**
+ * Should this in-window focus be taken back with a synchronous blur?
+ *
+ * The `editorFocused` term is redundant with `windowOpen` for a user tap and is
+ * what makes a user tap safe: a real tap focuses natively, but the pointerdown
+ * handler has already closed the window, so `windowOpen` is false by the time
+ * this `focusin` arrives. What remains is the host's own focus, which is
+ * exactly the case worth suppressing.
+ *
+ * The blur must be SYNCHRONOUS (the capture phase). A deferred blur is too
+ * late: the IME has already started, and a later blur leaves it up.
+ * @param state - window, target and focus state.
+ * @returns true when the focus must be blurred now.
+ */
+export function shouldBlurInWindow(state: GuardWindowState): boolean {
+  if (!state.windowOpen) return false
+  if (!state.targetIsEditor) return false
+  return state.editorFocused
+}
