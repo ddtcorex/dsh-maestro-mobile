@@ -14,6 +14,15 @@
  * v3.0.1). So `restore()` is idempotent, always safe to call, and the caller is
  * expected to call it on the next tap, when the menu closes, on a hard cap, and
  * on dispose.
+ *
+ * SHARED BY SEVERAL OWNERS, so the override is REFERENCE COUNTED. Two guards
+ * can hold the same editor at once (the composer "+" menu and a session switch),
+ * and a naive `delete element.focus` lets whichever owner releases first unblock
+ * native focus for everyone: the other guard still reports `armed`, its no-op is
+ * gone, and the keyboard rises inside the window it believes it owns. Counting
+ * keeps the override in place until the LAST owner releases. The count is held
+ * per shadow instance, so two instances coordinating through the element is
+ * still handled by the shared holder below.
  */
 
 /** The part of a focusable element the shadow needs. */
@@ -33,6 +42,12 @@ export interface FocusShadow {
 }
 
 /**
+ * Shared per-element hold count, so two shadow instances on one element release
+ * it only when the last of them lets go. Keyed by the element itself.
+ */
+const holdCounts = new WeakMap<FocusableLike, number>()
+
+/**
  * Build a focus shadow over whatever element `resolve` returns at arm time.
  *
  * The element is re-resolved on every arm because the host can remount the
@@ -49,9 +64,16 @@ export function createFocusShadow(resolve: () => FocusableLike | null): FocusSha
     if (patched === null) return
     const element = patched
     patched = null
+    const held = (holdCounts.get(element) ?? 1) - 1
+    if (held > 0) {
+      holdCounts.set(element, held)
+      return
+    }
+    holdCounts.delete(element)
     // Delete our own property rather than assigning the captured original back:
     // the native method lives on the prototype, and re-assigning a captured
-    // function would pin a stale copy on the node.
+    // function would pin a stale copy on the node. Only the LAST holder may do
+    // this — see the reference-count note in the header.
     delete (element as { focus?: unknown }).focus
   }
 
@@ -63,6 +85,7 @@ export function createFocusShadow(resolve: () => FocusableLike | null): FocusSha
     restore()
     if (typeof element.focus !== 'function') return
     patched = element
+    holdCounts.set(element, (holdCounts.get(element) ?? 0) + 1)
     element.focus = noop as FocusableLike['focus']
   }
 

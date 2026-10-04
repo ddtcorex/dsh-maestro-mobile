@@ -17,6 +17,7 @@ import { installHeroPresetMenuFix } from './effects/preset-menu-fix.ts'
 import { installComposerKeyboardTouch } from './effects/composer-keyboard-touch.ts'
 import { installComposerPlusToggle } from './effects/composer-plus-toggle.ts'
 import { installComposerFocusRelease } from './effects/composer-focus-release.ts'
+import { installSessionFocusGuard } from './effects/session-focus-guard.ts'
 import { installSessionMenuDelete } from './effects/session-menu.ts'
 import { installDebugBadge } from './debug.ts'
 import { NS, en, zh } from './i18n/locales.ts'
@@ -208,6 +209,12 @@ export function apply(ctx: ClientContext): void {
   // while the keyboard is hidden - never during the tap, which is the blur that
   // bounced the composer row.
   installComposerFocusRelease(ctx)
+
+  // Opening or switching to a session must not raise the soft keyboard: the
+  // host's InputBar focuses the Lexical editor from an effect keyed on
+  // sessionId, so every switch hands a WebView a DOM focus and the IME eats
+  // half the screen before the history can be read.
+  installSessionFocusGuard(ctx)
 
   // Session deletion on touch-primary devices (every width): injects a delete
   // item into the host's per-session row menu and drives a confirmation-first
