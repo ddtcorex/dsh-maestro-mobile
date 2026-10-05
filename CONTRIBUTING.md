@@ -1,6 +1,6 @@
 # Contributing to dsh-maestro-mobile
 
-Thank you for contributing to **dsh-maestro-mobile** (`@ddtcorex/dsh-maestro-mobile`) — portrait and mobile adaptation for the DeepSeek Harness Web UI (overlay drawer, full-width conversation, sheet-based dialogs, safe-area handling). Client-only Cordis plugin (`id: dsh-maestro-mobile`).
+Thank you for contributing to **dsh-maestro-mobile** (`@ddtcorex/dsh-maestro-mobile`) — portrait and mobile adaptation for the DeepSeek Harness Web UI (overlay drawer, full-width conversation, sheet-based dialogs, safe-area handling). Client-only Cordis plugin (`id: maestro-mobile`).
 
 ## Getting Started
 
@@ -22,10 +22,11 @@ Thank you for contributing to **dsh-maestro-mobile** (`@ddtcorex/dsh-maestro-mob
    ```
    src/index.ts           # host half (intentionally empty apply(), row appears in Loader)
    src/client/index.tsx   # browser half — slots, locale, <style> inject, effects
-   src/client/effects/    # DOM effects (reconciler-core.ts engine + phone-chrome.ts adapter)
+   src/client/core/       # DOM-free engines (reconciler-core.ts, composer-dom.ts, ...)
+   src/client/effects/    # DOM effects (phone-chrome.ts adapter drives the reconciler)
    src/client/styles/     # CSS as TS string modules (base → layout → compat → misc order)
    lib/                   # build output, gitignored (host ESM + inlined client bundle + d.ts)
-   tests/                 # node:test suites (reconciler-core)
+   tests/                 # node:test suites (*.test.ts)
    cordis.patch.yml       # Cordis patch row
    ```
 
@@ -77,7 +78,7 @@ Run these before opening a PR (match depth to risk):
 
 ```bash
 pnpm verify      # typecheck host + client — tsc --noEmit (both tsconfigs)
-pnpm test        # alias for test:core — node --test tests/reconciler-core.test.ts
+pnpm test        # full suite: node --test tests/*.test.ts
 pnpm build       # tsc host + client && node scripts/build-client.mjs -> lib/
 ```
 
@@ -88,9 +89,6 @@ Additional live checks when relevant (requires running DSH Web on :3080):
 ```bash
 # CDP smoke probe (phone/tablet/desktop geometries)
 DSH_PROBE_SESSION_ID=<id> pnpm smoke:cdp
-
-# Full workspace verify (all packages)
-pnpm --dir ../../maestro-workspace -r verify
 ```
 
 Visual validation (live DSH Web, not just curl/grep) — check both sides of 1024px:
