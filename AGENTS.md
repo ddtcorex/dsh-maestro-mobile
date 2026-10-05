@@ -2,15 +2,16 @@
 
 Mobile adaptation for the DeepSeek Harness (DSH) Web UI. On touch-primary devices it turns the sidebar into an overlay drawer, sheets the dialogs, tunes the composer for phones, and adds session deletion to the session-row menu; a mouse-driven window, at every width, is a complete no-op.
 
-Names by boundary: npm package = `@ddtcorex/dsh-maestro-mobile`; Cordis patch row id = `dsh-maestro-mobile`.
+Names by boundary: npm package = `@ddtcorex/dsh-maestro-mobile`; Cordis patch row id = `maestro-mobile` (see `cordis.patch.yml`).
 
 ## Layout
 
 - `src/index.ts` — host half: transparent response compression (`compress.ts`) plus the session-delete route; `src/delete-session.ts` is the harness-free deletion core and `src/delete-route.ts` the request gate.
-- `src/client/index.tsx` — browser half. Injects `['slots','layout','locale','sessionLogDownload','sessions','workspaces']`, registers locale dictionaries, injects one `<style data-plugin>` tag, installs effects, and registers two slots:
+- `src/client/index.tsx` — browser half. Injects `['slots','layout','locale','sessionLogDownload','sessions','workspaces']`, registers locale dictionaries, injects one `<style data-plugin>` tag, installs effects, and registers three slots:
+  - `shell.overlay` → `ShellOverlay`: backdrop + FAB
   - `conversation.session.header.actions` → `MobileNavToggle`: drawer toggle + Files button
   - `sidebar.footer.action` → `MobileDrawerFooter`: Files + session-log actions
-- `src/client/effects/` — DOM effects grouped by domain. `reconciler-core.ts` is a DOM-free engine (task registry, dirty-key routing, coalesced rAF flushing, per-task error isolation). `phone-chrome.ts` is the thin browser adapter: one `MutationObserver` on `document.documentElement` maps mutations to dirty keys and drives `installMobileEffect`.
+- `src/client/effects/` — DOM effects grouped by domain. `src/client/core/reconciler-core.ts` is a DOM-free engine (task registry, dirty-key routing, coalesced rAF flushing, per-task error isolation). `phone-chrome.ts` is the thin browser adapter: one `MutationObserver` on `document.documentElement` maps mutations to dirty keys and drives `installMobileEffect`.
 - `src/client/styles/` — CSS as TypeScript string modules. `index.ts` concatenates `tokens → base → layout → sheet → explorer-sheet → composer → settings-sheet → misc` in that order into one `<style>` tag. Mobile rules target `(max-width: 1023px)`; desktop rules hide mobile controls and must preserve the uninstalled layout.
 - `lib/` — gitignored build output (host ESM + inlined client bundle + d.ts). Generated; do not hand-edit, never commit.
 - `scripts/` — custom client bundler (`build-client.mjs`), the CDP smoke probe (`cdp-probe.mjs`), the upstream contract scanner (`cdp-compat-contracts.mjs`) and one probe per risky behaviour under `scripts/probes/`.

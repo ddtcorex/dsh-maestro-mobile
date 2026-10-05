@@ -36,7 +36,7 @@ dsh plugin --profile web add link:/path/to/dsh-maestro-mobile
 If you are not using `dsh plugin`, add this row to your `cordis.yml`:
 
 ```yaml
-- id: dsh-maestro-mobile
+- id: maestro-mobile
   name: '@ddtcorex/dsh-maestro-mobile'
 ```
 
@@ -45,7 +45,8 @@ If you are not using `dsh plugin`, add this row to your `cordis.yml`:
 ```sh
 pnpm install        # install (pnpm@11.7.0, lockfile v9)
 pnpm verify         # type-check host + client (tsc --noEmit)
-pnpm test:core      # node --test tests/reconciler-core.test.ts
+pnpm test           # node --test tests/*.test.ts (full suite)
+pnpm test:core      # node --test tests/reconciler-core.test.ts tests/composer-keyboard-touch.test.ts (fast subset)
 pnpm build          # tsc host + client && node scripts/build-client.mjs -> lib/
 ```
 
@@ -61,7 +62,7 @@ DSH_PROBE_SESSION_ID=<id> pnpm smoke:cdp
 
 - Host / client split is load-bearing: `src/index.ts` owns transparent response compression plus the session-delete route (`POST /api/mobile-nav.session.delete`); all browser behavior lives in `src/client/`.
 - `src/client/index.tsx` injects `['slots','layout','locale','sessionLogDownload','sessions','workspaces']`, registers locale dictionaries, injects one `<style data-plugin>` tag, and registers three slots (`MobileNavToggle` in the session header, `MobileDrawerFooter` in the sidebar foot, `ShellOverlay` backdrop + FAB).
-- Shared full-tree reconciler: `reconciler-core.ts` (zero-import engine) + `phone-chrome.ts` (a single `MutationObserver` driving `installMobileEffect`).
+- Shared full-tree reconciler: `src/client/core/reconciler-core.ts` (zero-import engine) + `phone-chrome.ts` (a single `MutationObserver` driving `installMobileEffect`).
 - Styles are concatenated `tokens → base → layout → sheet → explorer-sheet → composer → settings-sheet → misc` into one tag; mobile rules target `(max-width: 1023px) and (pointer: coarse)`.
 
 ## License
