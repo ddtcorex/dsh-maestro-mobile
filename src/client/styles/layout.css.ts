@@ -286,7 +286,7 @@ export const LAYOUT_CSS = `/* ---------- mobile-only layout ---------- */
   [data-phase] [class*="_scroll"]:not([class*="_scrollBody"]):has(p) {
     padding-left: 20px;
     padding-right: 20px;
-    font-size: max(15px, var(--dsh-content-font-size, 14px)) !important;
+    font-size: max(13px, var(--dsh-content-font-size, 14px)) !important;
   }
   /* Phone floor for assistant prose, and ONLY for assistant prose.
 
@@ -320,13 +320,27 @@ export const LAYOUT_CSS = `/* ---------- mobile-only layout ---------- */
      host publishes the user's setting as --dsh-content-font-size on <body>
      (ui-layout ThemePresenter.apply) and derives --dsw-font-markdown-base
      from it, so a hardcoded !important would make the typography setting a
-     dead control on every touch device. max() keeps 15px as the phone
-     floor while letting a larger user setting through. The floor also
-     preserves the iOS focus-zoom guarantee for the composer field, which is
-     separate. */
+     dead control on every touch device. max() keeps 13px as the phone
+     floor while letting a larger user setting through.
+
+     The floor is 13px and NOT 15px. At 15px it outranked the host itself: at
+     the default 14px setting prose read 15px — one step above the setting and
+     one step above the user's own 14px bubble, so every answer looked bigger
+     than the question that asked for it. Inline code was worse, because the
+     host declares it in em (0.875em, MarkdownText.module.css) rather than px,
+     so it inherited the bump: 12.25px -> 13.125px against the host's own 12px
+     --dsw-font-markdown-code token, i.e. code rendered LARGER on a phone than
+     on the desktop the same token drives. 13px is the host's secondary tier
+     (--dsh-content-font-size-secondary at the default setting), so it is the
+     highest floor that contradicts no host tier; the default 14px setting now
+     passes through untouched. Code blocks are unaffected either way: they
+     declare a hard 11px and never inherit.
+
+     The floor also preserves the iOS focus-zoom guarantee for the composer
+     field, which is separate. */
   [data-phase] [class*="_scroll"]:not([class*="_scrollBody"]):has(p) [class*="_markdown"]:not([data-markdown-variant="compact"]) p,
   [data-phase] [class*="_scroll"]:not([class*="_scrollBody"]):has(p) [class*="_markdown"]:not([data-markdown-variant="compact"]) li {
-    font-size: max(15px, var(--dsh-content-font-size, 14px)) !important;
+    font-size: max(13px, var(--dsh-content-font-size, 14px)) !important;
   }
 
   /* Markdown tables: the official table uses width:max-content, so on a phone
