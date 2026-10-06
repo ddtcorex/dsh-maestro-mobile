@@ -69,6 +69,7 @@ export const MISC_CSS = `@media (max-width: 1023px) and (pointer: coarse) {
    text field computes font-size below 16px, and only reverts on blur. The ask
    dialog is a modal composer takeover, so taps outside never blur the field
    and the magnification persists until the field loses focus.
+
    Deliberately UNGATED by width and pointer: iOS zooms at every viewport
    (iPad landscape, Stage Manager and desktop-mode iPadOS never match the
    phone media), so a floor nested inside that media stays inert exactly where
@@ -85,7 +86,12 @@ export const MISC_CSS = `@media (max-width: 1023px) and (pointer: coarse) {
    native picker overlays the screen instead of leaving a zoomed page behind.
    The ask composer's hidden height mirror must carry the SAME size as its
    textarea — it is what sizes the auto-grown field, so a mismatch makes the
-   box the wrong height for the typed text. */
+   box the wrong height for the typed text.
+
+   This floor is NOT the phone typography fix and must not be confused with it.
+   The oversized code/diff report of 2026-10-06 was WebKit TEXT AUTOSIZING, not
+   this — see the text-size-adjust opt-out below. Removing this floor does not
+   remove any inflation; it re-exposes the page to focus zoom. */
 html[data-mobile-nav-ios] textarea,
 html[data-mobile-nav-ios] [contenteditable]:not([contenteditable="false"]),
 html[data-mobile-nav-ios] [data-input-mirror],
@@ -93,6 +99,59 @@ html[data-mobile-nav-ios] [data-input-backdrop],
 html[data-mobile-nav-ios] [data-question-key] [class*="_fieldMirror"],
 html[data-mobile-nav-ios] input:not([type="button"]):not([type="checkbox"]):not([type="color"]):not([type="file"]):not([type="hidden"]):not([type="image"]):not([type="radio"]):not([type="range"]):not([type="reset"]):not([type="submit"]) {
   font-size: 16px !important;
+}
+
+/* ---------- WebKit text autosizing: opt the small surfaces out ----------
+   iOS Safari recomputes font-size per block and INFLATES any block whose text
+   it judges too small for its container. The host declares code at
+   --dsw-font-markdown-code-block (a hard 11px) and settings fields at 13px;
+   both sit below what the heuristic treats as comfortable, and an overflowing
+   code line is precisely the case it acts on. Measured on a phone (this
+   session, 402px viewport): a monospace character rendered the same size as
+   prose, erasing the host's deliberate 3px code/prose step and making code
+   blocks read as oversized.
+
+   Chromium does not implement the heuristic, so computed-style probes report
+   11px and read as "nothing is wrong" — the inflation is only observable on a
+   real WebKit engine.
+
+   text-size-adjust: 100% opts the subtree out and is inherited, so covering
+   the roots covers their lines. The prefixed property is the one Safari reads;
+   the standard one carries the same value. md-code-block is the host's own un-hashed hook (CodeBlock.tsx calls it a
+   stable semantic hook for owner styling); DiffBlock and ReadBlock share
+   CodeCard's chrome but carry their own data-diff / data-read markers instead.
+
+   Two further surfaces were found by auditing this session rather than by
+   reading the host: inline code spans, which the host sizes in em (0.875em)
+   and which md-code-block never wraps, and the tool row's diff stat chips
+   (+N / -N), which read the 11px code-block token and sit OUTSIDE [data-diff] —
+   so a card collapsed to its summary was still inflated. The deliverables
+   panel (Changed Files / Review) draws a third set of +N / -N chips from its own
+   .added / .deleted rules and renders in the side panel, where no conversation
+   selector reaches it.
+
+   Deliberately NOT set on html or body:
+   that would return every small host surface to its declared size at once,
+   which is a much larger typography decision than this fix.
+
+   Gated on the iOS marker because only WebKit applies the heuristic; other
+   engines inherit the host's declared sizes already. */
+html[data-mobile-nav-ios] .md-code-block,
+html[data-mobile-nav-ios] [data-diff],
+html[data-mobile-nav-ios] [data-read],
+html[data-mobile-nav-ios] [data-changes-review],
+html[data-mobile-nav-ios] [data-changed-files],
+html[data-mobile-nav-ios] [data-review-file],
+html[data-mobile-nav-ios] [data-review-view],
+html[data-mobile-nav-ios] [data-diff-code],
+html[data-mobile-nav-ios] [class*="diffAdded"],
+html[data-mobile-nav-ios] [class*="diffRemoved"],
+html[data-mobile-nav-ios] [class*="diffStat"],
+html[data-mobile-nav-ios] [data-phase] code,
+html[data-mobile-nav-ios] [data-phase] input,
+html[data-mobile-nav-ios] [data-phase] textarea {
+  -webkit-text-size-adjust: 100%;
+  text-size-adjust: 100%;
 }
 
 /* ---------- session delete: confirmation dialog ----------
