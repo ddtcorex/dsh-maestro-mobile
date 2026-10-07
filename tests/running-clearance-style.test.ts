@@ -33,3 +33,24 @@ test('the running divider stays put so the status never jumps on phones', () => 
     /\[data-chat-running\] > span:nth-of-type\(2\)\s*\{[^}]*display:\s*block\s*!important;/s,
   )
 })
+
+test('the running row is glued above the composer so follow corrections never move it', () => {
+  // The outer transcript follows growth with instant scrollTop corrections
+  // (ScrollFollow.jump). On iOS those land through the compositor with
+  // visible stepping, so the pinned status line bounces against the
+  // composer on every tool-call burst — the stretch observed below the
+  // text, hands-free. A bottom-sticky row at the live composer height
+  // (ConversationContent publishes --dsh-composer-height on the scrollport;
+  // 152px is upstream's own fallback) stays glued while corrections land
+  // instead of riding them. At rest its natural spot sits 16px above the
+  // stuck line, so the rule is a no-op until a lag frame needs it; scrolled
+  // up reading never engages it either.
+  assert.match(
+    layout,
+    /\[data-chat-running\]\s*\{[^}]*position:\s*sticky\s*!important;/s,
+  )
+  assert.match(
+    layout,
+    /\[data-chat-running\]\s*\{[^}]*bottom:\s*var\(--dsh-composer-height,\s*152px\)\s*!important;/s,
+  )
+})

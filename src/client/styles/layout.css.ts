@@ -404,7 +404,7 @@ export const LAYOUT_CSS = `/* ---------- mobile-only layout ---------- */
     padding-bottom: max(12px, env(safe-area-inset-bottom, 0px)) !important;
   }
 
-  /* --- Running status clearance above the sticky composer ---
+  /* --- Running status: clearance + glue above the sticky composer ---
      The composer seat is sticky (bottom:0, z-index 7) while the running
      "Deep diving for Xs" row is the last transcript item. Whenever the
      follow-tail scroll lands even a few px short — the seat grows after the
@@ -412,12 +412,26 @@ export const LAYOUT_CSS = `/* ---------- mobile-only layout ---------- */
      paints over the line's lower half (phone report: text half hidden
      behind the composer card). Padding INSIDE the running row lifts its
      text 12px above its own bottom edge, so a short scroll still leaves
-     the text clear. Only the running row is touched: idle transcripts
-     keep their exact spacing. Marker is upstream-stable (RunningStatus.tsx
-     renders data-chat-running unconditionally). */
+     the text clear.
+     Glue: the outer transcript follows growth with instant scrollTop
+     corrections (ScrollFollow.jump in use-scroll-follow.ts). On iOS those
+     land through the compositor with visible stepping, so the pinned status
+     bounces against the composer on every tool-call burst — the stretch
+     observed below the text, hands-free. A bottom-sticky row at the live
+     composer height stays glued while corrections land instead of riding
+     them. ConversationContent publishes --dsh-composer-height on the
+     scrollport (152px is upstream's own fallback in ChatView/Trajectory
+     styles). At rest the row's natural spot sits 16px above the stuck line,
+     so stickiness is a no-op until a lag frame needs it; reading
+     scrolled-up never engages it either.
+     Only the running row is touched: idle transcripts keep their exact
+     spacing. Marker is upstream-stable (RunningStatus.tsx renders
+     data-chat-running unconditionally). */
   [data-phase] [data-chat-running] {
     padding-bottom: 12px !important;
     box-sizing: border-box !important;
+    position: sticky !important;
+    bottom: var(--dsh-composer-height, 152px) !important;
   }
 
   /* --- Running divider: always reserve its space on phones ---
