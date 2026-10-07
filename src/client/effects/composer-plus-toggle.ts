@@ -73,7 +73,11 @@ import { detectIosWebKit, installMobileEffect } from './phone-chrome.ts'
 /** The host's "+" button: the composer capsule's own listbox popup trigger. */
 export const ADD_BUTTON_SELECTOR = '[data-composer-card] button[aria-haspopup="listbox"]'
 
-/** Command/slash candidate menu root (`ui-input-trigger` MenuView). */
+/**
+ * Command/slash candidate menu root (`ui-input-trigger` MenuView.tsx,
+ * `data-trigger-menu=""`). It wraps both the crumb header and the candidate
+ * listbox, so one closest() check exempts row picks and crumb picks together.
+ */
 export const TRIGGER_MENU_SELECTOR = '[data-trigger-menu]'
 
 /**

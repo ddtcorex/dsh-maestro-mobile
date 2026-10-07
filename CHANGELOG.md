@@ -4,6 +4,36 @@ All notable changes to this project are documented in this file. Format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); this project uses
 [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Changed
+
+- **DSH peer floor raised to `0.2.0-rc.2`** (`>=0.2.0-rc.2 <0.3.0-0` on every
+  `@deepseek-ai/dsh-*` peer, owner decision 2026-10-07). Hosts older than
+  0.2.0-rc.2 are no longer supported. Measured: all 13 peers publish
+  0.2.0-rc.2, which pnpm resolves under default prerelease semantics and the
+  DSH gate accepts with `includePrerelease`.
+
+### Removed
+
+- **Pre-0.2.0-rc.2 host compat in the session-delete row resolution**: the
+  `displayTitle` legacy label match and the tolerance for a missing
+  `session.untitled` dictionary key. `untitledLabel` is now a required input.
+
+- **Pre-0.2.0-rc.2 host compat in session deletion**: the refusal of a live
+  session on a host without an agent disposal face (every supported host's
+  `Agent` has `cancel` and `whenIdle`) and the flat `persistence.list()` entry
+  shape (supported hosts return snapshots carrying `.header`). A live session
+  that does not converge to idle is still refused with `409 session-busy`.
+
+- **Pre-0.2.0-rc.2 host compat in the client**: the rc-era and Regular host
+  icon candidates (the host exports the Medium weight), the dropped
+  `SessionListState.current` and `sessions.clear` members, and the manager
+  snapshot `items` read in session row resolution.
+
+- **Legacy `?mobile-nav-debug=1` diagnostics alias**, only
+  `?dsh-maestro-mobile-debug=1` shows the floating debug bar now.
+
 ## [1.7.1] - 2026-10-07
 
 ### Fixed

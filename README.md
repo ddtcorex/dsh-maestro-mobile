@@ -11,7 +11,7 @@ Mobile adaptation for the DeepSeek Harness (DSH) Web UI. On touch-primary device
 | Status-bar & safe areas | Status-bar / notch padding, light/dark `theme-color`, and `touch-action: manipulation` + `gesturestart` guard against double-tap zoom |
 | Composer stays clean | Permission capsule, model name, and switch menus use fixed-size pinning so they never squeeze or overlap on narrow screens |
 | Tablet friendly | 768–1023px centered, width-constrained sheets; phone and tablet geometries are verified separately |
-| Easy diagnostics | Append `?dsh-maestro-mobile-debug=1` (legacy `?mobile-nav-debug=1`, still honoured) for a floating bar with viewport / frame / floating-panel / JS-error state |
+| Easy diagnostics | Append `?dsh-maestro-mobile-debug=1` for a floating bar with viewport / frame / floating-panel / JS-error state |
 
 ## Requirements
 

@@ -62,7 +62,7 @@ export interface SessionSnapshotLike {
  * 0.1.6-alpha.2 dropped `SessionListState.current` in favour of per-session
  * `retainedBy` counters, so this is the host's own selection rule and the one
  * `session-menu.ts` already derives. There is deliberately NO fallback to a
- * `current` string: the package's peer floor is `>=0.1.6-alpha.2`, where that
+ * `current` string: the package's peer floor is `>=0.2.0-rc.2`, where that
  * field does not exist, so the branch would be dead code. If the peer floor is
  * ever lowered, revisit this at the same time.
  * @param snapshot - the session-list snapshot.

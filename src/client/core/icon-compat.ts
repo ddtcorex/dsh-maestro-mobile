@@ -9,14 +9,11 @@ import {
 /**
  * The plugin's two host icons, resolved at runtime instead of imported by name.
  *
- * The host's icon export names are generation-specific (rc: `…Outline16`,
- * 0.1.7: `…OutlineRegular` / `…OutlineMedium`) and the generations share no
- * names, so a static import breaks the other one with "Element type is invalid"
- * at render time. See core/icon-pick.ts for the candidate lists and the rule.
+ * See core/icon-pick.ts for why the lookup is by name at runtime.
  *
  * The icon TYPE is deliberately local (`HostIcon`), never imported from the
- * host: the primitives type surface differs per generation and whether it
- * resolves depends on the environment, which made the emitted `.d.ts` unstable.
+ * host: whether the primitives type surface resolves depends on the
+ * environment, which made the emitted `.d.ts` unstable.
  */
 const hostIcons = primitives as unknown as Record<string, unknown>
 

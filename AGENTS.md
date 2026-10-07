@@ -42,6 +42,7 @@ pnpm build          # tsc host + client && node scripts/build-client.mjs  -> lib
 
 ## Conventions
 
+- **DSH peer floor is `>=0.2.0-rc.2 <0.3.0-0`** on every `@deepseek-ai/dsh-*` peer (documented exception to the workspace-wide normalized range, owner decision 2026-10-07). Do not add compat code for older hosts; `tests/dsh-peer-range.test.ts` pins the range and a peer edit must ship with its `pnpm-lock.yaml` update.
 - Keep the host/client split intact; the host half owns response compression and the session-delete route, the browser half owns every DOM effect.
 - Prefer stable `data-*` markers and structural selectors over hashed classes. For unavoidable hashed classes use substring matching (`[class*=_frag]`), never attribute-suffix (`[class$=…]`); scope to the owning region and guard prefix-overlapping fragments with `:not`.
 - Put every long-lived style tag, listener, timer, or `MutationObserver` inside `ctx.effect(() => { ...; return disposer }, label)`. Re-arm query-sensitive effects through `installMobileEffect` (it owns the `matchMedia` + change listener) so wide→narrow and pointer changes work; pass `TOUCH_QUERY` for the features that have no desktop equivalent.

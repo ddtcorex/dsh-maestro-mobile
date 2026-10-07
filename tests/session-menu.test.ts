@@ -13,8 +13,7 @@ import {
 
 // Shape of `ctx.sessions.list.getSnapshot()`: ids + byId of client-side
 // SessionSummary rows (id, title, displayTitle, cwd), never the wire summary.
-// 0.1.6 dropped SessionListState.current: the open session is the one the
-// main view retains (retainedBy.mainView > 0).
+// The open session is the one the main view retains (retainedBy.mainView > 0).
 const SESSIONS = {
   ids: ['s-main', 's-dup-a', 's-dup-b', 's-blank', 's-sub', 's-archived', 's-other'],
   byId: {
@@ -35,11 +34,14 @@ const WORKSPACES = {
   archivedSessionIds: ['s-archived'],
 }
 
+const UNTITLED = 'Untitled'
+
 const base: SessionMenuInput = {
   rowTitle: 'Fix the drawer',
   groupTitle: undefined,
   sessions: SESSIONS,
   workspaces: WORKSPACES,
+  untitledLabel: UNTITLED,
 }
 
 test('a unique visible title resolves to its session', () => {
@@ -69,13 +71,9 @@ test('an unresolvable duplicate is refused rather than guessed', () => {
   assert.equal(resolveSessionId({ ...base, rowTitle: 'Same title', groupTitle: 'Unknown' }), undefined)
 })
 
-// 0.2.0-rc.2 changed what the sidebar row PRINTS. `sessionTitle()` stopped
-// projecting `displayTitle` and now carries the trimmed durable title, and the
-// row substitutes a localized "Untitled" when there is none. The snapshot's
-// `displayTitle` still falls back to the cwd basename and then the id, so a
-// title-less session's row text ("Untitled") matched no snapshot label and
-// every delete attempt on such a row refused with deleteErrorResolve.
-const UNTITLED = 'Untitled'
+// A sidebar row prints the trimmed durable title and substitutes a localized
+// "Untitled" when there is none. The snapshot's `displayTitle` falls back to the
+// cwd basename and then the id, which a row never shows.
 const untitledSessions = {
   ids: ['s-bare', 's-named'],
   byId: {
@@ -95,23 +93,18 @@ test('a title-less session resolves through the host "Untitled" label', () => {
   assert.equal(resolveSessionId(untitledBase), 's-bare')
 })
 
-test('the pre-0.2.0-rc.2 displayTitle row label still resolves', () => {
-  // Through 0.2.0-rc.1 the row printed `displayTitle`, so a host that has not
-  // moved on must keep resolving. The legacy label is accepted unconditionally:
-  // it can only be selected by a row that literally shows it.
-  assert.equal(
-    resolveSessionId({ ...untitledBase, rowTitle: 'shop' }),
-    's-bare',
-  )
+test('the displayTitle fallback (cwd basename) is not a row label', () => {
+  // A row never prints the basename, so it must not select a title-less session.
+  assert.equal(resolveSessionId({ ...untitledBase, rowTitle: 'shop' }), undefined)
 })
 
-test('a trimmed durable title resolves, as 0.2.0-rc.2 renders it', () => {
+test('a trimmed durable title resolves, as the host renders it', () => {
   const padded = {
     ids: ['s-padded'],
     byId: { 's-padded': { id: 's-padded', title: '  Padded  ', displayTitle: '  Padded  ', blank: false } },
   }
   assert.equal(
-    resolveSessionId({ ...base, rowTitle: 'Padded', sessions: padded, untitledLabel: UNTITLED }),
+    resolveSessionId({ ...base, rowTitle: 'Padded', sessions: padded }),
     's-padded',
   )
 })
@@ -148,13 +141,6 @@ test('a session literally titled like the untitled label is disambiguated, not g
     resolveSessionId({ ...untitledBase, sessions: collide, groupTitle: undefined }),
     undefined,
   )
-})
-
-test('an older host without the untitled dictionary entry still resolves by legacy label', () => {
-  // `wsT('session.untitled')` has no key before 0.2.0-rc.2; a missing or empty
-  // label must not suppress the legacy match or throw.
-  assert.equal(resolveSessionId({ ...base, untitledLabel: '' }), 's-main')
-  assert.equal(resolveSessionId({ ...untitledBase, untitledLabel: undefined, rowTitle: 'shop' }), 's-bare')
 })
 
 test('isCurrentSession follows the main-view retention, not a current field', () => {

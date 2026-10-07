@@ -38,14 +38,12 @@ silently — the checks below are ordered cheapest first.
 - The session row's LABEL — the only row → session key the DOM offers, since
   rows carry no id. This is a RULE dependency, not a needle, so it is not in
   `compat-contracts.json` and has to be re-read by hand after every host
-  upgrade. Through 0.2.0-rc.1 the row printed the projected `displayTitle`
-  (durable title, else cwd basename, else id). From 0.2.0-rc.2
-  `sessionTitle()` carries the **trimmed durable title** and the row substitutes
-  the localized `session.untitled` ("Untitled" / "未命名") when there is none,
-  while the snapshot's `displayTitle` still falls back to the basename and then
-  the id. `resolveSessionId` accepts every label the host could have printed —
-  legacy `displayTitle`, trimmed `title`, and the untitled label read from the
-  host's `workspace` dictionary — and the existing ambiguity rules still refuse
+  upgrade. The row prints the **trimmed durable title** (`sessionTitle()`) and
+  substitutes the localized `session.untitled` ("Untitled" / "未命名") when there
+  is none, while the snapshot's `displayTitle` falls back to the basename and
+  then the id, so it is never a label. `resolveSessionId` matches the trimmed
+  `title`, or the untitled label read from the host's `workspace` dictionary,
+  and the existing ambiguity rules still refuse
   anything that stays uncertain. Re-check
   `packages/client/ui-workspace/src/client/{tree.ts,rows/Rows.tsx}` after a host
   upgrade: a title-less session whose row prints a label no snapshot field
@@ -162,10 +160,10 @@ The delete route is destructive; validate it in this order:
    DSH_PROBE_DELETE_SESSION_ID=<a disposable session id> pnpm probe:session-delete
    ```
 
-   On DSH 0.1.6-alpha.2 a *live* session (one the process still holds) answers
-   `409 session-busy` by design: only sessions restored from disk and not opened
-   in this process are deletable. Confirm the directory under the persistence
-   root is gone afterwards.
+   A *live* session (one the process still holds) is cancelled, awaited idle,
+   flushed and detached first; one that does not converge to idle answers
+   `409 session-busy` and its log is left untouched. Confirm the directory under
+   the persistence root is gone afterwards.
 
 3. **Deployment check** — the route must stay behind the Maestro PIN proxy on
    `:3080`/`:3081` and the loopback bind on `:3082`; no path may be exempted

@@ -14,7 +14,7 @@ const manifest = JSON.parse(readFileSync(resolve(here, '../package.json'), 'utf8
   peerDependencies?: Record<string, string>
 }
 
-const NORMALIZED = '>=0.1.6-alpha.2 <0.3.0-0'
+const NORMALIZED = '>=0.2.0-rc.2 <0.3.0-0'
 const FORBIDDEN_PEER_PREFIX = '@deepseek-ai/dsh'
 
 function dshPeers(): Array<[string, string]> {
@@ -30,7 +30,9 @@ function violations(): string[] {
     if (/^\d/.test(range.trim())) reasons.push('exact pin')
     if (!/<\s*0\.\d/.test(range)) reasons.push('missing ceiling')
     else if (!/0\.3\.0-0/.test(range)) reasons.push('ceiling lacks -0 suffix')
-    const earlyFloor = /(?:>=|\^|~)?\s*0\.1\.\d/.test(range)
+    // Documented exception (owner decision 2026-10-07): this package's floor is
+    // 0.2.0-rc.2, so the guard accepts any floor at or below that release.
+    const earlyFloor = /(?:>=|\^|~)?\s*0\.(?:1\.\d|2\.0-rc\.[0-2])/.test(range)
     if (!earlyFloor) reasons.push('floor too late')
     if (reasons.length > 0) found.push(`${name}: ${reasons.join(', ')}`)
   }

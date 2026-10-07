@@ -10,7 +10,6 @@ import { mountPluginStylesheet } from './effects/plugin-stylesheet.ts'
 import { installSubagentChipTouch } from './effects/subagent-chip-touch.ts'
 import { installSelectionScope } from './effects/selection-scope.ts'
 import { installAionuiCompat } from './effects/aionui-compat.ts'
-import { installLayoutBridge } from './effects/layout-bridge.ts'
 import { installViewportBridge } from './effects/viewport.ts'
 import { installSidebarSwipe } from './effects/sidebar-swipe.ts'
 import { installOverlayMenuTapGuard } from './effects/overlay-menu-tap-guard.ts'
@@ -174,7 +173,6 @@ export function apply(ctx: ClientContext): void {
   installOverlayMenuTapGuard(ctx)
 
   // DSH-native bridges (reuse AppFrame breakpoint + ThemePresenter)
-  installLayoutBridge(ctx)
   installViewportBridge(ctx)
 
   // Lineage-count chip: reliable open/close on touch pointers (upstream is
