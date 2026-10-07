@@ -404,6 +404,22 @@ export const LAYOUT_CSS = `/* ---------- mobile-only layout ---------- */
     padding-bottom: max(12px, env(safe-area-inset-bottom, 0px)) !important;
   }
 
+  /* --- Running status clearance above the sticky composer ---
+     The composer seat is sticky (bottom:0, z-index 7) while the running
+     "Deep diving for Xs" row is the last transcript item. Whenever the
+     follow-tail scroll lands even a few px short — the seat grows after the
+     scroll (stats line, safe-area) or the iOS viewport shifts — the seat
+     paints over the line's lower half (phone report: text half hidden
+     behind the composer card). Padding INSIDE the running row lifts its
+     text 12px above its own bottom edge, so a short scroll still leaves
+     the text clear. Only the running row is touched: idle transcripts
+     keep their exact spacing. Marker is upstream-stable (RunningStatus.tsx
+     renders data-chat-running unconditionally). */
+  [data-phase] [data-chat-running] {
+    padding-bottom: 12px !important;
+    box-sizing: border-box !important;
+  }
+
   /* --- Composer model selector: long names must not drop the toolbar to 2 lines ---
      The host ModelSelect trigger (class *_trigger) carries a long model label
      (e.g. "KiraAI - Hy3 Super Extended Reasoning Model"). The label already
