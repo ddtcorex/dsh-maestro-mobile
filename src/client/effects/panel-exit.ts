@@ -31,7 +31,7 @@ export const PANEL_ROW_SELECTOR = '[class*="panelRow"]'
  * row only (measured on 0.1.7-alpha.2), which is what separates "re-tap the row
  * I am on" from "open a different panel".
  */
-export const PANEL_ROW_ACTIVE_SELECTOR = '[class*="panelRow"][aria-current="page"]'
+const PANEL_ROW_ACTIVE_SELECTOR = '[class*="panelRow"][aria-current="page"]'
 
 /**
  * Safety net for the in-flight guard: cleared as soon as the panel row is gone,
@@ -43,7 +43,7 @@ const PANEL_EXIT_FALLBACK_MS = 1500
 const SELF_BACK_ECHO_MS = 1200
 
 /** Whether a panel currently owns the main column (DOM truth, no in-flight window). */
-export function panelOwnsMainArea(): boolean {
+function panelOwnsMainArea(): boolean {
   return document.querySelector(PANEL_ROW_ACTIVE_SELECTOR) !== null
 }
 

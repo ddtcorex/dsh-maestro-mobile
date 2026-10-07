@@ -84,7 +84,7 @@ export const TYPING_QUIET_MS = 1500
  * opt-in debug badge reads it, so one phone screenshot answers "did the release
  * run at all" - the question the previous round could not answer.
  */
-export const RELEASE_MARKER = 'data-mobile-nav-focus-release'
+const RELEASE_MARKER = 'data-mobile-nav-focus-release'
 
 /**
  * Whether the visual viewport can answer "is a keyboard up?".

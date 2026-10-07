@@ -1,4 +1,5 @@
 import type { Context as ClientContext } from '@deepseek-ai/cordis'
+import { TRIGGER_MENU_SELECTOR } from './composer-plus-toggle.ts'
 import { installMobileEffect } from './phone-chrome.ts'
 
 /**
@@ -37,14 +38,6 @@ const TOUCH_GRACE_MS = 600
  * changes, not this marker).
  */
 const COMPOSER_CARD_SELECTOR = '[data-composer-card]'
-
-/**
- * Trigger-menu root. Set on the menu shell in
- * ui-input-trigger MenuView.tsx (`data-trigger-menu=""`); it wraps both the
- * crumb header and the candidate listbox, so one closest() check exempts row
- * picks and crumb picks together.
- */
-const TRIGGER_MENU_SELECTOR = '[data-trigger-menu]'
 
 /**
  * Decide whether a touch-originated mousedown on `target` should be stopped

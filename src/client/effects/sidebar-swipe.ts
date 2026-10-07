@@ -78,7 +78,7 @@ const START_ZONE_RATIO = 0.45
  * decision-table tests). Rounded so the probe boundary assertions stay
  * integral (390px → Math.round(175.5) = 176).
  */
-export function startZonePxFor(viewportWidthPx: number, ratio: number = START_ZONE_RATIO): number {
+function startZonePxFor(viewportWidthPx: number, ratio: number = START_ZONE_RATIO): number {
   return Math.round(viewportWidthPx * ratio)
 }
 /**
@@ -183,7 +183,7 @@ let openFollowArmed = false
  * a modal/takeover veto, a missing drawer) so it never retries mid-stroke. */
 let openFollowRefused = false
 
-export interface SwipeThresholds {
+interface SwipeThresholds {
   openDistanceRatio: number
   closeDistanceRatio: number
   velocityWindowMs: number
@@ -201,7 +201,7 @@ export interface SwipeThresholds {
  * (|dx| > |dy| and past the lock slop) and direction-consistent; then
  * distance OR velocity wins, with the drawer-state-specific threshold.
  */
-export function classifySwipe(
+function classifySwipe(
   t: SwipeThresholds & { viewportWidthPx: number; drawerOpen: boolean },
   m: { dx: number; dy: number; velX: number },
   rtl: boolean,
@@ -243,7 +243,7 @@ export function classifySwipe(
  * drag then a quick flick reports the flick, not the drag average. Samples
  * older than the window are ignored. Fewer than two in-window samples → 0.
  */
-export function slidingVelocity(
+function slidingVelocity(
   samples: Array<{ t: number; x: number }>,
   windowMs: number,
   now: number,
@@ -264,7 +264,7 @@ export function slidingVelocity(
  * open). Pure and viewport-relative so it is unit-testable; the runtime
  * variant additionally checks the drawer geometry via the DOM.
  */
-export function hitTestStart(
+function hitTestStart(
   clientX: number,
   viewportWidthPx: number,
   rtl: boolean,
@@ -294,7 +294,7 @@ export function hitTestStart(
  *   a constant 0 — the follow degrades to a no-op instead of inventing
  *   travel.
  */
-export function followTranslate(
+function followTranslate(
   closedTx: number,
   dx: number,
   rtl: boolean,
@@ -328,7 +328,7 @@ export function followTranslate(
  * correct across the mount. `min()`/`max()` clamp the open end so overshoot
  * cannot drag the drawer past its resting position.
  */
-export function followOpenTransform(travelPx: number, rtl: boolean): string | null {
+function followOpenTransform(travelPx: number, rtl: boolean): string | null {
   const t = rtl ? -travelPx : travelPx
   if (t <= 0) return null
   return rtl
@@ -341,7 +341,7 @@ export function followOpenTransform(travelPx: number, rtl: boolean): string | nu
  * purpose: the pure walk below is node:testable, and the runtime maps real
  * Elements onto this shape (chainFrom) before calling it.
  */
-export interface SwipeChainNode {
+interface SwipeChainNode {
   parent: SwipeChainNode | null
   scrollWidth: number
   clientWidth: number
@@ -363,7 +363,7 @@ export interface SwipeChainNode {
  * match: clipped content cannot pan, so a horizontal stroke there stays free
  * for the gesture layer.
  */
-export function findHorizontalScroller(node: SwipeChainNode | null): SwipeChainNode | null {
+function findHorizontalScroller(node: SwipeChainNode | null): SwipeChainNode | null {
   let cur = node
   while (cur !== null) {
     if (

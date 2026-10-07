@@ -89,7 +89,7 @@ class TrashMoveError extends Error {
 }
 
 /** One entry of `persistence.list()` in either host generation's shape. */
-export interface PersistenceListEntry {
+interface PersistenceListEntry {
   readonly id?: unknown
   readonly cwd?: unknown
   readonly header?: { readonly id?: unknown; readonly cwd?: unknown }

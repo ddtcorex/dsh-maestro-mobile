@@ -35,7 +35,7 @@ export interface ReconcilerTask {
 export type FrameRequest = (flush: () => void) => () => void
 
 /** Error sink for task failures. Defaults to a console.error shim. */
-export type ReconcilerErrorHandler = (
+type ReconcilerErrorHandler = (
   taskName: string,
   error: unknown,
   phase: 'ensure' | 'dispose',
