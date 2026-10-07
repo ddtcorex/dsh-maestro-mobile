@@ -11,6 +11,23 @@ const TRACE_TYPES = ['pointerdown', 'touchstart', 'mousedown', 'mouseup', 'click
 /** How many trace lines the frozen report keeps. */
 const TRACE_LIMIT = 22
 
+/** One geometry sample of the running status row (see the sampler below). */
+export interface RunningRowSample {
+  readonly top: number
+  readonly height: number
+  readonly dividerDisplay: string
+  readonly scrollTop: number
+}
+
+/**
+ * Format one sampler line. Pure so the unit test can pin it: the trace keeps
+ * a line only when it differs from the previous sample, so a steady row costs
+ * nothing and a jump episode reads as the exact quantity that moved.
+ */
+export function describeRunningSample(sample: RunningRowSample): string {
+  return `run top=${Math.round(sample.top)} h=${Math.round(sample.height)} div=${sample.dividerDisplay} scTop=${Math.round(sample.scrollTop)}`
+}
+
 /**
  * Live state that explains a phone-side jump: the visual viewport (the keyboard
  * shrinks it), the composer seat's top edge (the row that visibly moves), the
@@ -50,7 +67,55 @@ function describeNode(node: unknown): string {
 }
 
 /**
- * Debug badge — ?dsh-maestro-mobile-debug=1 (legacy ?mobile-nav-debug=1)
+ * Read one running-row sample for the hands-free jump trace. Stable markers
+ * only (no hashed classes): the row owns data-chat-running, its divider is
+ * the second of exactly three spans (RunningStatus.tsx), and the scrollport
+ * owns data-conversation-scroll.
+ */
+function sampleRunningRow(): RunningRowSample | null {
+  const running = document.querySelector('[data-chat-running]')
+  const scroller = document.querySelector('[data-conversation-scroll]')
+  if (!(running instanceof HTMLElement) || !(scroller instanceof HTMLElement)) return null
+  const divider = running.querySelector(':scope > span:nth-of-type(2)')
+  const rect = running.getBoundingClientRect()
+  return {
+    top: rect.top,
+    height: rect.height,
+    dividerDisplay: divider instanceof Element ? getComputedStyle(divider).display : 'none',
+    scrollTop: scroller.scrollTop,
+  }
+}
+
+/**
+ * One-line bundle readout for the badge head. The running-row fixes are
+ * cumulative, so the computed style versions the bundle: static + 0px
+ * predates every fix, static + 12px is the clearance fix only, and
+ * sticky + 12px carries all three (clearance, divider pin, glue).
+ */
+function describeRunningHead(): string {
+  const running = document.querySelector('[data-chat-running]')
+  if (!(running instanceof HTMLElement)) return 'run idle'
+  const style = getComputedStyle(running)
+  const divider = running.querySelector(':scope > span:nth-of-type(2)')
+  const divDisplay = divider instanceof Element ? getComputedStyle(divider).display : 'none'
+  return `run pos=${style.position} pad=${style.paddingBottom} div=${divDisplay}`
+}
+
+/**
+ * Whether the debug badge is armed for this URL. Accepts the query params
+ * and the hash fragment: a PIN/token redirect drops the query string on the
+ * way back to the bare origin, while the fragment survives redirects (it
+ * never leaves the browser), so the hash is the reliable phone-side switch.
+ * Pure so the unit test can pin it.
+ */
+export function debugFlagFromUrl(search: string, hash: string): boolean {
+  const query = new URLSearchParams(search)
+  return query.has('dsh-maestro-mobile-debug') || query.has('mobile-nav-debug')
+    || hash.includes('dsh-maestro-mobile-debug')
+}
+
+/**
+ * Debug badge — ?dsh-maestro-mobile-debug=1 (legacy ?mobile-nav-debug=1),
  * Renders a live state overlay (URL, viewport, media queries, shell chrome,
  * aionui columns, captured errors) so a phone-side repro can be diagnosed
  * without guessing. No-op unless one of the query params is present.
@@ -64,10 +129,9 @@ function describeNode(node: unknown): string {
  */
 export function installDebugBadge(ctx: ClientContext): void {
   ctx.effect(() => {
-    const query = new URLSearchParams(location.search)
     // Remember the flag for the rest of the tab: a PIN/token redirect may drop
-    // the query string on the way back to the bare origin.
-    const queryFlag = query.has('dsh-maestro-mobile-debug') || query.has('mobile-nav-debug')
+    // the query string on the way back to the bare origin (the hash survives).
+    const queryFlag = debugFlagFromUrl(location.search, location.hash)
     let armed = queryFlag
     try {
       if (queryFlag) sessionStorage.setItem('dsh-maestro-mobile-debug', '1')
@@ -181,6 +245,7 @@ export function installDebugBadge(ctx: ClientContext): void {
         `previewOpen ${frame?.hasAttribute('data-aionui-preview-open') ?? '?'}  explorerOpen ${frame?.hasAttribute('data-aionui-explorer-open') ?? '?'}  previewFull ${frame?.hasAttribute('data-mobile-preview-full') ?? '?'}`,
         `header ${vis('[data-phase] header')}  composer ${q(EDITOR_SELECTOR)}`,
         `phase ${document.querySelector('[data-phase]')?.getAttribute('data-phase') ?? '?'}`,
+        `run ${describeRunningHead()}`,
         `errs ${errors.slice(-5).join(' | ') || 'none'}`,
       ]
       if (!frozen) return head.join('\n')
@@ -230,6 +295,22 @@ export function installDebugBadge(ctx: ClientContext): void {
     })
     observer.observe(document.body, { childList: true, subtree: true, attributes: true })
     const timer = setInterval(paint, 1500)
+    // Hands-free jump trace: tool-call bursts move the running row with no
+    // tap or key event to record, so sample its geometry on a timer and keep
+    // only changes — a steady row costs nothing, a jump episode reads as the
+    // exact quantity that moved (row top/height, divider display, scroll).
+    let lastRunSample = ''
+    const runTimer = setInterval(() => {
+      const sample = sampleRunningRow()
+      if (sample === null) {
+        lastRunSample = ''
+        return
+      }
+      const line = describeRunningSample(sample)
+      if (line === lastRunSample) return
+      lastRunSample = line
+      push(`RUN ${line} ${stateStamp()}`)
+    }, 400)
     document.body.appendChild(badge)
     return () => {
       window.removeEventListener('error', onError)
@@ -243,6 +324,7 @@ export function installDebugBadge(ctx: ClientContext): void {
       viewportTarget?.removeEventListener('scroll', onViewportShift)
       observer.disconnect()
       clearInterval(timer)
+      clearInterval(runTimer)
       badge.remove()
     }
   }, 'dsh-maestro-mobile: debug badge')
