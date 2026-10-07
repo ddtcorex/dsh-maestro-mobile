@@ -8,6 +8,7 @@ import { installFrameController, installOverlayInteractions, installPhoneChrome,
 import { createPanelExit, installPanelRowExit } from './effects/panel-exit.ts'
 import { mountPluginStylesheet } from './effects/plugin-stylesheet.ts'
 import { installSubagentChipTouch } from './effects/subagent-chip-touch.ts'
+import { installSelectionScope } from './effects/selection-scope.ts'
 import { installAionuiCompat } from './effects/aionui-compat.ts'
 import { installLayoutBridge } from './effects/layout-bridge.ts'
 import { installViewportBridge } from './effects/viewport.ts'
@@ -15,8 +16,10 @@ import { installSidebarSwipe } from './effects/sidebar-swipe.ts'
 import { installOverlayMenuTapGuard } from './effects/overlay-menu-tap-guard.ts'
 import { installHeroPresetMenuFix } from './effects/preset-menu-fix.ts'
 import { installComposerKeyboardTouch } from './effects/composer-keyboard-touch.ts'
+import { installComposerKeyboardLift } from './effects/composer-keyboard-lift.ts'
 import { installComposerPlusToggle } from './effects/composer-plus-toggle.ts'
 import { installComposerFocusRelease } from './effects/composer-focus-release.ts'
+import { installModelMenuKeyboardGuard } from './effects/model-menu-keyboard-guard.ts'
 import { installSessionFocusGuard } from './effects/session-focus-guard.ts'
 import { installSessionMenuDelete } from './effects/session-menu.ts'
 import { installDebugBadge } from './debug.ts'
@@ -178,6 +181,11 @@ export function apply(ctx: ClientContext): void {
   // hover-timer driven and has no onClick on the count variant).
   installSubagentChipTouch(ctx)
 
+  // Selection-handle drag scope: the session header exits hit-testing while
+  // a conversation selection exists (complements the drag-yield mark, which
+  // covers drawer-swipe versus widget drags on a different axis).
+  installSelectionScope(ctx)
+
   installPhoneChrome(ctx)
 
   // iOS focus-zoom guard marker: ungated (every width/pointer) so the 16px
@@ -198,6 +206,12 @@ export function apply(ctx: ClientContext): void {
   // keyboard on each phone tap of Commands / Stop / Send.
   installComposerKeyboardTouch(ctx)
 
+  // iOS form-assistant bar mitigation: the host Lexical selection-scroll
+  // helper mixes layout and visual coordinates once the iOS keyboard forces a
+  // nonzero window scroll, dropping the composer seat behind the assistant
+  // bar on every keystroke. Screen-space lift, fail-open, iOS only.
+  installComposerKeyboardLift(ctx)
+
   // Composer "+" command menu: the host's second-tap close is unreachable
   // because focusing the editor re-tracks and clears the menu launcher. This
   // finishes the tap through the host's own Escape path.
@@ -215,6 +229,12 @@ export function apply(ctx: ClientContext): void {
   // sessionId, so every switch hands a WebView a DOM focus and the IME eats
   // half the screen before the history can be read.
   installSessionFocusGuard(ctx)
+
+  // Model / reasoning-level menu must not raise the soft keyboard by itself:
+  // the host drills into the model pane and focuses its search field from a
+  // passive effect. Prototype shadow armed on capture-phase pointerdown; a
+  // real tap on the field still focuses natively.
+  installModelMenuKeyboardGuard(ctx)
 
   // Session deletion on touch-primary devices (every width): injects a delete
   // item into the host's per-session row menu and drives a confirmation-first

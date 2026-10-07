@@ -857,7 +857,9 @@ export const LAYOUT_CSS = `/* ---------- mobile-only layout ---------- */
      positioning ignores both the lost anchor and the overflow:hidden ancestors
      ([data-phase], .centerCol); 76px is the header's own min-height and the
      safe-area inset keeps the panel below a notched status bar. Full width, so
-     the mono job labels keep every pixel a phone can give them. */
+     the mono job labels keep every pixel a phone can give them.
+     (Third-party seat playbook: tests/trailing-lane-seat-guard.test.ts — the
+     upstream v3.0.5 card-anchor recipe for panels on collapsible roots.) */
   [data-mobile-nav="frame"] [data-phase] [data-slot="conversation.session.header"] > header [class*="_root"]:has(> [data-mobile-nav="jobs"]) > ul[class*="_menu"] {
     position: fixed !important;
     top: calc(76px + env(safe-area-inset-top, 0px)) !important;
@@ -1147,6 +1149,21 @@ export const LAYOUT_CSS = `/* ---------- mobile-only layout ---------- */
     width: min(336px, calc(100vw - 16px));
     max-width: none;
     max-height: min(420px, calc(100dvh - 120px));
+  }
+  /* --- Selection-handle drag scope (upstream v3.0.5 selection-autoscroll-ramp,
+     pointer-events half only) ---
+     A selection-handle drag over the session header resolves its hit-test in
+     the header chrome, so the selection extent lands on the first selectable
+     node after it instead of staying in message text. While a conversation
+     selection exists (html[data-mobile-nav-selecting], raised by the
+     selection-scope effect and dropped the moment the selection collapses)
+     the header seat exits hit-testing entirely: pointer-events is inherited,
+     so the display:contents seat carries it to the whole subtree. Only
+     pointer-events here: any layout change mid-drag would disturb the
+     selection itself. Anchored on the seat, not on the header element:
+     0.1.7 replaced <header> with divs and the seat covers both generations. */
+  html[data-mobile-nav-selecting] [data-mobile-nav="frame"] [data-phase] [data-slot="conversation.session.header"] {
+    pointer-events: none !important;
   }
   /* Utilities cluster on 0.1.7 held the Files split + ⋯ menu; both now
      hide on mobile (split group above, menu below), so the cluster
