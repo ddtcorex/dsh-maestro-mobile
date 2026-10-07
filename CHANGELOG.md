@@ -4,6 +4,35 @@ All notable changes to this project are documented in this file. Format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); this project uses
 [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.7.1] - 2026-10-07
+
+### Fixed
+
+- **Deleting a session no longer reports failure when it succeeded** — the
+  host moves the session to trash then aborts the reply, so the browser
+  fetch rejects with `Failed to fetch` for a delete that landed. The
+  session list is now the judge: on a rejected request the list is
+  re-read bounded (4 attempts x 350ms) and only an id that survives every
+  attempt shows the error row.
+- **Opening the model / reasoning-level menu no longer raises the soft
+  keyboard** — the host drills into the model pane and focuses its search
+  field from a passive effect. The field's focus method is shadowed, armed
+  on capture-phase `pointerdown` strictly before the effect can run; a real
+  tap on the field still focuses natively. No hashed-class fallback, per
+  the hash-prefix ban.
+- **The iOS composer stays above the form-assistant bar while typing** —
+  the host selection-scroll helper mixes layout coordinates with the visual
+  caret rect once the iOS keyboard forces a nonzero window scroll, dropping
+  the seat behind the assistant bar on every keystroke. The seat is lifted
+  from screen-space quantities only (seat bottom vs `visualViewport`
+  height), fail-open on pinch or scroll-channel drift. The active path
+  needs a real iPhone; headless cannot verify it.
+- **Dragging a selection handle across the header no longer jumps the
+  viewport to the top of the session** — while a conversation selection
+  exists the header seat exits hit-testing (`pointer-events` only, no
+  layout change), so the drag stays in message text. Complements the
+  `data-mobile-nav-dragging` drawer-yield mark on a different axis.
+
 ## [1.7.0] - 2026-10-04
 
 ### Added
