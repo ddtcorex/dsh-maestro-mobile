@@ -20,9 +20,6 @@ importers:
       '@deepseek-ai/dsh-client-locale':
         specifier: '>=0.2.0-rc.2 <0.3.0-0'
         version: 0.2.0-rc.2(@deepseek-ai/cordis@4.0.4)
-      '@deepseek-ai/dsh-client-store':
-        specifier: '>=0.2.0-rc.2 <0.3.0-0'
-        version: 0.2.0-rc.2(@deepseek-ai/cordis@4.0.4)
       '@deepseek-ai/dsh-client-ui-conversation':
         specifier: '>=0.2.0-rc.2 <0.3.0-0'
         version: 0.2.0-rc.2(@deepseek-ai/cordis@4.0.4)
@@ -54,6 +51,9 @@ importers:
         specifier: ^18.2.0
         version: 18.3.1
     devDependencies:
+      '@deepseek-ai/dsh-client-store':
+        specifier: '>=0.2.0-rc.2 <0.3.0-0'
+        version: 0.2.0-rc.2(@deepseek-ai/cordis@4.0.4)
       '@types/node':
         specifier: ^22.0.0
         version: 22.20.1
