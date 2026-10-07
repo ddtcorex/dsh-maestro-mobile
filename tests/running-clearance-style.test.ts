@@ -17,3 +17,19 @@ test('the running status keeps clear of the sticky composer on phones', () => {
     /\[data-chat-running\]\s*\{[^}]*padding-bottom:\s*12px\s*!important;/s,
   )
 })
+
+test('the running divider stays put so the status never jumps on phones', () => {
+  // Upstream shows the hairline above the status only when the previous
+  // transcript row holds output (ChatView.module.css conditional display on
+  // .runningDivider, default display:none). Each tool-call switch flips that
+  // condition, so the row grows/shrinks ~18.5px and the "Deep diving" text
+  // visibly jumps. Pinning the divider always visible keeps the row height
+  // identical in both states by construction — no magic numbers to drift
+  // when upstream retunes its metrics. Structural selector (no hashed
+  // class): RunningStatus.tsx renders exactly three spans — screen-reader
+  // status, divider, content — so the divider is the second span.
+  assert.match(
+    layout,
+    /\[data-chat-running\] > span:nth-of-type\(2\)\s*\{[^}]*display:\s*block\s*!important;/s,
+  )
+})

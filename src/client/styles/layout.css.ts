@@ -420,6 +420,22 @@ export const LAYOUT_CSS = `/* ---------- mobile-only layout ---------- */
     box-sizing: border-box !important;
   }
 
+  /* --- Running divider: always reserve its space on phones ---
+     Upstream paints the hairline above the status only when the previous
+     transcript row holds output (ChatView.module.css: .runningDivider is
+     display:none by default, display:block under a sibling condition), so
+     every tool-call switch grows/shrinks the row ~18.5px and the status
+     text jumps. Forcing the divider always visible makes both states the
+     same box by construction — the height can no longer depend on which
+     tool row precedes it, with no pixel constants to drift when upstream
+     retunes its metrics. Cost: the hairline also shows where upstream
+     hides it (e.g. right after a user message) — a harmless separator.
+     Structural selector, no hashed class: RunningStatus.tsx renders
+     exactly three spans (screen-reader status, divider, content). */
+  [data-phase] [data-chat-running] > span:nth-of-type(2) {
+    display: block !important;
+  }
+
   /* --- Composer model selector: long names must not drop the toolbar to 2 lines ---
      The host ModelSelect trigger (class *_trigger) carries a long model label
      (e.g. "KiraAI - Hy3 Super Extended Reasoning Model"). The label already
