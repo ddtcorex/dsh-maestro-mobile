@@ -7,15 +7,12 @@
  *
  * Ported from mexiaosqwq/dsh-web-mobile v2.4.1 (`src/delete-session.ts`), which
  * itself ports community-fork wzxmt-zhc v2.7.0. Adapted and re-verified
- * against the host this plugin runs on (DSH 0.1.5-rc.2):
+ * against the host this plugin runs on (DSH 0.2.0-rc.2 and later):
  *
- * 1. `persistence.list()` shapes: 0.1.2 and earlier return a flat
- *    `SessionHeader[]` (the header IS the entry), 0.1.3+ wraps it in a
- *    snapshot that carries `.header`. `entryHeader()` accepts both.
- * 2. Live-session teardown needs an agent disposal face (callable `cancel` +
- *    `whenIdle`). 0.1.5-rc.2's agent registry returns a plain agent, so a live
- *    session is refused with 409 `session-busy` instead of being deleted under
- *    a still-registered agent — cold sessions stay deletable.
+ * 1. `persistence.list()` returns snapshots that carry `.header`.
+ * 2. Live-session teardown uses the agent disposal face (`cancel` +
+ *    `whenIdle`), which every supported host's `Agent` exposes; a live
+ *    session that does not converge to idle is refused with 409 `session-busy`.
  * 3. Workspace accounting is optional per workspace: `detachSession` may not
  *    exist, and a failing account must never fail a finished deletion.
  *
@@ -88,11 +85,15 @@ class TrashMoveError extends Error {
   }
 }
 
-/** One entry of `persistence.list()` in either host generation's shape. */
+/** One entry of `persistence.list()`: a snapshot carrying the session header. */
 interface PersistenceListEntry {
-  readonly id?: unknown
-  readonly cwd?: unknown
   readonly header?: { readonly id?: unknown; readonly cwd?: unknown }
+}
+
+/** The `Agent` disposal face the teardown drives. */
+interface AgentDisposal {
+  cancel(cause: { kind: 'disposed' }): void
+  whenIdle(): Promise<void>
 }
 
 /** Structural host services the deletion flow depends on (no harness import). */
@@ -107,7 +108,7 @@ export interface DeleteSessionDeps {
     flush(session: unknown): Promise<unknown>
   }
   agents?: {
-    get(id: string): unknown
+    get(id: string): AgentDisposal | undefined
   }
   workspaceRegistry?: {
     list(): readonly { detachSession?(id: string): Promise<void> }[]
@@ -349,15 +350,14 @@ async function purgeStaleTrash(trashRoot: string): Promise<void> {
 }
 
 /**
- * Normalize one `persistence.list()` entry across host generations: prefer the
- * snapshot's `.header`, fall back to the flat header. Entries without a usable
- * id are skipped.
+ * Read the id and cwd off one `persistence.list()` snapshot. Entries without a
+ * usable id are skipped.
  * @param entry - one list entry.
  * @returns the id and optional cwd, or undefined when unusable.
  */
 function entryHeader(entry: PersistenceListEntry): { id: string; cwd?: string } | undefined {
-  const header = entry.header ?? entry
-  if (typeof header.id !== 'string' || header.id === '') return undefined
+  const header = entry.header
+  if (header === undefined || typeof header.id !== 'string' || header.id === '') return undefined
   return {
     id: header.id,
     cwd: typeof header.cwd === 'string' ? header.cwd : undefined,
@@ -407,29 +407,11 @@ export async function deleteSession(deps: DeleteSessionDeps, sessionId: string):
     }
   }
 
-  // Live sessions: only delete when the host exposes the agent disposal face
-  // (callable cancel + whenIdle). Otherwise refuse with 409 rather than
-  // deleting a log under a still-registered live agent.
+  // Live sessions: stop the agent (cancel + whenIdle), flush and detach before
+  // the log is moved; a session that cannot be stopped is refused with 409.
   const live = deps.sessions?.get(sessionId)
   if (live !== undefined && deps.sessions !== undefined) {
-    const agent = deps.agents?.get(sessionId) as
-      | { cancel?: (cause: { kind: 'disposed' }) => void; whenIdle?: () => Promise<void> }
-      | undefined
-    const handle = agent !== undefined
-      && typeof agent.cancel === 'function'
-      && typeof agent.whenIdle === 'function'
-      ? agent as { cancel(cause: { kind: 'disposed' }): void; whenIdle(): Promise<void> }
-      : undefined
-    if (agent !== undefined && handle === undefined) {
-      return {
-        status: 409,
-        ok: false,
-        error: {
-          code: 'session-busy',
-          message: `session '${sessionId}' is live on a host generation that exposes no agent disposal face; stop it first, then retry`,
-        },
-      }
-    }
+    const handle = deps.agents?.get(sessionId)
     try {
       if (handle !== undefined) {
         handle.cancel({ kind: 'disposed' })

@@ -20,6 +20,12 @@ All notable changes to this project are documented in this file. Format follows
   `displayTitle` legacy label match and the tolerance for a missing
   `session.untitled` dictionary key. `untitledLabel` is now a required input.
 
+- **Pre-0.2.0-rc.2 host compat in session deletion**: the refusal of a live
+  session on a host without an agent disposal face (every supported host's
+  `Agent` has `cancel` and `whenIdle`) and the flat `persistence.list()` entry
+  shape (supported hosts return snapshots carrying `.header`). A live session
+  that does not converge to idle is still refused with `409 session-busy`.
+
 - **Legacy `?mobile-nav-debug=1` diagnostics alias**, only
   `?dsh-maestro-mobile-debug=1` shows the floating debug bar now.
 

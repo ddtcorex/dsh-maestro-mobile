@@ -160,10 +160,10 @@ The delete route is destructive; validate it in this order:
    DSH_PROBE_DELETE_SESSION_ID=<a disposable session id> pnpm probe:session-delete
    ```
 
-   On DSH 0.1.6-alpha.2 a *live* session (one the process still holds) answers
-   `409 session-busy` by design: only sessions restored from disk and not opened
-   in this process are deletable. Confirm the directory under the persistence
-   root is gone afterwards.
+   A *live* session (one the process still holds) is cancelled, awaited idle,
+   flushed and detached first; one that does not converge to idle answers
+   `409 session-busy` and its log is left untouched. Confirm the directory under
+   the persistence root is gone afterwards.
 
 3. **Deployment check** — the route must stay behind the Maestro PIN proxy on
    `:3080`/`:3081` and the loopback bind on `:3082`; no path may be exempted

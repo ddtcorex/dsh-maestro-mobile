@@ -44,7 +44,7 @@ function deps(root: string | undefined, overrides: Partial<DeleteSessionDeps> = 
   return {
     persistence: {
       config: root === undefined ? {} : { root },
-      list: async () => [{ id: SESSION_ID, cwd: WORKSPACE_CWD }],
+      list: async () => [{ header: { id: SESSION_ID, cwd: WORKSPACE_CWD } }],
     },
     ...overrides,
   }
@@ -313,24 +313,9 @@ test('a path that would escape the storage root is refused', async () => {
     assert.equal(dir.startsWith(root), true)
     assert.equal(projectKey(nasty).includes('/'), false)
     const result = await deleteSession({
-      persistence: { config: { root }, list: async () => [{ id: SESSION_ID, cwd: nasty }] },
+      persistence: { config: { root }, list: async () => [{ header: { id: SESSION_ID, cwd: nasty } }] },
     }, SESSION_ID)
     assert.equal(result.ok, true)
-  } finally {
-    rmSync(root, { recursive: true, force: true })
-  }
-})
-
-test('a live session on a host without a disposal face is refused as busy', async () => {
-  const { root, dir } = makeRoot()
-  try {
-    const result = await deleteSession(deps(root, {
-      sessions: { get: () => ({ id: SESSION_ID }), flush: async () => undefined },
-      agents: { get: () => ({ id: SESSION_ID }) },
-    }), SESSION_ID)
-    assert.equal(result.status, 409)
-    if (!result.ok) assert.equal(result.error.code, 'session-busy')
-    assert.equal(existsSync(dir), true, 'a refused deletion must not remove the log')
   } finally {
     rmSync(root, { recursive: true, force: true })
   }
@@ -378,15 +363,14 @@ test('a refusal to converge to idle is reported as busy, not as success', async 
   }
 })
 
-test('entries in either host generation are understood', async () => {
-  const { root } = makeRoot()
+test('a list entry without a snapshot header is not a session', async () => {
+  const { root, dir } = makeRoot()
   try {
-    // 0.1.2 and earlier return the flat header; 0.1.3+ wraps it in a snapshot.
-    const snapshots: DeleteSessionDeps['persistence'] = {
-      config: { root },
-      list: async () => [{ header: { id: SESSION_ID, cwd: WORKSPACE_CWD } }],
-    }
-    assert.equal((await deleteSession({ persistence: snapshots }, SESSION_ID)).ok, true)
+    const result = await deleteSession({
+      persistence: { config: { root }, list: async () => [{}] },
+    }, SESSION_ID)
+    assert.equal(result.status, 404)
+    assert.equal(existsSync(dir), true)
   } finally {
     rmSync(root, { recursive: true, force: true })
   }
