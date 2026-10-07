@@ -8,7 +8,7 @@ All notable changes to this project are documented in this file. Format follows
 
 ### Removed
 
-- **Legacy `?mobile-nav-debug=1` diagnostics alias** — only
+- **Legacy `?mobile-nav-debug=1` diagnostics alias**, only
   `?dsh-maestro-mobile-debug=1` shows the floating debug bar now.
 
 ## [1.7.1] - 2026-10-07

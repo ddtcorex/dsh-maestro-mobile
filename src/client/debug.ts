@@ -50,7 +50,7 @@ function describeNode(node: unknown): string {
 }
 
 /**
- * Debug badge — ?dsh-maestro-mobile-debug=1
+ * Debug badge for ?dsh-maestro-mobile-debug=1
  * Renders a live state overlay (URL, viewport, media queries, shell chrome,
  * aionui columns, captured errors) so a phone-side repro can be diagnosed
  * without guessing. No-op unless one of the query params is present.
