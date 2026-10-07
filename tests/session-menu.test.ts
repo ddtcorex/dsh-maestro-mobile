@@ -13,8 +13,7 @@ import {
 
 // Shape of `ctx.sessions.list.getSnapshot()`: ids + byId of client-side
 // SessionSummary rows (id, title, displayTitle, cwd), never the wire summary.
-// 0.1.6 dropped SessionListState.current: the open session is the one the
-// main view retains (retainedBy.mainView > 0).
+// The open session is the one the main view retains (retainedBy.mainView > 0).
 const SESSIONS = {
   ids: ['s-main', 's-dup-a', 's-dup-b', 's-blank', 's-sub', 's-archived', 's-other'],
   byId: {

@@ -63,8 +63,8 @@ export function isActivePanelRow(target: Element | null): boolean {
  * panels at all.
  *
  * Probed rather than assumed: the layout face is capability-checked so the
- * feature goes inert on a host generation without it instead of throwing at
- * call time. The receiver is bound, because `selectPanel` is a service method
+ * feature goes inert when the layout face is absent or only partly mounted
+ * instead of throwing at call time. The receiver is bound, because `selectPanel` is a service method
  * that reads its own state.
  * @param layout - the client `ctx.layout` face.
  * @returns a zero-argument "leave the panel" call, or null.

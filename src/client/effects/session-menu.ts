@@ -51,7 +51,7 @@ export interface SessionEntryLike {
   cwd?: string
   blank?: boolean
   origin?: string
-  /** 0.1.6 selection signal: the open session is the one the main view retains. */
+  /** Selection signal: the open session is the one the main view retains. */
   retainedBy?: { mainView?: number }
 }
 
@@ -59,15 +59,11 @@ export interface SessionEntryLike {
 export interface SessionsSnapshotLike {
   ids: readonly string[]
   byId: Readonly<Record<string, SessionEntryLike | undefined>>
-  /** Removed upstream in 0.1.6 (always undefined at runtime); kept optional
-      so older snapshots still narrow. Use isCurrentSession() instead. */
-  current?: string
 }
 
 /**
- * Whether the session is the open one. 0.1.6 dropped
- * `SessionListState.current`; the workspace tree derives it as the session
- * the main view retains (mainSessionId), and so do we.
+ * Whether the session is the open one: the workspace tree derives it as the
+ * session the main view retains (mainSessionId), and so do we.
  */
 export function isCurrentSession(sessions: SessionsSnapshotLike, sessionId: string): boolean {
   return Object.values(sessions.byId).find((entry) => (entry?.retainedBy?.mainView ?? 0) > 0)?.id === sessionId
@@ -110,13 +106,7 @@ export interface SessionMenuInput {
  */
 export function resolveSessionId(input: SessionMenuInput): string | undefined {
   const archived = new Set(input.workspaces.archivedSessionIds)
-  // Host generations differ in what the plugin-facing snapshot carries: the
-  // client projection exposes `ids` + `byId`, while a manager-level snapshot
-  // exposes `items`. Read both so the flow cannot break on a shape change.
-  const raw = input.sessions as SessionsSnapshotLike & { items?: readonly SessionEntryLike[] }
-  const byId: Readonly<Record<string, SessionEntryLike | undefined>> = raw.byId
-    ?? Object.fromEntries((raw.items ?? []).map((entry) => [entry.id, entry]))
-  const ids: readonly string[] = Array.isArray(raw.ids) ? raw.ids : Object.keys(byId)
+  const { byId, ids } = input.sessions
   // Rows carry no id in the DOM, so the row's rendered label is the key. The
   // row prints the TRIMMED durable title, or the localized "Untitled" when there
   // is none; the snapshot's `displayTitle` (cwd basename, then id) is never what
@@ -164,7 +154,7 @@ export interface SessionMenuLabels {
  * so requiring an exact item count makes the injected Delete item vanish on the
  * next host upgrade with no error anywhere. Requiring the three labels we know,
  * and rejecting the unarchive twin that replaces `archive` on an archived row,
- * identifies the menu across host generations.
+ * identifies the menu across host releases.
  * @param labels - the trimmed text of every `[role="menuitem"]` in the menu.
  * @param t - the host's own labels, read from the live locale.
  * @returns true when the menu is the session row menu of a non-archived session.
@@ -357,8 +347,6 @@ export function installSessionMenuDelete(ctx: ClientContext): void {
           error.hidden = true
           const sessions = ctx.sessions as unknown as {
             list: { getSnapshot(): SessionsSnapshotLike }
-            /** Removed upstream in 0.1.6; refresh() below covers list sync. */
-            clear?: () => void
             refresh?: () => Promise<void>
           }
           const wasCurrent = isCurrentSession(sessions.list.getSnapshot(), sessionId)
@@ -375,8 +363,7 @@ export function installSessionMenuDelete(ctx: ClientContext): void {
               // cleanup failure means the host already stopped and unregistered
               // it, so the row would otherwise survive as a zombie.
               if (refreshAfterDeleteFailure(payload?.error?.code)) {
-                if (wasCurrent) sessions.clear?.()
-                await sessions.refresh?.()
+                      await sessions.refresh?.()
               }
               return
             }
@@ -411,7 +398,6 @@ export function installSessionMenuDelete(ctx: ClientContext): void {
             }
           }
           closeDialog()
-          if (wasCurrent) sessions.clear?.()
           // Must be called AS A METHOD on ctx.sessions: refresh() reads its own
           // manager, and an extracted reference would throw.
           await sessions.refresh?.()
