@@ -23,6 +23,7 @@
  * positional guess is not worth that risk.
  */
 import type { Context as ClientContext } from '@deepseek-ai/cordis'
+import { verifySessionDeleted } from '../core/delete-verify.ts'
 import { MOBILE_QUERY, TOUCH_QUERY, installMobileEffect } from './phone-chrome.ts'
 
 // The custom client bundler cannot resolve `../` requires from
@@ -406,8 +407,34 @@ export function installSessionMenuDelete(ctx: ClientContext): void {
               return
             }
           } catch (reason) {
-            fail(mapError(null, reason))
-            return
+            // A rejected fetch proves nothing: the host moves the session to
+            // trash then aborts the reply, so the browser reports Failed to
+            // fetch for a delete that DID happen. The session list, not the
+            // fetch promise, is the judge: re-read it bounded and only report
+            // failure when the id survives every attempt.
+            let landed = false
+            try {
+              landed = await verifySessionDeleted({
+                listed: () => {
+                  const snapshot = sessions.list.getSnapshot()
+                  return snapshot.byId[sessionId] !== undefined || snapshot.ids.includes(sessionId)
+                },
+                // Called AS A METHOD on the sessions object: refresh() reads
+                // its own manager, and an extracted reference would throw.
+                refresh: async () => {
+                  await sessions.refresh?.()
+                },
+                sleep: (ms) => new Promise<void>((resolve) => {
+                  window.setTimeout(() => { resolve() }, ms)
+                }),
+              })
+            } catch {
+              landed = false
+            }
+            if (!landed) {
+              fail(mapError(null, reason))
+              return
+            }
           }
           closeDialog()
           if (wasCurrent) sessions.clear?.()
