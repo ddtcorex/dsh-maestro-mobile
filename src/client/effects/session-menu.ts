@@ -15,10 +15,8 @@
  * tripwire that fails closed and invisibly.
  *
  * Row → session id is by display title, because rows carry no id in the DOM.
- * What a row prints for that title moved in 0.2.0-rc.2 (trimmed durable title,
- * else a localized "Untitled"), so resolution accepts every label the host could
- * have printed for an entry. When two visible sessions match the row the owning
- * workspace disambiguates; if the match is still ambiguous the flow REFUSES and
+ * A row prints the trimmed durable title, else a localized "Untitled". When
+ * two visible sessions match the row the owning workspace disambiguates; if the match is still ambiguous the flow REFUSES and
  * shows an error, because deleting the wrong session is unrecoverable and a
  * positional guess is not worth that risk.
  */
@@ -98,11 +96,9 @@ export interface SessionMenuInput {
   workspaces: WorkspacesSnapshotLike
   /**
    * The host's localized `session.untitled` label for the `workspace`
-   * namespace — what a row PRINTS for a session that has no durable title.
-   * Absent (or empty) on a host older than 0.2.0-rc.2, which had no such key;
-   * then no row carries it and the legacy label alone applies.
+   * namespace: what a row PRINTS for a session that has no durable title.
    */
-  untitledLabel?: string
+  untitledLabel: string
 }
 
 /**
@@ -121,25 +117,13 @@ export function resolveSessionId(input: SessionMenuInput): string | undefined {
   const byId: Readonly<Record<string, SessionEntryLike | undefined>> = raw.byId
     ?? Object.fromEntries((raw.items ?? []).map((entry) => [entry.id, entry]))
   const ids: readonly string[] = Array.isArray(raw.ids) ? raw.ids : Object.keys(byId)
-  // Rows carry no id in the DOM, so the row's rendered label is the key — but
-  // what that label holds moved in 0.2.0-rc.2. Through 0.2.0-rc.1 the tree
-  // carried the projected `displayTitle` and the row printed it verbatim. From
-  // 0.2.0-rc.2 `sessionTitle()` carries the TRIMMED durable title and the row
-  // substitutes the localized "Untitled" when there is none, while the
-  // snapshot's `displayTitle` still falls back to the cwd basename and then the
-  // id. A title-less row therefore prints a label no snapshot field carries.
-  // Accept every label the row could carry for an entry; the ambiguity rules
-  // below still decide, so a label that no row prints is simply never selected.
-  const labelsOf = (entry: SessionEntryLike): readonly string[] => {
-    const labels: string[] = []
-    const display = entry.displayTitle ?? entry.title ?? ''
-    if (display !== '') labels.push(display)
+  // Rows carry no id in the DOM, so the row's rendered label is the key. The
+  // row prints the TRIMMED durable title, or the localized "Untitled" when there
+  // is none; the snapshot's `displayTitle` (cwd basename, then id) is never what
+  // a row shows, so it is not a label.
+  const labelOf = (entry: SessionEntryLike): string => {
     const title = entry.title?.trim() ?? ''
-    if (title !== '' && title !== display) labels.push(title)
-    if (title === '' && input.untitledLabel !== undefined && input.untitledLabel !== '') {
-      labels.push(input.untitledLabel)
-    }
-    return labels
+    return title !== '' ? title : input.untitledLabel
   }
   const candidates = ids.filter((id) => {
     const entry = byId[id]
@@ -147,7 +131,7 @@ export function resolveSessionId(input: SessionMenuInput): string | undefined {
     if (entry.blank === true) return false
     if (entry.origin === 'subagent') return false
     if (archived.has(id)) return false
-    return labelsOf(entry).includes(input.rowTitle)
+    return labelOf(entry) === input.rowTitle
   })
   const only = candidates.length === 1 ? candidates[0] : undefined
   if (only !== undefined) return only
@@ -237,18 +221,8 @@ export function installSessionMenuDelete(ctx: ClientContext): void {
     const wsT = (key: string): string =>
       (ctx.locale.bind(WORKSPACE_NS) as (k: string) => string)(key)
 
-    /**
-     * The host's `session.untitled` label, or '' when the host predates the key.
-     * A dictionary that is missing the key must not abort the delete flow, so
-     * the lookup is contained and degrades to the legacy label match.
-     */
-    const untitledLabelOf = (): string => {
-      try {
-        return wsT('session.untitled').trim()
-      } catch {
-        return ''
-      }
-    }
+    /** The host's localized `session.untitled` label (a row's text for a title-less session). */
+    const untitledLabelOf = (): string => wsT('session.untitled').trim()
 
     let anchor: MenuAnchor | null = null
     let injectRaf = 0
@@ -512,9 +486,7 @@ export function installSessionMenuDelete(ctx: ClientContext): void {
             groupTitle: groupTitleOf(captured.row),
             sessions: sessions.list.getSnapshot(),
             workspaces: workspaces.list.getSnapshot(),
-            // 0.2.0-rc.2 rows print this for a session with no durable title.
-            // Older hosts have no such key; the lookup then yields something
-            // that matches no row, which the legacy labels already cover.
+            // Rows print this for a session with no durable title.
             untitledLabel: untitledLabelOf(),
           })
           if (sessionId === undefined) {

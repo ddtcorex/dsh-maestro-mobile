@@ -6,7 +6,19 @@ All notable changes to this project are documented in this file. Format follows
 
 ## [Unreleased]
 
+### Changed
+
+- **DSH peer floor raised to `0.2.0-rc.2`** (`>=0.2.0-rc.2 <0.3.0-0` on every
+  `@deepseek-ai/dsh-*` peer, owner decision 2026-10-07). Hosts older than
+  0.2.0-rc.2 are no longer supported. Measured: all 13 peers publish
+  0.2.0-rc.2, which pnpm resolves under default prerelease semantics and the
+  DSH gate accepts with `includePrerelease`.
+
 ### Removed
+
+- **Pre-0.2.0-rc.2 host compat in the session-delete row resolution**: the
+  `displayTitle` legacy label match and the tolerance for a missing
+  `session.untitled` dictionary key. `untitledLabel` is now a required input.
 
 - **Legacy `?mobile-nav-debug=1` diagnostics alias**, only
   `?dsh-maestro-mobile-debug=1` shows the floating debug bar now.
