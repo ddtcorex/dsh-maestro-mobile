@@ -4,6 +4,13 @@ All notable changes to this project are documented in this file. Format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); this project uses
 [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Removed
+
+- **Legacy `?mobile-nav-debug=1` diagnostics alias** — only
+  `?dsh-maestro-mobile-debug=1` shows the floating debug bar now.
+
 ## [1.7.1] - 2026-10-07
 
 ### Fixed

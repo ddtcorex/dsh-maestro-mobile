@@ -50,7 +50,7 @@ function describeNode(node: unknown): string {
 }
 
 /**
- * Debug badge — ?dsh-maestro-mobile-debug=1 (legacy ?mobile-nav-debug=1)
+ * Debug badge — ?dsh-maestro-mobile-debug=1
  * Renders a live state overlay (URL, viewport, media queries, shell chrome,
  * aionui columns, captured errors) so a phone-side repro can be diagnosed
  * without guessing. No-op unless one of the query params is present.
@@ -67,7 +67,7 @@ export function installDebugBadge(ctx: ClientContext): void {
     const query = new URLSearchParams(location.search)
     // Remember the flag for the rest of the tab: a PIN/token redirect may drop
     // the query string on the way back to the bare origin.
-    const queryFlag = query.has('dsh-maestro-mobile-debug') || query.has('mobile-nav-debug')
+    const queryFlag = query.has('dsh-maestro-mobile-debug')
     let armed = queryFlag
     try {
       if (queryFlag) sessionStorage.setItem('dsh-maestro-mobile-debug', '1')
@@ -220,7 +220,7 @@ export function installDebugBadge(ctx: ClientContext): void {
     // Never re-enter on the badge's own textContent mutations: paint() writes
     // into a body subtree, so a naive full-tree observer would feed its own
     // output back into paint() forever and starve the page (observed as a hard
-    // freeze with ?mobile-nav-debug=1).
+    // freeze with ?dsh-maestro-mobile-debug=1).
     const observer = new MutationObserver((records) => {
       for (const record of records) {
         if (record.target === badge || badge.contains(record.target)) continue
