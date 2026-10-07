@@ -13,6 +13,14 @@
 /** The Lexical editing surface: focus goes here, and only here, to type. */
 export const EDITOR_SELECTOR = '[data-composer-input]'
 
+/**
+ * The sticky composer block: the host-owned wrapper around the composer card
+ * and the stats row, so one transform lifts the whole block. A stable
+ * host-drawn marker (see docs/upstream/compat-contracts.json `composer-seat`),
+ * already read by the debug badge and the composer geometry rules.
+ */
+export const SEAT_SELECTOR = '[data-composer-seat]'
+
 /** The visual viewport fields the keyboard readings compare. */
 export interface ViewportMetrics {
   readonly height: number
@@ -23,6 +31,15 @@ export interface ViewportMetrics {
 export function editorElement(): HTMLElement | null {
   const editor = document.querySelector(EDITOR_SELECTOR)
   return editor instanceof HTMLElement ? editor : null
+}
+
+/**
+ * The composer seat, or null when this session has none.
+ * @returns the seat element, or null when absent.
+ */
+export function seatElement(): HTMLElement | null {
+  const seat = document.querySelector(SEAT_SELECTOR)
+  return seat instanceof HTMLElement ? seat : null
 }
 
 /** The visual viewport metrics, or null where the API is missing. */
