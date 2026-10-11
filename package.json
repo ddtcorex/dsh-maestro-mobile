@@ -52,6 +52,7 @@
     "probe:backdrop-fade": "node scripts/probes/backdrop-fade-probe.mjs",
     "probe:panel-exit": "node scripts/probes/panel-exit-probe.mjs",
     "probe:multi-width": "node scripts/probes/multi-width-layout-probe.mjs",
+    "probe:effort-panel": "node scripts/probes/effort-panel-probe.mjs",
     "test:core": "node --test tests/reconciler-core.test.ts tests/composer-keyboard-touch.test.ts",
     "prepack": "npm run build"
   },
