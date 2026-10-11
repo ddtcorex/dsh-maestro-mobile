@@ -12,8 +12,12 @@ import { consumeIfGestured, isStrokeLocked } from './gesture-guard.ts'
 import { DRAWER_NAV_TAP_SELECTOR } from './drawer-navigation.ts'
 
 // The custom client bundler cannot resolve `../` requires from src/client/effects,
-// so this mirrors the namespace id from src/client/locales.ts. Keep in sync.
-const NS = 'mobileNav'
+// so this mirrors the namespace id from src/client/i18n/locales.ts. Keep in sync.
+// Prefixed (dshMaestroMobileNav) so a co-installed copy (e.g. an embedded
+// duplicate inside another plugin, cf. dsh-web-mobile v3.0.6 #165/PR #167 where
+// a shared generic namespace made locale.register throw and bricked boot)
+// can never collide with this plugin's dictionaries.
+const NS = 'dshMaestroMobileNav'
 
 /** Same width bound as the shell's SIDEBAR_AUTO_COLLAPSE (viewport < 1024),
  *  ANDed with a touch-primary pointer guard. Width alone cannot tell a phone

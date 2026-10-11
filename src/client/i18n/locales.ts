@@ -1,5 +1,5 @@
-/** `mobileNav` namespace dictionaries: drawer controls. */
-export const NS = 'mobileNav'
+/** `dshMaestroMobileNav` namespace dictionaries: drawer controls. */
+export const NS = 'dshMaestroMobileNav'
 
 /** Primary dictionary (the key-set source of truth). */
 export const zh = {
@@ -43,5 +43,5 @@ export const en: Record<MobileNavKey, string> = {
   'deleteErrorGeneric': 'Delete failed: {message}',
 }
 
-/** Key domain of the `mobileNav` namespace (primary dictionary is the source of truth). */
+/** Key domain of the `dshMaestroMobileNav` namespace (primary dictionary is the source of truth). */
 export type MobileNavKey = keyof typeof zh

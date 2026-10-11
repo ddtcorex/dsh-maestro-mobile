@@ -28,7 +28,7 @@ import type { MobileNavKey } from './i18n/locales.ts'
 declare module '@deepseek-ai/dsh-client-ui-slots' {
   interface LocaleNamespaceMap {
     /** Directory-drawer controls copy. */
-    'mobileNav': MobileNavKey
+    'dshMaestroMobileNav': MobileNavKey
   }
 }
 
