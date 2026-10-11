@@ -55,6 +55,21 @@ export const MISC_CSS = `@media (max-width: 1023px) and (pointer: coarse) {
     max-height: calc(100dvh - 24px - env(safe-area-inset-top, 0px) - env(safe-area-inset-bottom, 0px)) !important;
   }
 
+  /* ---------- effort grade panel: shrink-wrap the short grades ----------
+     The host gives every menu min-width:240px, so on a phone the six short
+     grades (Default/Minimal/Low/Medium/High/Xhigh) fill a 248px fixed card
+     for ~10-char labels (measured live at 390px: shell x:74 w:248,
+     port of dsh-web-mobile v3.0.6 PR #205). Shrink-wrap ONLY the grade
+     panel: it is uniquely the role=menu shell whose direct children are
+     menuitemradio (the model catalog shell holds menuitem rows, so it never
+     matches and keeps the host size). Single-level :has(> …) — never nest a
+     :has() inside (see tests/css-selector-validity.test.ts). */
+  body > div[role="menu"]:has(> [role="menuitemradio"]) {
+    min-width: 0 !important;
+    width: max-content !important;
+    max-width: calc(100dvw - 32px) !important;
+  }
+
   /* ---------- drawer session tree: skip off-screen rendering ----------
      content-visibility: auto lets engine skip layout/paint of off-screen rows
      when drawer closed (early-commit) and of off-screen rows in long history. */
