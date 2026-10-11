@@ -26,8 +26,8 @@ import { MOBILE_QUERY, TOUCH_QUERY, installMobileEffect } from './phone-chrome.t
 
 // The custom client bundler cannot resolve `../` requires from
 // src/client/effects, so these mirror their sources. Keep in sync.
-/** Locale namespace (src/client/i18n/locales.ts). */
-const NS = 'mobileNav'
+/** Locale namespace (src/client/i18n/locales.ts, prefixed — see phone-chrome.ts). */
+const NS = 'dshMaestroMobileNav'
 /** The ui-workspace dictionary namespace the host menu labels come from. */
 const WORKSPACE_NS = 'workspace'
 /** Host delete route (src/index.ts DELETE_ROUTE_PATH). */
