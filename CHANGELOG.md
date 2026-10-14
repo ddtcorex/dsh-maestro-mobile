@@ -15,6 +15,11 @@ All notable changes to this project are documented in this file. Format follows
   explicit `characterData` dirty key (`mutationDirtyKey` in the DOM-free
   core, fail-open to the tree sentinel), and the stats task declares that
   key next to `'*'`. Ported from `dsh-web-mobile` v3.1.0 (C08).
+- **A throwing host `selectPanel` no longer wedges the panel exit** — the
+  call runs after the exit state flips but before the fallback timer arms,
+  so a host error left the exit stuck with no safety net. The fallback now
+  installs in a `finally` while the error still propagates. Ported from
+  `dsh-web-mobile` v3.1.0.
 
 ### Changed
 

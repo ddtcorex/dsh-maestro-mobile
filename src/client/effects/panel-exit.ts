@@ -164,12 +164,20 @@ export function createPanelExit(layout: unknown): PanelExit {
     // Deliberately not delayed behind an animation: the commit remounts the
     // whole conversation, and holding the panel on screen through it would show
     // a blank column for that entire window.
-    select()
-    clearFallback()
-    fallbackTimer = window.setTimeout(() => {
-      fallbackTimer = null
-      leaving = false
-    }, PANEL_EXIT_FALLBACK_MS)
+    // selectPanel is host-implemented and may throw; it runs after the exit
+    // state flips but before the fallback below arms, so a bare call that
+    // throws would leave the exit stuck with no safety net (dsh-web-mobile
+    // v3.1.0). try/finally installs the fallback regardless while the error
+    // still propagates — never swallow a host error.
+    try {
+      select()
+    } finally {
+      clearFallback()
+      fallbackTimer = window.setTimeout(() => {
+        fallbackTimer = null
+        leaving = false
+      }, PANEL_EXIT_FALLBACK_MS)
+    }
   }
 
   /**
