@@ -6,6 +6,16 @@ All notable changes to this project are documented in this file. Format follows
 
 ## [Unreleased]
 
+### Fixed
+
+- **In-place TPS text rewrites wake the stats task again** — the shared
+  full-tree observer never opened `characterData`, so frames where React
+  rewrites the TPS text node without rebuilding it woke no task and the
+  readout sat stale. The observer now delivers those records through an
+  explicit `characterData` dirty key (`mutationDirtyKey` in the DOM-free
+  core, fail-open to the tree sentinel), and the stats task declares that
+  key next to `'*'`. Ported from `dsh-web-mobile` v3.1.0 (C08).
+
 ### Changed
 
 - **DSH peer floor raised to `0.2.0-rc.2`** (`>=0.2.0-rc.2 <0.3.0-0` on every
