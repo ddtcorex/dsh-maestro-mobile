@@ -3,6 +3,7 @@ import { readFileSync } from 'node:fs'
 import test from 'node:test'
 import {
   PANEL_ROW_SELECTOR,
+  createPanelExit,
   isActivePanelRow,
   panelSelectorOf,
   shouldArmBackEntry,
@@ -84,6 +85,36 @@ test('the back entry is released when the panel leaves by another route', () => 
   assert.equal(shouldReleaseBackEntry(false, false), false)
   assert.equal(shouldReleaseBackEntry(true, true), false)
   assert.equal(shouldReleaseBackEntry(true, false), false)
+})
+
+test('a throwing host selectPanel still arms the exit fallback (v3.1.0)', () => {
+  // dsh-web-mobile v3.1.0: selectPanel is host-implemented and may throw. It
+  // runs after the exit state flips but before the fallback timer arms, so a
+  // bare call that throws leaves the exit stuck with no safety net. The
+  // error must still propagate (never swallow a host error), but the
+  // fallback schedule must be installed regardless.
+  const scheduled: number[] = []
+  const globalWindow = globalThis as { window?: unknown }
+  const originalWindow = globalWindow.window
+  globalWindow.window = {
+    setTimeout: (): number => {
+      scheduled.push(1)
+      return scheduled.length
+    },
+    clearTimeout: (): void => {},
+  }
+  try {
+    const throwing = {
+      selectPanel(): void {
+        throw new Error('host boom')
+      },
+    }
+    const panelExit = createPanelExit(throwing)
+    assert.throws(() => panelExit.exit(), /host boom/)
+    assert.equal(scheduled.length, 1, 'fallback timer must arm even when selectPanel throws')
+  } finally {
+    globalWindow.window = originalWindow
+  }
 })
 
 test('the client entry point installs the panel exit and its back task', () => {
