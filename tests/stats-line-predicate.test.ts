@@ -1,8 +1,26 @@
 import assert from 'node:assert/strict'
 import { readFileSync } from 'node:fs'
 import test from 'node:test'
+import { TEXT_MUTATION_SCOPE } from '../src/client/core/reconciler-core.ts'
+import { createStatsLineTask } from '../src/client/effects/stats-line.ts'
 
 const stats = readFileSync(new URL('../src/client/effects/stats-line.ts', import.meta.url), 'utf8')
+const phoneChrome = readFileSync(new URL('../src/client/effects/phone-chrome.ts', import.meta.url), 'utf8')
+
+test('the stats task wakes on in-place text rewrites (v3.1.0 C08)', () => {
+  // dsh-web-mobile v3.1.0 C08: the shared full-tree observer never opened
+  // `characterData`, so pure text updates (React rewriting the TPS text node
+  // without rebuilding it) woke no task and the TPS readout sat stale.
+  // The stats task reads text, so it must declare the text key next to the
+  // tree sentinel, and the observer must actually deliver those records.
+  const scopes = createStatsLineTask().scopes
+  assert.ok(scopes?.includes('*'), 'tree sentinel must stay declared')
+  assert.ok(
+    scopes?.includes(TEXT_MUTATION_SCOPE),
+    'text key must be declared or in-place TPS rewrites never re-fold',
+  )
+  assert.match(phoneChrome, /characterData:\s*true/, 'observer must open the characterData flag')
+})
 
 test('the stats-row hunter accepts the metric pills the row now renders', () => {
   // Upstream renders each metric as an interactive pill

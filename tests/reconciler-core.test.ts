@@ -1,6 +1,11 @@
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
-import { createReconcilerCore } from '../src/client/core/reconciler-core.ts'
+import {
+  TEXT_MUTATION_SCOPE,
+  TREE_MUTATION_SCOPE,
+  createReconcilerCore,
+  mutationDirtyKey,
+} from '../src/client/core/reconciler-core.ts'
 import type { FrameRequest, ReconcilerCore, ReconcilerTask } from '../src/client/core/reconciler-core.ts'
 import { createPreviewCloseTask } from '../src/client/effects/aionui-compat.ts'
 
@@ -203,6 +208,22 @@ test('flush semantics: empty dirty runs nothing; activation forces all; deactiva
   h.flushFrame()
   assert.equal(x.ensures, 1, 'cancelled frame must not flush')
   assert.equal(x.disposes, 1)
+})
+
+test('mutationDirtyKey: observer records map to the dirty keys tasks subscribe to', () => {
+  // Port of dsh-web-mobile v3.1.0 C08: React rewrites the TPS readout text
+  // in place for some frames (a characterData record, no node added or
+  // removed), so a text reader that only wakes on the tree sentinel misses
+  // those frames. Text records must route to their own key, and anything
+  // the mapping cannot name must widen to the tree sentinel (fail-open:
+  // extra wakeups, never a missed one).
+  assert.equal(TREE_MUTATION_SCOPE, '*')
+  assert.equal(TEXT_MUTATION_SCOPE, 'characterData')
+  assert.equal(mutationDirtyKey({ type: 'attributes', attributeName: 'class' }), 'class')
+  assert.equal(mutationDirtyKey({ type: 'attributes', attributeName: null }), '*')
+  assert.equal(mutationDirtyKey({ type: 'characterData', attributeName: null }), 'characterData')
+  assert.equal(mutationDirtyKey({ type: 'childList', attributeName: null }), '*')
+  assert.equal(mutationDirtyKey({ type: 'bogus-future-type', attributeName: null }), '*')
 })
 
 test('preview-close-sync: own open marker must not be treated as a suite close', () => {

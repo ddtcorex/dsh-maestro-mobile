@@ -1,5 +1,5 @@
 import type { Context as ClientContext } from '@deepseek-ai/cordis'
-import { createReconcilerCore } from '../core/reconciler-core.ts'
+import { createReconcilerCore, mutationDirtyKey } from '../core/reconciler-core.ts'
 import type { ReconcilerTask } from '../core/reconciler-core.ts'
 import { createPreviewCloseTask, createSheetRiseTask } from './aionui-compat.ts'
 import { createStatsLineTask } from './stats-line.ts'
@@ -183,9 +183,7 @@ export function installReconciler(ctx: ClientContext): () => void {
     const observer = new MutationObserver((records) => {
       const keys = new Set<string>()
       for (const record of records) {
-        keys.add(
-          record.type === 'attributes' && record.attributeName !== null ? record.attributeName : '*',
-        )
+        keys.add(mutationDirtyKey(record))
       }
       core.note(keys)
     })
@@ -193,6 +191,10 @@ export function installReconciler(ctx: ClientContext): () => void {
       childList: true,
       subtree: true,
       attributes: true,
+      // Text rewrites in place (React updating the TPS readout without
+      // rebuilding its node) arrive as characterData records — without this
+      // flag no text reader ever wakes (dsh-web-mobile v3.1.0 C08).
+      characterData: true,
       attributeFilter: [
         'style',
         'class',
