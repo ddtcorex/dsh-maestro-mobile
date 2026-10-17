@@ -229,8 +229,13 @@ async function main() {
     })
     pass('sheet.armed', 'plugin stylesheet + frame marker + MOBILE_QUERY')
 
-    // Open the drawer, then Settings from it.
+    // Open the drawer, then Settings via the Account menu. Since DSH 0.2.1
+    // (account login) Settings no longer lives in the drawer: the drawer
+    // holds Plugins / Automation tasks / the Account menu, and Settings is a
+    // menuitem inside that menu.
     await client.evaluate(`document.querySelector('button[aria-label="Open sidebar"]')?.click()`)
+    await sleep(500)
+    await client.evaluate(`[...document.querySelectorAll('button')].find((b) => b.getAttribute('aria-label') === 'Account menu')?.click()`)
     await sleep(500)
     const openedSettings = await waitFor('Settings', config.timeoutMs, async () => {
       try {
@@ -248,7 +253,7 @@ async function main() {
       }
     }).then(() => true).catch(() => false)
     if (!openedSettings) {
-      fail('sheet.open', 'no Settings entry could be clicked from the drawer')
+      fail('sheet.open', 'no Settings entry could be clicked from the Account menu')
       throw new Error('Settings never opened')
     }
     await waitFor('Settings panel', config.timeoutMs, async () => {
