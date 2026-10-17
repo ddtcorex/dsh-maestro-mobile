@@ -10,7 +10,7 @@ export interface MobileDrawerFooterProps extends PropsRuntime<'sidebar.footer.ac
 
 /**
  * Mobile-only drawer footer actions, relocated from the session header to the
- * drawer footer (beside Settings):
+ * drawer footer (beside the Account menu — Settings moved there in DSH 0.2.1):
  * - Session log: the official session-log-export controller, so the
  *   progress/result dialog is shared with the desktop flow.
  * (The Files / explorer entry was removed — it duplicated the header action
