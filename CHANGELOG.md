@@ -6,6 +6,19 @@ All notable changes to this project are documented in this file. Format follows
 
 ## [Unreleased]
 
+## [1.7.2] - 2026-10-17
+
+### Fixed
+
+- **Settings sheet probe follows the Account menu** — since DSH 0.2.1
+  (account login) Settings no longer lives in the drawer: the drawer holds
+  Plugins / Automation tasks / the Account menu, and Settings is a menuitem
+  inside it. The probe clicked a drawer Settings entry that no longer exists
+  and aborted at `sheet.open`; it now drives Account menu → Settings, with
+  all geometry assertions unchanged. Shipped code needed no change (sheet
+  bottom-anchoring, horizontal nav pills, close hit-test, drawer footer slot
+  and toolbar reparent all verified live on 0.2.1-rc.2).
+
 ### Fixed
 
 - **In-place TPS text rewrites wake the stats task again** — the shared
