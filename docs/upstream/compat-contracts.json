@@ -412,6 +412,24 @@
    "lazy": true,
    "state": "open any session",
    "note": "0.1.7+: tab row is a direct seat child; one-line horizontal scroll contract lives here."
+  },
+  {
+   "id": "wallpaper-attr",
+   "kind": "marker",
+   "needle": "[data-dsh-bg]",
+   "owner": "deepseek-harness-background",
+   "lazy": true,
+   "state": "install the wallpaper plugin and set a background",
+   "note": "wallpaper-gated opaque drawer fills (layout.css.ts): the plugin empties --dsw-alias-bg-base on this body flag, see tests/wallpaper-surface-fill.test.ts"
+  },
+  {
+   "id": "composer-stats-slot",
+   "kind": "marker",
+   "needle": "[data-slot]",
+   "owner": "dsh-client-ui-conversation",
+   "lazy": true,
+   "state": "open a session on host 0.2.1+ where StatsPills render as split activity/usage slot entries",
+   "note": "stats-line tier-2 fallback (stats-line.ts isStatsStripCandidate): no shared _root container on the split shape, see tests/stats-line-predicate.test.ts"
   }
  ]
 }

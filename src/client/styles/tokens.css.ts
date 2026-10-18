@@ -1,4 +1,7 @@
-// tokens — DSH-native design tokens reference (no custom hex).
+// tokens — DSH-native design tokens reference (no custom hex, one deliberate
+// exception: the wallpaper-gated drawer fills in layout.css.ts use static
+// #ffffff / #151517, because the wallpaper plugin empties the alias tokens
+// themselves and no unpoisoned sidebar-scoped token carries the dark fill).
 // This file documents the token contract; it emits no CSS itself.
 // All values resolve through DSH ThemePresenter (light/dark via body[data-ds-dark-theme]).
 // See design-system/MASTER.md for the full list.

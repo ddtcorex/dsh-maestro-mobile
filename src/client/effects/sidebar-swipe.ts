@@ -1265,6 +1265,9 @@ export function installSidebarSwipe(ctx: ClientContext): void {
       // touch keeps its native scroll; only a locked-horizontal stroke is
       // prevented so the pointer stream reaches the gesture layer intact.
       if (!shouldPreventTouchMove(trackingPointer, event.touches.length, tracking)) return
+      // Once the scroller claims a touch its touchmove turns non-cancelable
+      // and the prevent is a no-op (Chrome logs it) — skip it explicitly.
+      if (!event.cancelable) return
       event.preventDefault()
     }
 

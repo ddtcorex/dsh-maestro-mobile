@@ -22,7 +22,7 @@ test('the drawer keeps an opaque fill when a wallpaper plugin empties bg-base (d
   )
 })
 
-test('the wallpaper-gated fills never leak into the no-wallpaper path', () => {
+test('the base drawer rule still resolves the theme token', () => {
   // The base drawer rule must keep resolving the theme token so the
   // no-wallpaper path is byte-identical with and without this fix.
   const base = /\[data-mobile-nav="frame"\] > :first-child \{([\s\S]*?)\n  \}/.exec(layout)?.[1]

@@ -2,7 +2,7 @@ import assert from 'node:assert/strict'
 import { readFileSync } from 'node:fs'
 import test from 'node:test'
 import { TEXT_MUTATION_SCOPE } from '../src/client/core/reconciler-core.ts'
-import { createStatsLineTask } from '../src/client/effects/stats-line.ts'
+import { createStatsLineTask, isStatsStripCandidate } from '../src/client/effects/stats-line.ts'
 
 const stats = readFileSync(new URL('../src/client/effects/stats-line.ts', import.meta.url), 'utf8')
 const phoneChrome = readFileSync(new URL('../src/client/effects/phone-chrome.ts', import.meta.url), 'utf8')
@@ -35,7 +35,8 @@ test('the stats-row hunter accepts the metric pills the row now renders', () => 
   assert.doesNotMatch(stats, /if \(root\.querySelector\('button'\) !== null\) continue/)
 })
 
-test('the per-token fast path skips the full-tree hunt (v3.0.6 #194 lesson)', () => {  // dsh-web-mobile v3.0.6 #194: the status task ran a full read/write cycle
+test('the per-token fast path skips the full-tree hunt (v3.0.6 #194 lesson)', () => {
+  // dsh-web-mobile v3.0.6 #194: the status task ran a full read/write cycle
   // every streaming frame with no skip-if-unchanged, janking scroll and
   // drawer on long sessions. This task wakes on every mutation
   // (scopes ['*']), so the fast path — anchor alive => fold TPS and return
@@ -54,26 +55,76 @@ test('the per-token fast path skips the full-tree hunt (v3.0.6 #194 lesson)', ()
   assert.match(stats, /if \(\[\.\.\.stats\.children\]\.some\(\(c\) => \/\^TPS/)
 })
 
-test('the slow path falls back to data-slot candidates when no _root matches (dsh-web-mobile v3.2.0 #216)', () => {
+test('the shared candidate predicate accepts the strip and rejects lookalikes (dsh-web-mobile v3.2.0 #216)', () => {
+  // Behavioural: calls the real exported predicate with stub elements.
   // Host 0.2.1 split StatsPills into activity/usage slot entries with no
-  // shared _root container, so a slow path that only accepts
-  // [class*="_root"] never marks the strip. Candidates must be two-tier:
-  // _root first, then [data-slot].
-  assert.match(stats, /\[data-slot/)
-  const markBody = stats.slice(stats.indexOf('const mark = '))
-  const rootTier = markBody.indexOf('[class*="_root"]')
-  const slotTier = markBody.indexOf('[data-slot')
-  assert.ok(rootTier !== -1, '_root tier must exist in mark()')
-  assert.ok(slotTier !== -1, 'data-slot fallback tier must exist in mark()')
-  assert.ok(rootTier < slotTier, '_root tier must precede the data-slot fallback')
+  // shared _root container — the predicate is what lets the [data-slot]
+  // fallback tier recognise them.
+  interface StubButton {
+    matches(selector: string): boolean
+  }
+  const pill: StubButton = { matches: (sel: string) => sel === '[class*="_pill"]' }
+  const chrome: StubButton = { matches: () => false }
+  const stubCandidate = (opts: {
+    inStack?: boolean
+    todoPanel?: boolean
+    buttons?: StubButton[]
+    text?: string
+    hasEditor?: boolean
+  }): Element => {
+    const { inStack = true, todoPanel = false, buttons = [], text = '', hasEditor = false } = opts
+    return {
+      closest: (sel: string) => (sel === '[class*="_composerStack"]' && inStack ? {} : null),
+      matches: (sel: string) => sel === '[data-testid="todo-panel"]' && todoPanel,
+      querySelectorAll: () => buttons,
+      querySelector: () => (hasEditor ? {} : null),
+      textContent: text,
+    } as unknown as Element
+  }
+  // The strip: inside the stack, metrics text, pill-only buttons, no editor.
+  assert.equal(
+    isStatsStripCandidate(stubCandidate({ buttons: [pill, pill], text: '2 turns 97 steps · 257 tok/s' })),
+    true,
+  )
+  // A buttonless metrics row still counts (pre-pill host shape).
+  assert.equal(isStatsStripCandidate(stubCandidate({ text: '3 turns 12 steps' })), true)
+  // The todo strip shares the stack and can mention steps: excluded by testid.
+  assert.equal(
+    isStatsStripCandidate(stubCandidate({ todoPanel: true, buttons: [pill], text: 'plan steps' })),
+    false,
+  )
+  // The composer card mentions turns in its model line: excluded by editor.
+  assert.equal(
+    isStatsStripCandidate(stubCandidate({ buttons: [pill], text: '2 turns', hasEditor: true })),
+    false,
+  )
+  // Message-area blocks mention turns outside the stack: excluded by scope.
+  assert.equal(
+    isStatsStripCandidate(stubCandidate({ inStack: false, buttons: [pill], text: '2 turns' })),
+    false,
+  )
+  // Interactive dock panels carry non-pill buttons: excluded by shape.
+  assert.equal(
+    isStatsStripCandidate(stubCandidate({ buttons: [pill, chrome], text: '2 turns' })),
+    false,
+  )
+  // No metrics text: not the strip.
+  assert.equal(isStatsStripCandidate(stubCandidate({ buttons: [pill], text: 'hello' })), false)
 })
 
-test('both candidate tiers share one predicate, not two hardcoded traversals (dsh-web-mobile v3.2.0 #216)', () => {
-  // Upstream extracted locateRing to replace two hardcoded two-level
-  // up-traversals with one shared helper, so a future host reshape fixes one
-  // place. Same principle here: the _root tier and the data-slot fallback
-  // tier must share one candidate predicate — if each tier inlines its own
-  // copy of the pill/text/editor checks, the next host reshape fixes one
-  // tier and silently breaks the other.
-  assert.match(stats, /isStatsStripCandidate/)
+test('both slow-path tiers filter through the shared predicate', () => {
+  // Structural (the suite cannot mount a host DOM here): mark() must route
+  // every candidate through markOne — the single call site of
+  // isStatsStripCandidate — with the _root tier first and the [data-slot]
+  // fallback second. The decisions themselves are covered behaviourally
+  // above; this only pins the wiring so a tier cannot silently inline its
+  // own copy of the checks.
+  const markBody = stats.slice(stats.indexOf('const mark = '))
+  assert.match(markBody, /const markOne = \(candidate: Element\): boolean => \{/)
+  assert.match(markBody, /if \(!isStatsStripCandidate\(candidate\)\) return false/)
+  const tier1 = markBody.indexOf('if (markOne(root)) return')
+  const tier2 = markBody.indexOf('if (markOne(slot)) return')
+  assert.ok(tier1 !== -1, '_root tier must route through markOne')
+  assert.ok(tier2 !== -1, 'data-slot tier must route through markOne')
+  assert.ok(tier1 < tier2, '_root tier must precede the data-slot fallback')
 })

@@ -13,11 +13,19 @@ All notable changes to this project are documented in this file. Format follows
   into the WebView keyboard model (layout viewport shrinks instead of the
   browser panning the document and scrolling the top bar off-screen).
   Engines that do not recognise the field (iOS Safari, Firefox Android)
-  ignore it. Ported from `dsh-web-mobile` v3.2.0 (#226).
+  ignore it. Consequence folded in: a shrinking layout viewport collapses
+  the classic `innerHeight - visualViewport.height` keyboard inset to ~0,
+  so both keyboard readers now compare against the shared resting baseline
+  (`restingViewportHeight`, one home in `core/composer-dom.ts`) — otherwise
+  the tap-time blur fires while the keyboard is up and the composer jumps.
+  Ported from `dsh-web-mobile` v3.2.0 (#226).
 - **The stats strip is marked again on hosts that split StatsPills** — the
   slow path hunts in two tiers (`_root` first, then `[data-slot]` inside the
   composer stack) sharing one `isStatsStripCandidate` predicate, so a future
-  host reshape fixes one place. Ported from `dsh-web-mobile` v3.2.0 (#216).
+  host reshape fixes one place. Tier 2 is forward-looking for the 0.2.1
+  split shape (unverifiable live: the installed host is 0.2.0-rc.2, where
+  tier 1 short-circuits) — confirm on a real 0.2.1 host before relying on
+  it. Ported from `dsh-web-mobile` v3.2.0 (#216).
 - **The drawer keeps an opaque fill under wallpaper plugins** — gated on
   `body[data-dsh-bg]`, light `#ffffff` (this file's own bg-base fallback)
   and dark `#151517` (upstream's bg-base fallback for the same token); the

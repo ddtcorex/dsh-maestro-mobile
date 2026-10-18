@@ -89,12 +89,14 @@ export const LAYOUT_CSS = `/* ---------- mobile-only layout ---------- */
      so the drawer, whose only fill is bg-base, turns transparent and the
      content behind shows through. Restore the opaque fill gated on the
      wallpaper attribute: light #ffffff is this file's own bg-base fallback,
-     dark #151517 is upstream's bg-base fallback for the same token. The
-     gated selectors (0,3,1)/(0,4,1) outrank the base drawer rule (0,2,0)
-     without depending on source order, and the no-wallpaper path keeps
-     resolving the theme token byte-identical. Verified as a synthetic host
-     cascade + unit anchor; appearance under a real wallpaper install still
-     needs on-device re-check (same caveat as upstream). */
+     dark #151517 is upstream's bg-base fallback for the same token (deliberate
+     static-hex exception, see tokens.css.ts — no unpoisoned token carries the
+     dark fill). Important already wins over the non-important base drawer
+     rule; the gated selectors (0,3,1)/(0,4,1) order light vs dark without
+     depending on source order. The no-wallpaper path keeps resolving the
+     theme token byte-identical. Verified as a synthetic host cascade + unit
+     anchor; appearance under a real wallpaper install still needs on-device
+     re-check (same caveat as upstream). */
   body[data-dsh-bg] [data-mobile-nav="frame"] > :first-child {
     background: #ffffff !important;
   }
