@@ -6,6 +6,8 @@ All notable changes to this project are documented in this file. Format follows
 
 ## [Unreleased]
 
+## [1.7.3] - 2026-10-18
+
 ### Fixed
 
 - **Chrome for Android no longer pans the whole page when the keyboard opens**
