@@ -291,8 +291,13 @@ export function addReconcilerTask(task: ReconcilerTask): () => void {
  * pinch but other engines honour them, so writing them would only take zoom
  * away from Android; the iOS focus-zoom fix is the >=16px field floor
  * (data-mobile-nav-ios), not a zoom ban.
+ * `interactive-widget=resizes-content` opts Chrome for Android into the
+ * WebView keyboard model (layout viewport shrinks instead of the browser
+ * panning the whole document); engines that do not recognise it ignore it
+ * (dsh-web-mobile v3.2.0 #226).
  */
-export const VIEWPORT_CONTENT = 'width=device-width, initial-scale=1, viewport-fit=cover'
+export const VIEWPORT_CONTENT =
+  'width=device-width, initial-scale=1, viewport-fit=cover, interactive-widget=resizes-content'
 
 /**
  * The viewport content the plugin writes, for any host value observed at arm
