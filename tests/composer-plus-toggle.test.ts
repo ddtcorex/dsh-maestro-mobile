@@ -176,6 +176,20 @@ test('the keyboard signal reads the visual viewport, not the layout viewport', (
   assert.equal(keyboardIsVisible({ height: 400, scale: 2.5 }, 844), false)
 })
 
+test('the keyboard signal survives a resizes-content layout shrink (dsh-web-mobile v3.2.0 #226)', () => {
+  // `interactive-widget=resizes-content` shrinks the LAYOUT viewport with the
+  // keyboard, so window.innerHeight drops with the visual viewport and the
+  // classic inset collapses to ~0 while a keyboard is up. The tallest height
+  // seen recently (shared resting baseline with composer-focus-release)
+  // survives as the comparison. Without a baseline the classic miss stands —
+  // the very first frame has no taller reading yet.
+  assert.equal(keyboardIsVisible({ height: 544, scale: 1 }, 544, 844), true)
+  assert.equal(keyboardIsVisible({ height: 844, scale: 1 }, 844, 844), false)
+  assert.equal(keyboardIsVisible({ height: 544, scale: 1 }, 544), false)
+  // A pinch still never reads as a keyboard, baseline or not.
+  assert.equal(keyboardIsVisible({ height: 400, scale: 2.5 }, 544, 844), false)
+})
+
 test('the focus shadow may not end with the click that armed it', () => {
   // The host focuses the editor again from the effect that runs when its menu
   // opens: measured on a phone by the community plugin, the keyboard rose about

@@ -48,3 +48,22 @@ export function viewportMetrics(): ViewportMetrics | null {
   if (viewport === null || viewport === undefined) return null
   return { height: viewport.height, scale: viewport.scale }
 }
+
+/**
+ * The tallest visual viewport height seen recently: the page with no keyboard.
+ *
+ * iOS on a page that cannot scroll shrinks the LAYOUT viewport with the
+ * keyboard, and `interactive-widget=resizes-content` makes Chrome for Android
+ * do the same — so `innerHeight - visualViewport.height` stays near zero
+ * while a keyboard is up and the classic inset reads a keyboard that is
+ * right there as absent. The tallest height seen is the baseline that
+ * survives that; it heals by itself once a taller reading arrives. One home
+ * for both keyboard readers (composer-plus-toggle, composer-focus-release).
+ * @param previous - the baseline so far.
+ * @param current - the height just read (0 or less when unreadable).
+ * @returns the new baseline.
+ */
+export function restingViewportHeight(previous: number, current: number): number {
+  if (current <= 0) return previous
+  return Math.max(previous, current)
+}

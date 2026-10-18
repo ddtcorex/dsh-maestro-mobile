@@ -4,7 +4,8 @@ import type { ReconcilerTask } from '../core/reconciler-core.ts'
 
 // The official conversation status row (turns / steps / LLM time / TTFT /
 // cache) has a hashed class, so the stylesheet cannot target it directly.
-// Mark the exact row on narrow screens by text: a [class*=_root] that
+// Mark the exact row on narrow screens by text: a [class*=_root] (pre-0.2.1
+// shared container) or a [data-slot] entry (0.2.1 split StatsPills) that
 // carries the metrics text and no textarea (the composer card also ends in
 // _root and can mention turns in its model line). The CSS then lays the
 // marked row out as ONE horizontally scrolling line with every metric
@@ -16,6 +17,34 @@ export function statsAnchorAlive(el: Element | null): boolean {
   if (el === null || !el.isConnected) return false
   if (el.closest('[data-phase]') === null) return false
   return el.closest('[class*="_composerStack"]') !== null
+}
+
+// Shared candidate predicate for BOTH slow-path tiers below. Host 0.2.1
+// split StatsPills into activity/usage slot entries with no shared _root
+// container (dsh-web-mobile v3.2.0 #216), so the strip is hunted in two
+// tiers (_root first, then [data-slot]); if each tier inlined its own copy
+// of these checks, the next host reshape would fix one tier and silently
+// break the other.
+export function isStatsStripCandidate(root: Element): boolean {
+  // The status row lives inside the composer stack; message-area
+  // blocks can also mention turns/steps and must be skipped.
+  if (root.closest('[class*="_composerStack"]') === null) return false
+  // The todo plan strip also lives in the composer stack and its root
+  // ends in _root. Its items may legitimately contain "步"/"steps" in
+  // their text, so never mistake it (or any interactive dock panel)
+  // for the stats strip.
+  if (root.matches('[data-testid="todo-panel"]')) return false
+  // Upstream renders each metric as an interactive pill
+  // (button[class*="_pill"], aria-label "2 turns 97 steps · 257 tok/s"),
+  // so a blanket "no buttons" bail-out stopped matching the status row
+  // at all and the marker was never set. Keep skipping interactive dock
+  // panels, but accept a root whose buttons are all metric pills.
+  const buttons = [...root.querySelectorAll('button')]
+  if (buttons.length > 0 && !buttons.every((b) => b.matches('[class*="_pill"]'))) return false
+  const text = root.textContent ?? ''
+  if (!/(turns|steps|\bLLM\b|轮|步)/.test(text)) return false
+  if (root.querySelector(EDITOR_SELECTOR) !== null) return false
+  return true
 }
 
 export function createStatsLineTask(): ReconcilerTask {
@@ -59,28 +88,22 @@ export function createStatsLineTask(): ReconcilerTask {
     // Stale marker on a node that left the composer stack/phase context:
     // drop it so the slow path can re-anchor cleanly.
     anchor?.removeAttribute('data-mobile-nav')
+    const markOne = (candidate: Element): boolean => {
+      if (!isStatsStripCandidate(candidate)) return false
+      candidate.setAttribute('data-mobile-nav', 'stats')
+      moveTps(candidate)
+      return true
+    }
+    // Tier 1: the pre-0.2.1 shape — one shared _root container.
     for (const root of document.querySelectorAll('[data-phase] [class*="_root"]')) {
-      // The status row lives inside the composer stack; message-area
-      // blocks can also mention turns/steps and must be skipped.
-      if (root.closest('[class*="_composerStack"]') === null) continue
-      // The todo plan strip also lives in the composer stack and its root
-      // ends in _root. Its items may legitimately contain "步"/"steps" in
-      // their text, so never mistake it (or any interactive dock panel)
-      // for the stats strip.
-      if (root.matches('[data-testid="todo-panel"]')) continue
-      // Upstream renders each metric as an interactive pill
-      // (button[class*="_pill"], aria-label "2 turns 97 steps · 257 tok/s"),
-      // so a blanket "no buttons" bail-out stopped matching the status row
-      // at all and the marker was never set. Keep skipping interactive dock
-      // panels, but accept a root whose buttons are all metric pills.
-      const buttons = [...root.querySelectorAll('button')]
-      if (buttons.length > 0 && !buttons.every((b) => b.matches('[class*="_pill"]'))) continue
-      const text = root.textContent ?? ''
-      if (!/(turns|steps|\bLLM\b|轮|步)/.test(text)) continue
-      if (root.querySelector(EDITOR_SELECTOR) !== null) continue
-      root.setAttribute('data-mobile-nav', 'stats')
-      moveTps(root)
-      return
+      if (markOne(root)) return
+    }
+    // Tier 2 (dsh-web-mobile v3.2.0 #216): host 0.2.1 split StatsPills into
+    // activity/usage slot entries with no shared _root, so fall back to
+    // [data-slot] candidates inside the composer stack. Scoped to the stack
+    // so unrelated slots (session header, dock) are never considered.
+    for (const slot of document.querySelectorAll('[data-phase] [class*="_composerStack"] [data-slot]')) {
+      if (markOne(slot)) return
     }
   }
   // Scope decision: TPS readout updates are text mutations in the composer

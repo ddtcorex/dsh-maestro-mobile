@@ -1,5 +1,5 @@
 import type { Context as ClientContext } from '@deepseek-ai/cordis'
-import { EDITOR_SELECTOR, editorElement, viewportMetrics } from '../core/composer-dom.ts'
+import { EDITOR_SELECTOR, editorElement, restingViewportHeight, viewportMetrics } from '../core/composer-dom.ts'
 import type { ViewportMetrics } from '../core/composer-dom.ts'
 import { KEYBOARD_MIN_INSET_PX } from './composer-plus-toggle.ts'
 import { detectIosWebKit, installMobileEffect } from './phone-chrome.ts'
@@ -99,24 +99,6 @@ const RELEASE_MARKER = 'data-mobile-nav-focus-release'
 export function keyboardIsReadable(viewport: ViewportMetrics | null): boolean {
   if (viewport === null) return false
   return viewport.scale <= 1.01
-}
-
-/**
- * The tallest visual viewport height seen recently: the page with no keyboard.
- *
- * iOS on a page that cannot scroll (the DSH shell is a full-height flex layout
- * with no document scroll) shrinks the LAYOUT viewport with the keyboard, so
- * `innerHeight - visualViewport.height` stays near zero while a keyboard is up
- * and the classic inset reads a keyboard that is right there as absent. The
- * tallest height seen is the baseline that survives that; it heals by itself
- * once a taller reading arrives.
- * @param previous - the baseline so far.
- * @param current - the height just read (0 or less when unreadable).
- * @returns the new baseline.
- */
-export function restingViewportHeight(previous: number, current: number): number {
-  if (current <= 0) return previous
-  return Math.max(previous, current)
 }
 
 /** The three heights the keyboard reading can compare. */

@@ -7,12 +7,27 @@ import { VIEWPORT_CONTENT, viewportContentFor } from '../src/client/effects/phon
 const chrome = readFileSync(new URL('../src/client/effects/phone-chrome.ts', import.meta.url), 'utf8')
 
 test('the plugin-owned viewport content keeps the notch inset and no zoom tokens', () => {
-  assert.equal(VIEWPORT_CONTENT, 'width=device-width, initial-scale=1, viewport-fit=cover')
+  assert.equal(
+    VIEWPORT_CONTENT,
+    'width=device-width, initial-scale=1, viewport-fit=cover, interactive-widget=resizes-content',
+  )
   // iOS 10+ ignores maximum-scale for user pinch while other engines honour it,
   // so writing it would only take zoom away from Android. The focus-zoom fix is
   // the 16px field floor, not a zoom ban.
   assert.doesNotMatch(viewportContentFor('width=device-width, maximum-scale=1'), /maximum-scale|user-scalable/)
   assert.match(viewportContentFor(''), /viewport-fit=cover/)
+})
+
+test('the viewport opts Chrome for Android into the resize-content keyboard model (dsh-web-mobile v3.2.0 #226)', () => {
+  // Chrome for Android without `interactive-widget` behaves as
+  // `resizes-visual`: the keyboard only shrinks the visual viewport while the
+  // layout viewport (what 100%/100dvh follow) stays full height, so the
+  // browser pans the whole document and the top bar scrolls off-screen.
+  // `resizes-content` restores the WebView model (layout viewport shrinks).
+  // Engines that do not recognise the field (iOS Safari, Firefox Android)
+  // ignore it, so their behaviour is unchanged.
+  assert.match(VIEWPORT_CONTENT, /interactive-widget=resizes-content/)
+  assert.match(viewportContentFor(''), /interactive-widget=resizes-content/)
 })
 
 test('the meta is re-asserted against host rewrites while armed', () => {
