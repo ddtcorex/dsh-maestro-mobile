@@ -6,6 +6,40 @@ All notable changes to this project are documented in this file. Format follows
 
 ## [Unreleased]
 
+### Fixed
+
+- **Chrome for Android no longer pans the whole page when the keyboard opens**
+  — the viewport meta gains `interactive-widget=resizes-content`, opting
+  into the WebView keyboard model (layout viewport shrinks instead of the
+  browser panning the document and scrolling the top bar off-screen).
+  Engines that do not recognise the field (iOS Safari, Firefox Android)
+  ignore it. Ported from `dsh-web-mobile` v3.2.0 (#226).
+- **The stats strip is marked again on hosts that split StatsPills** — the
+  slow path hunts in two tiers (`_root` first, then `[data-slot]` inside the
+  composer stack) sharing one `isStatsStripCandidate` predicate, so a future
+  host reshape fixes one place. Ported from `dsh-web-mobile` v3.2.0 (#216).
+- **The drawer keeps an opaque fill under wallpaper plugins** — gated on
+  `body[data-dsh-bg]`, light `#ffffff` (this file's own bg-base fallback)
+  and dark `#151517` (upstream's bg-base fallback for the same token); the
+  no-wallpaper path keeps resolving the theme token. Appearance under a real
+  wallpaper install still needs on-device re-check. Ported from
+  `dsh-web-mobile` v3.2.0 (#229).
+- **Edge-zone touches no longer lose their native scroll on iOS** — the
+  swipe `touchmove` prevent is gated on the horizontal axis lock
+  (`shouldPreventTouchMove`); pre-lock touches scroll natively
+  (`touch-action: pan-y` already covers the horizontal race). Ported from
+  `dsh-web-mobile` v3.2.0 (#223).
+
+### Audited, no change
+
+- **Header chips need no 0.2.1-split fix**: the lineage trigger is already a
+  shape anchor (`_trigger[aria-haspopup][aria-expanded]`, not `_root`) and
+  the hover scope already a marker + role (`data-lineage-root`,
+  `role="tree"`); the jobs chip is already role/slot-identified. The
+  `_titleRow` 36px reserve sits on a non-scroll flex row for an out-of-flow
+  toggle, so `padding-right` is correct there (the #217 margin lesson applies
+  to scroll containers only).
+
 ## [1.7.2] - 2026-10-17
 
 ### Fixed
