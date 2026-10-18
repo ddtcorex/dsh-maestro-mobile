@@ -550,6 +550,24 @@ export function shouldAbortForTouchCount(touches: number): boolean {
 }
 
 /**
+ * Whether this touchmove may be prevented. iOS WebKit cancels scrolling for
+ * the whole touch point on the FIRST prevented touchmove with no in-stroke
+ * recovery (dsh-web-mobile v3.2.0 #223) — preventing from arm time turned the
+ * edge start zone into a scroll dead zone. Pre-lock the native scroll must
+ * proceed (touch-action: pan-y already covers the horizontal race); only a
+ * locked-horizontal stroke prevents.
+ * @param trackingPointer - the pointer id currently owning the stroke (0 = none).
+ * @param touches - `TouchEvent.touches.length` for the current touchmove.
+ * @param axisLocked - true once the stroke locked horizontal (`tracking`).
+ * @returns true only when preventing is safe.
+ */
+export function shouldPreventTouchMove(trackingPointer: number, touches: number, axisLocked: boolean): boolean {
+  if (trackingPointer === 0) return false
+  if (shouldAbortForTouchCount(touches)) return false
+  return axisLocked
+}
+
+/**
  * Cache the follow geometry for a freshly locked stroke. Runs ONCE per
  * stroke (one getComputedStyle, plus one getBoundingClientRect only for the
  * cold-start fallback); the per-move path afterwards is write-only.
@@ -1219,12 +1237,17 @@ export function installSidebarSwipe(ctx: ClientContext): void {
     // false) additionally stops the vertical-scroll claim, so the pointer
     // event stream reaches the gesture layer intact on browsers where the
     // scroller wins the race (iOS Safari in particular — headless cannot
-    // reproduce that behavior). Vertical-dominant strokes abandon the
-    // gesture (reset() clears trackingPointer), so scrolling resumes for
-    // touches that were never swipes. Strokes starting inside a genuinely
-    // horizontally scrollable container never reach this state at all
-    // (beginStroke rejects them via findHorizontalScroller), so their
-    // native horizontal pan is never prevented.
+    // reproduce that behavior). The prevent is gated on the axis lock (see
+    // shouldPreventTouchMove): iOS WebKit cancels the touch point's scrolling
+    // on the FIRST prevented touchmove with no in-stroke recovery
+    // (dsh-web-mobile v3.2.0 #223), so preventing pre-lock would turn the
+    // start zone into a scroll dead zone. Vertical-dominant strokes abandon
+    // the gesture at lock time (reset() clears trackingPointer) having never
+    // been prevented, so their native scroll was never at risk. Strokes
+    // starting inside a genuinely horizontally scrollable container never
+    // reach this state at all (beginStroke rejects them via
+    // findHorizontalScroller), so their native horizontal pan is never
+    // prevented.
     //
     // Multi-touch is the one case that must never be prevented: two fingers
     // mean a pinch, and preventDefault on those touchmoves cancels the
@@ -1238,6 +1261,10 @@ export function installSidebarSwipe(ctx: ClientContext): void {
         abortStroke(ctx)
         return
       }
+      // Gate on the axis lock (see shouldPreventTouchMove): pre-lock the
+      // touch keeps its native scroll; only a locked-horizontal stroke is
+      // prevented so the pointer stream reaches the gesture layer intact.
+      if (!shouldPreventTouchMove(trackingPointer, event.touches.length, tracking)) return
       event.preventDefault()
     }
 

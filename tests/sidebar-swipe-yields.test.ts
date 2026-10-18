@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
 
-import { shouldAbortForMultiTouch, shouldAbortForTouchCount, selectionOwnsStroke, takeoverActive, overlayMenuOwnsStroke, OVERLAY_SELECTOR, OVERLAY_MENU_SELECTOR } from '../src/client/effects/sidebar-swipe.ts'
+import { shouldAbortForMultiTouch, shouldAbortForTouchCount, shouldPreventTouchMove, selectionOwnsStroke, takeoverActive, overlayMenuOwnsStroke, OVERLAY_SELECTOR, OVERLAY_MENU_SELECTOR } from '../src/client/effects/sidebar-swipe.ts'
 
 /** Install DOM globals for one call, then restore whatever was there. */
 function withDom<T>(dom: { window?: unknown; document?: unknown }, run: () => T): T {
@@ -36,6 +36,20 @@ test('two fingers on screen abandon the touchmove preventDefault path', () => {
   assert.equal(shouldAbortForTouchCount(3), true)
   assert.equal(shouldAbortForTouchCount(1), false)
   assert.equal(shouldAbortForTouchCount(0), false)
+})
+
+test('touchmove is only prevented after the stroke locks horizontal (dsh-web-mobile v3.2.0 #223)', () => {
+  // iOS WebKit cancels scrolling for the whole touch point on the first
+  // prevented touchmove with no in-stroke recovery — preventing from arm
+  // time turned the 45% edge start zone into a scroll dead zone. Pre-lock
+  // the native scroll must proceed (touch-action: pan-y already covers the
+  // horizontal race); only a locked-horizontal stroke prevents.
+  assert.equal(shouldPreventTouchMove(7, 1, true), true)
+  assert.equal(shouldPreventTouchMove(7, 1, false), false)
+  assert.equal(shouldPreventTouchMove(0, 1, true), false)
+  assert.equal(shouldPreventTouchMove(0, 1, false), false)
+  assert.equal(shouldPreventTouchMove(7, 2, true), false)
+  assert.equal(shouldPreventTouchMove(7, 3, false), false)
 })
 
 test('a live text selection owns the stroke', () => {
