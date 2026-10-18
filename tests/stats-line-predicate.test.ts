@@ -35,8 +35,7 @@ test('the stats-row hunter accepts the metric pills the row now renders', () => 
   assert.doesNotMatch(stats, /if \(root\.querySelector\('button'\) !== null\) continue/)
 })
 
-test('the per-token fast path skips the full-tree hunt (v3.0.6 #194 lesson)', () => {
-  // dsh-web-mobile v3.0.6 #194: the status task ran a full read/write cycle
+test('the per-token fast path skips the full-tree hunt (v3.0.6 #194 lesson)', () => {  // dsh-web-mobile v3.0.6 #194: the status task ran a full read/write cycle
   // every streaming frame with no skip-if-unchanged, janking scroll and
   // drawer on long sessions. This task wakes on every mutation
   // (scopes ['*']), so the fast path — anchor alive => fold TPS and return
@@ -53,4 +52,28 @@ test('the per-token fast path skips the full-tree hunt (v3.0.6 #194 lesson)', ()
   // the strip, so a rebuilt-nothing frame costs O(strip children), not
   // O(composer stack).
   assert.match(stats, /if \(\[\.\.\.stats\.children\]\.some\(\(c\) => \/\^TPS/)
+})
+
+test('the slow path falls back to data-slot candidates when no _root matches (dsh-web-mobile v3.2.0 #216)', () => {
+  // Host 0.2.1 split StatsPills into activity/usage slot entries with no
+  // shared _root container, so a slow path that only accepts
+  // [class*="_root"] never marks the strip. Candidates must be two-tier:
+  // _root first, then [data-slot].
+  assert.match(stats, /\[data-slot/)
+  const markBody = stats.slice(stats.indexOf('const mark = '))
+  const rootTier = markBody.indexOf('[class*="_root"]')
+  const slotTier = markBody.indexOf('[data-slot')
+  assert.ok(rootTier !== -1, '_root tier must exist in mark()')
+  assert.ok(slotTier !== -1, 'data-slot fallback tier must exist in mark()')
+  assert.ok(rootTier < slotTier, '_root tier must precede the data-slot fallback')
+})
+
+test('both candidate tiers share one predicate, not two hardcoded traversals (dsh-web-mobile v3.2.0 #216)', () => {
+  // Upstream extracted locateRing to replace two hardcoded two-level
+  // up-traversals with one shared helper, so a future host reshape fixes one
+  // place. Same principle here: the _root tier and the data-slot fallback
+  // tier must share one candidate predicate — if each tier inlines its own
+  // copy of the pill/text/editor checks, the next host reshape fixes one
+  // tier and silently breaks the other.
+  assert.match(stats, /isStatsStripCandidate/)
 })
