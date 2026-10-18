@@ -1,5 +1,5 @@
 import type { Context as ClientContext } from '@deepseek-ai/cordis'
-import { EDITOR_SELECTOR, editorElement } from '../core/composer-dom.ts'
+import { EDITOR_SELECTOR, editorElement, restingViewportHeight } from '../core/composer-dom.ts'
 import { createFocusShadow } from './editor-focus-shadow.ts'
 import { detectIosWebKit, installMobileEffect } from './phone-chrome.ts'
 
@@ -233,16 +233,25 @@ export const KEYBOARD_MIN_INSET_PX = 120
  * Pure and injectable so the decision table is unit-testable without a browser.
  * The zoom guard matters: a pinch shrinks the visual viewport too, and treating
  * that as a keyboard would skip the blur while the user is zoomed.
+ * Either inset saying "up" is enough: the classic `innerHeight` inset misses
+ * keyboards that shrink the layout viewport (iOS, and Chrome for Android once
+ * the viewport opts into `interactive-widget=resizes-content`), where the
+ * resting baseline still sees them. Same keyboard model as
+ * `keyboardOccupiesScreen` in composer-focus-release.ts.
  * @param viewport - the visual viewport metrics, or null when unsupported.
+ * @param innerHeight - `window.innerHeight` (the layout viewport).
+ * @param restingHeight - tallest height seen recently (0 when unknown).
  * @returns true when a keyboard appears to occupy part of the screen.
  */
 export function keyboardIsVisible(
   viewport: { height: number; scale: number } | null,
   innerHeight: number,
+  restingHeight = 0,
 ): boolean {
   if (viewport === null) return false
   if (viewport.scale > 1.01) return false
-  return innerHeight - viewport.height > KEYBOARD_MIN_INSET_PX
+  if (innerHeight - viewport.height > KEYBOARD_MIN_INSET_PX) return true
+  return restingHeight - viewport.height > KEYBOARD_MIN_INSET_PX
 }
 
 /**
@@ -282,16 +291,22 @@ function visualViewportMetrics(): { height: number; scale: number } | null {
  * Release the editor's DOM focus so the soft keyboard has nothing to attach to —
  * unless the keyboard is up, in which case releasing it is what makes the
  * composer jump (see shouldDropEditorFocus).
+ * @param iosViewportPan - iOS nudges the viewport on programmatic blur.
+ * @param restingHeight - tallest viewport seen so far (updated and returned).
+ * @returns the new resting baseline.
  */
-function dropEditorFocus(iosViewportPan: boolean): void {
+function dropEditorFocus(iosViewportPan: boolean, restingHeight: number): number {
+  const metrics = visualViewportMetrics()
+  const resting = restingViewportHeight(restingHeight, metrics?.height ?? 0)
   const editor = editorElement()
-  if (editor === null) return
+  if (editor === null) return resting
   const release = shouldDropEditorFocus({
     editorFocused: document.activeElement === editor,
-    keyboardVisible: keyboardIsVisible(visualViewportMetrics(), window.innerHeight),
+    keyboardVisible: keyboardIsVisible(metrics, window.innerHeight, resting),
     iosViewportPan,
   })
   if (release) editor.blur()
+  return resting
 }
 
 /**
@@ -325,6 +340,12 @@ export function installComposerPlusToggle(ctx: ClientContext): void {
     /** Pending focus-release timers while the command menu is open. */
     let releaseTimers: number[] = []
     /**
+     * Tallest visual viewport seen: the no-keyboard baseline for
+     * keyboardIsVisible. Updated on every drop read, so a resizes-content
+     * keyboard (layout viewport shrunk with it) still reads as up.
+     */
+    let restingHeight = 0
+    /**
      * Blocks the host's programmatic `editor.focus()` for the length of the
      * "+" interaction. Measured on iOS: a blur after the fact does NOT take the
      * keyboard back, because the keyboard follows DOM focus and is already up
@@ -341,6 +362,10 @@ export function installComposerPlusToggle(ctx: ClientContext): void {
       navigator,
       typeof CSS === 'undefined' ? null : (condition: string) => CSS.supports(condition),
     )
+    /** Drop the editor focus and fold this read into the resting baseline. */
+    const dropFocus = (): void => {
+      restingHeight = dropEditorFocus(iosViewportPan, restingHeight)
+    }
     /** Hard cap: whatever happens, the shadow lifts. */
     let shadowCap: number | null = null
     /** When the current interaction armed the shadow (minimum-window clock). */
@@ -475,7 +500,7 @@ export function installComposerPlusToggle(ctx: ClientContext): void {
         return
       }
       if (isComposerAddButton(target)) {
-        dropEditorFocus(iosViewportPan)
+        dropFocus()
         armShadow()
         return
       }
@@ -491,7 +516,7 @@ export function installComposerPlusToggle(ctx: ClientContext): void {
       // what makes the keyboard stay down for a click path with no pointerdown
       // at all — a synthetic click, an assistive-technology activation, or a
       // shell that synthesizes the click without a matching pointer sequence.
-      dropEditorFocus(iosViewportPan)
+      dropFocus()
       armShadow()
     }
 
@@ -518,7 +543,7 @@ export function installComposerPlusToggle(ctx: ClientContext): void {
       for (const delay of FOCUS_RELEASE_DELAYS_MS) {
         releaseTimers.push(
           window.setTimeout(() => {
-            if (openMenu() !== null) dropEditorFocus(iosViewportPan)
+            if (openMenu() !== null) dropFocus()
             else liftWhenSettled()
           }, delay),
         )
@@ -534,7 +559,7 @@ export function installComposerPlusToggle(ctx: ClientContext): void {
     const onTouchStartAdd = (event: Event): void => {
       const target = event.target
       if (!(target instanceof Element) || !isComposerAddButton(target)) return
-      dropEditorFocus(iosViewportPan)
+      dropFocus()
       armShadow()
     }
 

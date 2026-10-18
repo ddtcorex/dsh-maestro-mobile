@@ -7,10 +7,10 @@ import {
   TYPING_QUIET_MS,
   keyboardIsReadable,
   keyboardOccupiesScreen,
-  restingViewportHeight,
   shouldReleaseComposerFocus,
   shouldRestoreScroll,
 } from '../src/client/effects/composer-focus-release.ts'
+import { restingViewportHeight } from '../src/client/core/composer-dom.ts'
 
 /** The resting state that raises the keyboard on iOS: focused editor, no IME. */
 const resting = {
