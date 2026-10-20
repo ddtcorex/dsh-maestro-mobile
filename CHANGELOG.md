@@ -6,6 +6,17 @@ All notable changes to this project are documented in this file. Format follows
 
 ## [Unreleased]
 
+### Fixed
+
+- **Large JSON responses no longer block the host event loop** — response
+  compression runs off the event loop (`brotliCompress` / `gzip` via the
+  libuv thread pool); `end()` returns before headers are written and the
+  reply completes from the zlib callback. Callers that flush headers during
+  the window win (body replays verbatim), compression errors degrade to
+  identity, and the callback never throws (process-wide patch). Fixes the
+  first-run notice stuck at saving behind a multi-megabyte response.
+  Ported from `dsh-web-mobile` v3.2.1 (#233).
+
 ## [1.7.3] - 2026-10-18
 
 ### Fixed
