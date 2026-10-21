@@ -16,6 +16,13 @@ All notable changes to this project are documented in this file. Format follows
   identity, and the callback never throws (process-wide patch). Fixes the
   first-run notice stuck at saving behind a multi-megabyte response.
   Ported from `dsh-web-mobile` v3.2.1 (#233).
+- **The image lightbox keeps a full-viewport hit area on tablet** — the
+  tablet dialog cap (`min(100vw - 32px, 720px)` centered) matched the host
+  `ImageLightbox` through its `:not(...)` branch (stage last child is the
+  close `button > svg`), leaving a dead strip on the right side. A positive
+  `div[role="dialog"][aria-modal="true"]:has(> :first-child > img)` override
+  restores full-bleed after the cap. Ported from `dsh-web-mobile` v3.2.1
+  (#234).
 
 ## [1.7.3] - 2026-10-18
 
