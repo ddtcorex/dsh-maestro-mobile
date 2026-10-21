@@ -333,6 +333,28 @@ html[data-mobile-nav-ios] [data-phase] textarea {
   }
 }
 
+/* ---------- image lightbox: keep the full-viewport hit area ----------
+   Ported from dsh-web-mobile v3.2.1 #234 (image-lightbox-fullbleed).
+   The tablet cap above matches the host ImageLightbox (role=dialog +
+   aria-modal, stage last child = close button > svg) through its :not(...)
+   branch, so fixed inset:0 keeps left and loses right — a dead strip on the
+   right side. This positive override restores full-bleed; the leading div is
+   load bearing (same-specificity tablet rule would otherwise win by order).
+   Same-file order decides ties: this block follows the tablet cap. */
+@media (max-width: 1023px) and (pointer: coarse) {
+  div[role="dialog"][aria-modal="true"]:has(> :first-child > img) {
+    left: 0 !important;
+    right: 0 !important;
+    top: 0 !important;
+    bottom: 0 !important;
+    width: 100vw !important;
+    width: 100dvw !important;
+    max-width: none !important;
+    margin-left: 0 !important;
+    margin-right: 0 !important;
+  }
+}
+
 /* ---------- desktop: the mobile controls must never appear ---------- */
 
 @media (min-width: 1024px), (pointer: fine), (pointer: none) {
