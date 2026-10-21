@@ -6,6 +6,8 @@ All notable changes to this project are documented in this file. Format follows
 
 ## [Unreleased]
 
+## [1.7.4] - 2026-10-21
+
 ### Fixed
 
 - **Large JSON responses no longer block the host event loop** — response
