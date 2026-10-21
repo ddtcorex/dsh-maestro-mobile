@@ -145,6 +145,32 @@ test('a small JSON body still passes through uncompressed', async () => {
   assert.equal(contentEncoding, null)
 })
 
+test('large JSON compression runs off the event loop (end() returns before headers are sent)', async () => {
+  // Ported from dsh-web-mobile v3.2.1 #233: synchronous brotli/gzip inside
+  // end() blocks the host event loop, stalling every other in-flight request
+  // (first-run notice stuck at saving). end() must return before any byte is
+  // written; headers, body and buffered write() callbacks land later from the
+  // zlib callback. If someone reverts to sync compression, headersSent is
+  // already true right after end().
+  const { get } = await import('node:http')
+  const payload = JSON.stringify({ data: 'q'.repeat(64 * 1024) })
+  let headersSentRightAfterEnd: boolean | null = null
+  const out = await withServer((_req, res) => {
+    res.writeHead(200, { 'Content-Type': 'application/json' })
+    res.end(payload)
+    headersSentRightAfterEnd = res.headersSent
+  }, async (port) => new Promise<{ headers: Record<string, string | string[] | undefined>; body: Buffer }>((resolve, reject) => {
+    get({ host: '127.0.0.1', port, headers: { 'accept-encoding': 'br' } }, (res) => {
+      const chunks: Buffer[] = []
+      res.on('data', (chunk: Buffer) => chunks.push(chunk))
+      res.on('end', () => resolve({ headers: res.headers, body: Buffer.concat(chunks) }))
+    }).on('error', reject)
+  }))
+  assert.equal(headersSentRightAfterEnd, false, 'compression must be async: end() must return before headers are sent')
+  assert.equal(out.headers['content-encoding'], 'br')
+  assert.equal(out.body.byteLength, Number(out.headers['content-length']), 'the async path must still report a matching content length')
+})
+
 test('bufferChunk keeps a latin1 chunk in the encoding the caller named', () => {
   // Re-encoding a latin1 chunk as UTF-8 changes its bytes: "é" is one byte in
   // latin1 and two in UTF-8, so the caller's encoding is part of the payload.
