@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
-import { DRAWER_NAV_TAP_SELECTOR, matchesDrawerNavTap } from '../src/client/effects/drawer-navigation.ts'
+import { DRAWER_NAV_TAP_SELECTOR, isDrawerMenuTrigger, matchesDrawerNavTap, shouldCloseDrawerForTap } from '../src/client/effects/drawer-navigation.ts'
 
 /**
  * A sidebar panel row (Plugins, Skills, …) swaps the main column but the
@@ -31,4 +31,11 @@ test('non-navigation targets inside the drawer do not collapse it', () => {
 
 test('the exported selector carries the panel-row fragment', () => {
   assert.match(DRAWER_NAV_TAP_SELECTOR, /panelRow/)
+})
+
+test('a panelRow menu button does not collapse the drawer', () => {
+  assert.equal(isDrawerMenuTrigger('menu'), true)
+  assert.equal(shouldCloseDrawerForTap('panelRow', 'menu'), false)
+  assert.equal(shouldCloseDrawerForTap('panelRow', null), true)
+  assert.equal(shouldCloseDrawerForTap('sessionRow', 'menu'), false)
 })

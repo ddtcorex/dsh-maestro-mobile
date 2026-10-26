@@ -37,6 +37,31 @@ export function matchesDrawerNavTap(fragment: string): boolean {
   return (DRAWER_NAV_TAP_FRAGMENTS as readonly string[]).includes(fragment)
 }
 
+/**
+ * Whether an aria-haspopup value marks a menu trigger that must stay inside
+ * the open drawer. Ported from mexiaosqwq/dsh-web-mobile v3.2.2 (#246): the
+ * sidebar More button carries a panelRow class and matched the navigate-and-
+ * close rule, so its portaled menu floated over the session while the drawer
+ * vanished under it.
+ * @param ariaHasPopup - the aria-haspopup attribute value, or null when absent.
+ * @returns true when the tap opens a menu and must not close the drawer.
+ */
+export function isDrawerMenuTrigger(ariaHasPopup: string | null): boolean {
+  return ariaHasPopup !== null && ariaHasPopup !== ''
+}
+
+/**
+ * Drawer-close decision for one tap, without a DOM. Menu triggers never
+ * close the drawer even when they carry a navigation fragment.
+ * @param fragment - a single class-name fragment of the tap target.
+ * @param ariaHasPopup - the tap target's aria-haspopup value, null when absent.
+ * @returns true when the tap must collapse the drawer.
+ */
+export function shouldCloseDrawerForTap(fragment: string, ariaHasPopup: string | null): boolean {
+  if (isDrawerMenuTrigger(ariaHasPopup)) return false
+  return matchesDrawerNavTap(fragment)
+}
+
 /** Timing for closing the mobile drawer after a navigation gesture. */
 export type DrawerCloseTiming = 'ignore' | 'immediate' | 'after-click'
 
