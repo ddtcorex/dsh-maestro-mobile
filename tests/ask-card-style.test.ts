@@ -95,8 +95,7 @@ test('the iOS zoom guard targets the current answer-field classes', () => {
   assert.doesNotMatch(composer + misc, /_customInput|_customTextarea/)
 })
 
-test('the question matches the answer copy and uses the full card width', () => {
-  // The heading block ships inside a flex lane beside the 24px collapse/close
+test('the question matches the answer copy and uses the full card width', () => {  // The heading block ships inside a flex lane beside the 24px collapse/close
   // pair, so the question lost 52px + a 16px gap of line width and rendered
   // one pixel larger than the option copy it belongs to.
   assert.match(composer, /\[data-question-key\] \[class\*="_title"\] \{\s*\n\s*font-size: 14px !important;\n\s*line-height: 24px !important;\n  \}/)
@@ -107,4 +106,17 @@ test('the question matches the answer copy and uses the full card width', () => 
   const card = /\[data-question-key\] \[class\*="_card"\] \{([\s\S]*?)\n  \}/.exec(composer)?.[1]
   assert.ok(card, 'the Ask card rule is missing from composer.css.ts')
   assert.match(card, /position: relative !important;/)
+})
+
+test('the ask body pins the horizontal axis so long tokens cannot drag it', () => {
+  assert.match(composer, /\[data-question-key\] \[class\*="_body"\][\s\S]*?overflow-x:\s*hidden/)
+})
+
+test('the ask title is capped and scrolls internally', () => {
+  assert.match(composer, /\[data-question-key\] \[class\*="_title"\][\s\S]*?max-height:\s*min\(23vh,\s*155px\)/)
+  assert.match(composer, /\[data-question-key\] \[class\*="_title"\][\s\S]*?overflow-y:\s*auto/)
+})
+
+test('the ask header actions keep 44px touch spacing', () => {
+  assert.match(composer, /\[data-question-key\] \[class\*="_headerActions"\][\s\S]*?gap:\s*20px/)
 })

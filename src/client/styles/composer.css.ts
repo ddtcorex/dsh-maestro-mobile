@@ -63,6 +63,22 @@ export const COMPOSER_CSS = `
   [data-question-key] [class*="_detail"] {
     overflow-wrap: anywhere !important;
   }
+  /* Ask body horizontal convergence (upstream v3.2.2 port): the host body
+     only declares overflow-y, so the other axis computes to auto and a long
+     token stretches it into a horizontal scroller. Pin it here. */
+  [data-question-key] [class*="_body"] {
+    min-width: 0 !important;
+    overflow-x: hidden !important;
+  }
+  /* Long question cap (upstream v3.2.2 port): the question lives in the
+     fixed header, so an uncapped question spends the whole card budget and
+     pushes the options and footer out of reach. Cap it and scroll inside. */
+  [data-question-key] [class*="_title"] {
+    max-height: min(23vh, 155px) !important;
+    overflow-y: auto !important;
+    overscroll-behavior: contain !important;
+    scrollbar-width: none !important;
+  }
   /* The question is the card's lead line, but it must read as part of the same
      text as the answer it asks about, and it must use the whole popup width.
      Upstream keeps the heading block in a flex lane beside the 24px
@@ -82,6 +98,18 @@ export const COMPOSER_CSS = `
     position: absolute !important;
     top: 10px !important;
     right: 12px !important;
+    gap: 20px !important;
+  }
+  /* 44px touch targets (upstream v3.2.2 port): visible icons stay 24px, the
+     transparent ::after expands each hit box to 44x44 with 20px spacing so
+     neighbors just touch without overlapping. */
+  [data-question-key] [class*="_headerActions"] button {
+    position: relative !important;
+  }
+  [data-question-key] [class*="_headerActions"] button::after {
+    content: '' !important;
+    position: absolute !important;
+    inset: -10px !important;
   }
   [data-question-key] [class*="_eyebrow"] {
     padding-right: 56px !important;
