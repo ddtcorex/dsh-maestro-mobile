@@ -15,11 +15,13 @@ import { installSidebarSwipe } from './effects/sidebar-swipe.ts'
 import { installOverlayMenuTapGuard } from './effects/overlay-menu-tap-guard.ts'
 import { installHeroPresetMenuFix } from './effects/preset-menu-fix.ts'
 import { installComposerKeyboardTouch } from './effects/composer-keyboard-touch.ts'
+import { installComposerClearance } from './effects/composer-clearance.ts'
 import { installComposerKeyboardLift } from './effects/composer-keyboard-lift.ts'
 import { installComposerPlusToggle } from './effects/composer-plus-toggle.ts'
 import { installComposerFocusRelease } from './effects/composer-focus-release.ts'
 import { installModelMenuKeyboardGuard } from './effects/model-menu-keyboard-guard.ts'
 import { installSessionFocusGuard } from './effects/session-focus-guard.ts'
+import { installQuestionFullscreen } from './effects/question-fullscreen.ts'
 import { installSessionMenuDelete } from './effects/session-menu.ts'
 import { installDebugBadge } from './debug.ts'
 import { NS, en, zh } from './i18n/locales.ts'
@@ -210,6 +212,11 @@ export function apply(ctx: ClientContext): void {
   // bar on every keystroke. Screen-space lift, fail-open, iOS only.
   installComposerKeyboardLift(ctx)
 
+  // Landscape keyboard band: the sticky seat keeps its height while the band
+  // drops to ~110-160px, so the editing row lands inside the opaque header.
+  // Marker + z-index mitigation, every pointer-gated phone.
+  installComposerClearance(ctx)
+
   // Composer "+" command menu: the host's second-tap close is unreachable
   // because focusing the editor re-tracks and clears the menu launcher. This
   // finishes the tap through the host's own Escape path.
@@ -227,6 +234,11 @@ export function apply(ctx: ClientContext): void {
   // sessionId, so every switch hands a WebView a DOM focus and the IME eats
   // half the screen before the history can be read.
   installSessionFocusGuard(ctx)
+
+  // Ask-card manual fullscreen + answer scroll-back (upstream v3.2.2 port):
+  // the host card cap shrinks with the keyboard while the answer field is the
+  // last block of the scrollable body.
+  installQuestionFullscreen(ctx)
 
   // Model / reasoning-level menu must not raise the soft keyboard by itself:
   // the host drills into the model pane and focuses its search field from a

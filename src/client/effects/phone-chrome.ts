@@ -444,6 +444,7 @@ export function installOverlayInteractions(ctx: ClientContext): void {
       const drawer = drawerRoot()
       if (drawer === null || !drawer.contains(target)) return false
       if (target.closest('[class*="sessionRow"] button') !== null) return false
+      if (target.closest('[aria-haspopup]') !== null) return false
       return target.closest(DRAWER_NAV_TAP_SELECTOR) !== null
     }
     // Touch path for session/search rows: never close the drawer from pointer
