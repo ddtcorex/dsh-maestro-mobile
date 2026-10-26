@@ -141,6 +141,33 @@ export const COMPOSER_CSS = `
   [data-question-key] [class*="_pager"] {
     order: 1 !important;
   }
+  /* Ask fullscreen (upstream v3.2.2 port): manual toggle only. The card takes
+     the header-to-composer band the effect measures; without the marker the
+     host min(60vh, 520px) cap stays. The reserve is the only measured number
+     the CSS does not derive. */
+  [data-mobile-nav="frame"][data-mobile-nav-question-full] [data-question-key] [class*="_card"] {
+    height: var(--mobile-question-band, auto) !important;
+    max-height: var(--mobile-question-band, min(60vh, 520px)) !important;
+  }
+  [data-question-key] [data-mobile-nav="question-expand"] {
+    display: grid !important;
+    place-items: center !important;
+    width: 24px !important;
+    height: 24px !important;
+  }
+  [data-question-key] [data-mobile-nav="question-expand"] svg {
+    width: 14px !important;
+    height: 14px !important;
+  }
+  [data-mobile-nav="frame"][data-mobile-nav-question-full] [data-mobile-nav="question-expand"] .dsh-maestro-mobile-question-expand {
+    display: none !important;
+  }
+  [data-question-key] [data-mobile-nav="question-expand"] .dsh-maestro-mobile-question-collapse {
+    display: none !important;
+  }
+  [data-mobile-nav="frame"][data-mobile-nav-question-full] [data-mobile-nav="question-expand"] .dsh-maestro-mobile-question-collapse {
+    display: block !important;
+  }
   /* Composer status bar (turns/steps/LLM/TPS) — single-line horizontal scroll on mobile */
   [data-mobile-nav="stats"] {    display: flex !important;
     flex-wrap: nowrap !important;

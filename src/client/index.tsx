@@ -21,6 +21,7 @@ import { installComposerPlusToggle } from './effects/composer-plus-toggle.ts'
 import { installComposerFocusRelease } from './effects/composer-focus-release.ts'
 import { installModelMenuKeyboardGuard } from './effects/model-menu-keyboard-guard.ts'
 import { installSessionFocusGuard } from './effects/session-focus-guard.ts'
+import { installQuestionFullscreen } from './effects/question-fullscreen.ts'
 import { installSessionMenuDelete } from './effects/session-menu.ts'
 import { installDebugBadge } from './debug.ts'
 import { NS, en, zh } from './i18n/locales.ts'
@@ -233,6 +234,11 @@ export function apply(ctx: ClientContext): void {
   // sessionId, so every switch hands a WebView a DOM focus and the IME eats
   // half the screen before the history can be read.
   installSessionFocusGuard(ctx)
+
+  // Ask-card manual fullscreen + answer scroll-back (upstream v3.2.2 port):
+  // the host card cap shrinks with the keyboard while the answer field is the
+  // last block of the scrollable body.
+  installQuestionFullscreen(ctx)
 
   // Model / reasoning-level menu must not raise the soft keyboard by itself:
   // the host drills into the model pane and focuses its search field from a
