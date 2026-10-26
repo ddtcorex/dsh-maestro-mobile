@@ -6,6 +6,37 @@ All notable changes to this project are documented in this file. Format follows
 
 ## [Unreleased]
 
+## [1.8.0] - 2026-10-26
+
+### Added
+
+- **Composer clearance for the landscape keyboard band** — while the frame
+  carries `data-mobile-nav-composer-tight`, the sticky seat outranks the
+  opaque session header (`z-index: 31`) and the stats row yields its height
+  to the editing row, so rotating to landscape with the keyboard up no
+  longer hides the input row. Pure geometry plus hysteresis, fail-open,
+  complements the iOS-only keyboard lift. Ported from `dsh-web-mobile`
+  v3.2.2 (#246).
+- **Manual ask-card fullscreen with answer scroll-back** — an expand button
+  in the card header grows the card to the measured header-to-composer
+  band (only when that band beats the host `min(60vh, 520px)` cap), and the
+  focused answer field is scrolled back into the body intersect visual
+  viewport, so typing stays visible with the keyboard up. Manual toggle
+  only, fail-open to the host default. Ported from `dsh-web-mobile`
+  v3.2.2 (#246).
+
+### Fixed
+
+- **Drawer menu taps stay inside the drawer** — a `panelRow` button that
+  opens a menu (`aria-haspopup`) no longer counts as navigation, so the
+  More menu no longer closes the drawer and floats over the session.
+  Ported from `dsh-web-mobile` v3.2.2 (#246).
+- **Ask-card overflow convergence and 44px touch targets** — the card body
+  pins `overflow-x: hidden`, the question title caps at
+  `min(23vh, 155px)` with internal scroll, and the header actions widen to
+  a 20px gap with 44x44 hit boxes. Ported from `dsh-web-mobile`
+  v3.2.2 (#246).
+
 ## [1.7.4] - 2026-10-21
 
 ### Fixed
