@@ -424,6 +424,18 @@ export const LAYOUT_CSS = `/* ---------- mobile-only layout ---------- */
   [data-phase="active"] [data-composer-seat] {
     padding-bottom: max(12px, env(safe-area-inset-bottom, 0px)) !important;
   }
+  /* Composer clearance (landscape keyboard band, upstream #245 port): while
+     the frame carries data-mobile-nav-composer-tight the sticky seat would
+     otherwise paint its editing row under the opaque session header, so the
+     seat outranks the header and the stats row yields its height to the edit
+     row. The stats row is plugin-owned ([data-mobile-nav="stats"]); hiding a
+     host dock row would need a hashed anchor and is deliberately out of scope. */
+  [data-mobile-nav="frame"][data-mobile-nav-composer-tight] [data-composer-seat] {
+    z-index: 31 !important;
+  }
+  [data-mobile-nav="frame"][data-mobile-nav-composer-tight] [data-mobile-nav="stats"] {
+    display: none !important;
+  }
 
   /* --- Composer model selector: long names must not drop the toolbar to 2 lines ---
      The host ModelSelect trigger (class *_trigger) carries a long model label

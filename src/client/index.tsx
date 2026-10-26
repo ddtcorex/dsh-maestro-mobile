@@ -15,6 +15,7 @@ import { installSidebarSwipe } from './effects/sidebar-swipe.ts'
 import { installOverlayMenuTapGuard } from './effects/overlay-menu-tap-guard.ts'
 import { installHeroPresetMenuFix } from './effects/preset-menu-fix.ts'
 import { installComposerKeyboardTouch } from './effects/composer-keyboard-touch.ts'
+import { installComposerClearance } from './effects/composer-clearance.ts'
 import { installComposerKeyboardLift } from './effects/composer-keyboard-lift.ts'
 import { installComposerPlusToggle } from './effects/composer-plus-toggle.ts'
 import { installComposerFocusRelease } from './effects/composer-focus-release.ts'
@@ -209,6 +210,11 @@ export function apply(ctx: ClientContext): void {
   // nonzero window scroll, dropping the composer seat behind the assistant
   // bar on every keystroke. Screen-space lift, fail-open, iOS only.
   installComposerKeyboardLift(ctx)
+
+  // Landscape keyboard band: the sticky seat keeps its height while the band
+  // drops to ~110-160px, so the editing row lands inside the opaque header.
+  // Marker + z-index mitigation, every pointer-gated phone.
+  installComposerClearance(ctx)
 
   // Composer "+" command menu: the host's second-tap close is unreachable
   // because focusing the editor re-tracks and clears the menu launcher. This
