@@ -3,27 +3,31 @@ import { readFileSync } from 'node:fs'
 import test from 'node:test'
 
 /**
- * A reachable session-header directory toggle, on the header generation DSH
- * 0.2.2-alpha.2 ships.
+ * A reachable session-header directory toggle, placed on the composer gutter.
  *
- * Measured live at 390x844 with touch emulation and a real session open: the
- * toggle's own box was x=16..44 while its ancestors are
- * `div.wSkVaW_titleCluster` (x=36..356) and `div.wSkVaW_titleRow` (x=24..366).
- * The cluster paints through a `mask-image` fade, and a mask limits painting to
- * its own box, so the part of the button that juts left of the cluster is never
- * painted. `document.elementFromPoint` therefore resolved to the title row at
- * the button's centre and to the header and the cluster at its corners: every
- * point of the control was dead. Two runtime experiments isolated the cause:
- * forcing `overflow: visible` on the cluster changed nothing, while removing its
- * mask made the hit resolve to the button's own `svg`. `pnpm smoke:cdp` reports
- * this as `FAIL mobile.open-control`.
+ * DSH 0.2.2-alpha.2 renders the header actions inside `div.wSkVaW_titleCluster`,
+ * which paints through a `mask-image` fade. A mask limits painting AND
+ * hit-testing to the mask's own box, so a control absolutely positioned 8px to
+ * the left of that box (the gutter the design asks for, x=16 at 390px) was
+ * neither painted nor tappable: `pnpm smoke:cdp` reported
+ * `FAIL mobile.open-control`.
  *
- * The fix is to stop fighting the ancestors: the toggle is registered into the
- * header actions band and stays in flow there, as the band's first resident,
- * instead of being absolutely positioned out of it.
+ * Measured live at 390x844 with a real session open, four states of the same
+ * button:
  *
- * These assertions are source shapes (cheap, run in CI without a browser); the
- * behavioural half is `pnpm smoke:cdp`, which hit-tests the control's centre.
+ *   in flow (x=208, no absolute)                -> svg HIT
+ *   absolute left:-8px (x=16), mask + clip      -> div MISS
+ *   absolute left:-8px (x=16), mask off, clip   -> svg HIT
+ *   absolute left:-8px (x=16), mask off, no clip -> svg HIT
+ *
+ * The mask is the blocker; `overflow: clip` is not. So the fix keeps the
+ * intended geometry and turns the cluster's fading mask off on the phone branch
+ * only. Nothing bleeds: the crumbs nav carries its own `overflow: hidden` and
+ * truncates the title inside its own box, which is why removing the decorative
+ * fade cannot push text under the utilities or the corner.
+ *
+ * These assertions are source shapes; the behavioural half is the hit-test the
+ * contract scan performs (`kind: "interactive"`) and `pnpm smoke:cdp`.
  */
 
 const stylesDir = new URL('../src/client/styles/', import.meta.url)
@@ -67,22 +71,37 @@ function phoneBranches(css: string): string {
 const phone = phoneBranches(stripComments(read('layout.css.ts')))
 assert.ok(phone.length > 0, 'the phone branch must exist')
 
-/** Every rule body whose selector names the directory toggle. */
-function toggleRules(css: string): string[] {
-  return [...css.matchAll(/([^{}]*\[data-mobile-nav="toggle"\][^{}]*)\{([^}]*)\}/g)]
-    .map((match) => `${match[1]?.replace(/\s+/g, ' ').trim()} {${match[2]}}`)
-}
-
-const rules = toggleRules(phone)
-
-test('no phone rule absolutely positions the header toggle out of its band', () => {
-  // An absolutely positioned toggle lands outside the masked title cluster on
-  // 0.2.2-alpha.2, which makes it invisible and untappable.
-  const absolute = rules.filter((rule) => /position:\s*absolute/.test(rule))
-  assert.deepEqual(absolute, [], `the toggle must stay in flow; found: ${absolute.join(' | ')}`)
+test('the phone branch turns the title cluster mask off', () => {
+  // Both spellings: a build that ships only the prefixed property would
+  // otherwise keep the control dead with no visible change in the source.
+  assert.match(
+    phone,
+    /\[class\*="_titleCluster"\]\s*\{[^}]*-webkit-mask-image:\s*none\s*!important/,
+    'the cluster must drop its -webkit-mask on phones',
+  )
+  assert.match(
+    phone,
+    /\[class\*="_titleCluster"\]\s*\{[^}]*mask-image:\s*none\s*!important/,
+    'the cluster must drop its mask on phones',
+  )
 })
 
-test('the toggle keeps a fixed 28px hit target in the header band', () => {
+test('the toggle keeps the far-left gutter geometry', () => {
+  // x=16 at 390px: the row starts at x=24, so the control juts 8px left of it
+  // and lands on the composer's gutter line.
+  assert.match(
+    phone,
+    /\[data-mobile-nav="frame"\] \[data-phase\] \[data-slot="conversation\.session\.header"\] \[data-mobile-nav="toggle"\]\s*\{[^}]*left:\s*-8px\s*!important/,
+    'the toggle must sit 8px left of the header row',
+  )
+  assert.match(
+    phone,
+    /\[data-mobile-nav="frame"\] \[data-phase\] \[data-slot="conversation\.session\.header"\] \[data-mobile-nav="toggle"\]\s*\{[^}]*top:\s*50%\s*!important/,
+    'the toggle must center against the row box',
+  )
+})
+
+test('the toggle keeps a fixed 28px hit target', () => {
   const base = stripComments(read('base.css.ts'))
   assert.match(base, /\[data-mobile-nav="toggle"\]\s*\{[^}]*width:\s*28px/)
   assert.match(base, /\[data-mobile-nav="toggle"\]\s*\{[^}]*height:\s*28px/)
