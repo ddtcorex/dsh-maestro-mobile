@@ -109,11 +109,17 @@ export const BASE_CSS = `
   outline-offset: 2px;
 }
 
-/* Dimmed backdrop under the open drawer; above every column, below the drawer. */
+/* Dimmed backdrop under the open drawer; above every column, below the drawer.
+   z-index 0, not 30: the backdrop is one child of AppFrame's overlay layer
+   (which is already z 20) and shares that layer with toasts and dialogs other
+   packages register into the shell.overlay slot. A positive z-index here outranks every
+   sibling that relies on DOM order and covers a toast raised while the drawer
+   is open; at 0 the drawer (z 150, outside this layer) still stays above the
+   dimming and later-registered occupants paint over it. */
 [data-mobile-nav="backdrop"] {
   position: absolute;
   inset: 0;
-  z-index: 30;
+  z-index: 0;
   background: rgba(0, 0, 0, .45);
   cursor: pointer;
   animation: dsh-maestro-mobile-fade .2s var(--ds-ease-in-out, ease-in-out);
