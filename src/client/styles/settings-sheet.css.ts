@@ -31,6 +31,16 @@ export const SETTINGS_SHEET_CSS = `
   /* Panel: sheet — r24 top only, layer-2, lv3, handle 36x4, safe-area */
   [class*="_panel"]:has([class*="_navList"]) {
     position: relative !important;
+    /* The host lays the panel out as a GRID:
+         "title header" / "nav nav" / "options options", columns 352px 36px.
+       A grid ignores flex-direction, so the sheet stayed a grid and the drag
+       handle (::before) was auto-placed into the 36px "header" cell, rendering
+       as a stray grey bar under the close button instead of a centred grabber
+       above the title. Take the panel off the grid. */
+    display: flex !important;
+    flex-direction: column !important;
+    grid-template-areas: none !important;
+    grid-template-columns: none !important;
     width: 100% !important;
     max-width: 100% !important;
     height: min(92dvh, 720px) !important;

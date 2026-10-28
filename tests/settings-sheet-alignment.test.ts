@@ -43,6 +43,19 @@ const panelRule = ruleBody(settings, /\[class\*="_panel"\]:has\(\[class\*="_navL
 const titleRule = ruleBody(settings, /\[class\*="_panel"\]:has\(\[class\*="_navList"\]\) \[class\*="_navTitle"\]\s*\{([^}]*)\}/)
 const listRule = ruleBody(settings, /\[class\*="_panel"\]:has\(\[class\*="_navList"\]\) \[class\*="_navList"\]\s*\{([^}]*)\}/)
 
+test('the sheet panel stacks as a column instead of the host grid', () => {
+  // 0.2.2 lays the panel out as a grid with areas
+  //   "title header" / "nav nav" / "options options" and columns 352px 36px.
+  // The sheet overrides only set flex-direction, which a grid ignores, so the
+  // panel stayed a grid and the drag-handle ::before was auto-placed into the
+  // 36px "header" cell: the grabber rendered as a stray grey bar under the
+  // close button instead of a centred 36x4 handle above the title.
+  assert.match(panelRule, /display:\s*flex\s*!important/)
+  assert.match(panelRule, /flex-direction:\s*column\s*!important/)
+  assert.match(panelRule, /grid-template-areas:\s*none\s*!important/)
+  assert.match(panelRule, /grid-template-columns:\s*none\s*!important/)
+})
+
 test('the sheet panel is sized border-box so the 720px cap is the real height', () => {
   // Without it the panel measured 731px: 720 + 10px padding-top + 1px border.
   assert.match(panelRule, /box-sizing:\s*border-box\s*!important/)
