@@ -529,12 +529,21 @@ export const LAYOUT_CSS = `/* ---------- mobile-only layout ---------- */
     min-width: 0;
     gap: 2px;
   }
-  /* The directory toggle stays at the far left of the header. */
+  /* The directory toggle is the header band's first resident and stays IN
+     FLOW. It used to be pinned to the far left with position:absolute, which
+     stopped being reachable when 0.2.2-alpha.2 wrapped the band in
+     .titleCluster: that element paints through a mask-image fade limited to
+     its own box, so a control jutting 8px left of it is neither painted nor
+     hit-tested (measured 390px: button x=16..44, cluster starts at x=36,
+     elementFromPoint at the centre returned the title row). Keeping the
+     control in flow puts it inside the painted box at the cost of the far-left
+     gutter, which is the trade the smoke probe's hit-test demands. */
   [data-mobile-nav="toggle"] {
-    position: absolute !important;
-    left: 8px !important;
-    top: 12px !important;
-    z-index: 2 !important;
+    position: static !important;
+    inset: auto !important;
+    transform: none !important;
+    flex: none !important;
+    margin-right: 2px !important;
   }
   /* DSH already ships a right-sidebar toggle in the session-header corner —
      button[data-sidebar-right-expand], aria-label "Open right sidebar" ⟷
@@ -1075,18 +1084,6 @@ export const LAYOUT_CSS = `/* ---------- mobile-only layout ---------- */
   }
   /* Corner toggle + redundant ⋯ menu, re-anchored (see the pre-0.1.7 rules
      above for the rationale). */
-  /* Absolute header controls center on the row itself (which is now the
-     positioning context), not on a fixed top pixel: in-flow 28px controls
-     sit at row-top + (rowH - 28) / 2 and any fixed top drifts when the row
-     offset moves (measured 1px low at 390px). The hero fallback toggle
-     outside any header keeps the fixed top from the rule further up. */
-  [data-mobile-nav="frame"] [data-phase] [data-slot="conversation.session.header"] [data-mobile-nav="toggle"] {
-    top: 50% !important;
-    transform: translateY(-50%) !important;
-    /* Gutter match with the composer (x=16): the toggle juts 8px left of
-       the row edge to land on the composer line. */
-    left: -8px !important;
-  }
   [data-mobile-nav="frame"] [data-phase] [data-slot="conversation.session.header"] [data-conversation-header-corner] {
     display: block !important;
     position: absolute !important;

@@ -265,10 +265,18 @@ export function apply(ctx: ClientContext): void {
     }),
   }, ShellOverlay))
 
+  // The directory toggle is the band's FIRST resident. It stays in flow inside
+  // the header actions (an absolutely positioned control is not painted or
+  // hit-tested inside 0.2.2's masked .titleCluster, see
+  // tests/header-cluster-clip.test.ts), and the host sorts this list by
+  // (priority, order). A negative order puts it left of every upstream resident
+  // (the subagent catalog sits at -30, the Team action at -20), so it reads as
+  // the band's leading control, which is where the old geometry put it
+  // visually.
   ctx.slots.inject('conversation.session.header.actions', () => ctx.slots.register({
     name: 'conversation.session.header.actions',
     id: 'mobile-nav-toggle',
-    order: 10,
+    order: -100,
     locale: NS,
     inject: () => ({
       toggleSidebar: () => ctx.layout.toggleSidebar(),

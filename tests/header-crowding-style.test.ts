@@ -37,13 +37,24 @@ test('the upstream right-sidebar toggle takes over the freed header slot', () =>
   assert.match(titleRow, /padding-right: 36px !important;/)
 })
 
-test('the directory drawer toggle stays at the far left', () => {
+test('the directory drawer toggle leads the header band and stays in flow', () => {
   // The right-sidebar corner toggle must not displace the drawer opener: they
-  // are two different panels and both stay reachable.
+  // are two different panels and both stay reachable. The drawer opener used to
+  // be pinned to the far left with position:absolute; on 0.2.2-alpha.2 that
+  // placement is dead (the host wraps the band in a masked .titleCluster, so a
+  // control jutting outside it is neither painted nor hit-tested, measured at
+  // 390px). It now leads the actions band in flow, and the slot registration
+  // gives it a negative order so it sorts before every upstream resident.
   const rule = /\/\* The directory toggle[\s\S]*?\*\/\s*\[data-mobile-nav="toggle"\] \{([\s\S]*?)\n  \}/.exec(layout)?.[1]
   assert.ok(rule, 'toggle rule is missing from layout.css.ts')
-  assert.match(rule, /left: 8px !important;/)
-  assert.doesNotMatch(rule, /right: 8px !important;/)
+  assert.match(rule, /position: static !important;/)
+  assert.doesNotMatch(rule, /position: absolute/)
+  const registration = readFileSync(new URL('../src/client/index.tsx', import.meta.url), 'utf8')
+  assert.match(
+    registration,
+    /id: 'mobile-nav-toggle',\s*order: -\d+/,
+    'the toggle must register with a negative order so it leads the band',
+  )
 })
 
 test('the empty upstream leading box collapses so the title cluster takes the row', () => {
@@ -199,10 +210,13 @@ test('0.1.7 header controls share one vertical center line', () => {
   const row = /\[data-slot="conversation\.session\.header"\] > div:first-child \{([\s\S]*?)\n  \}/.exec(layout)?.[1]
   assert.ok(row, '0.1.7 titleRow rule is missing')
   assert.match(row, /position: relative !important;/)
-  assert.match(
+  // The drawer toggle is an in-flow band resident now, so the row's own flex
+  // centering places it; only the absolutely positioned corner still needs the
+  // explicit 50% centering against the row box.
+  assert.doesNotMatch(
     layout,
-    /\[data-slot="conversation\.session\.header"\][^{]*\[data-mobile-nav="toggle"\]\s*\{[^}]*top: 50% !important;[^}]*transform: translateY\(-50%\) !important;/s,
-    'toggle must center against the row, not a fixed top',
+    /\[data-slot="conversation\.session\.header"\][^{]*\[data-mobile-nav="toggle"\]\s*\{[^}]*top: 50% !important;/s,
+    'the in-flow toggle must not carry absolute centering',
   )
   assert.match(
     layout,
@@ -275,9 +289,13 @@ test('0.1.7 header gutters match the composer', () => {
   // the composer span, so the controls jut inside it: toggle 8px left of
   // the row edge lands at x=16, corner 6px right of it ends at 372, with
   // the cluster/corner paddings clearing both.
-  const toggle = /\[data-slot="conversation\.session\.header"\][^{]*\[data-mobile-nav="toggle"\]\s*\{([^}]*)\}/.exec(layout)?.[1]
-  assert.ok(toggle, 'header toggle centering rule is missing')
-  assert.match(toggle, /left: -8px !important;/)
+  // The drawer toggle is no longer gutter-pinned: it sits in flow at the head of
+  // the actions band, so the only gutter control left is the corner below.
+  assert.doesNotMatch(
+    layout,
+    /\[data-slot="conversation\.session\.header"\][^{]*\[data-mobile-nav="toggle"\]\s*\{[^}]*left: -8px !important;/s,
+    'the toggle must not jut left of the header row any more',
+  )
   // (pre-0.1.7 twin uses right:8px; take the last match = the 0.1.7 rule).
   const cornerMatches = [...layout.matchAll(/\[data-conversation-header-corner\]\s*\{([^}]*)\}/g)]
   const corner = cornerMatches[cornerMatches.length - 1]?.[1]
