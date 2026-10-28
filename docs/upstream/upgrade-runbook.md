@@ -81,6 +81,17 @@ pnpm contracts:cdp
 
 - `MISS` on a non-lazy entry fails the run: that marker/class is gone and the
   rule named in its `note` must be fixed.
+- `kind: "interactive"` entries are hit-tested, not just located: the scanner
+  asks `elementFromPoint` at the element's centre and requires the answer to be
+  that element or a descendant. This is the check that sees a control which is
+  present, sized, and still untappable because an ancestor clips or masks it —
+  the 0.2.2 `titleCluster` regression that made the header toggle dead while
+  every presence-based contract passed.
+- The scanner now drives a real session first (opens the drawer through the
+  plugin's own control, selects a session row, waits for `data-phase="active"`,
+  closes the drawer). That converts the session-gated entries from blind SKIPs
+  into real hits: the 0.2.2 run went from `hit=15 skip=33` to `hit=26 skip=25`
+  with the same page. A `drive:` line in the output says whether it managed.
 - A `HIT` only says the needle exists in the rendered markup (for a class
   fragment, in some element's `class` list) — never that a rule owns it or that
   anything painted. Read the scan as a rename detector and assert "it renders"
@@ -145,6 +156,12 @@ not been loaded yet — that route ships from `src/index.ts`, so it needs a
 
 The delete route is destructive; validate it in this order:
 
+0. **Authentication first** — the route calls `connection.requestRejection()`:
+   a request with no browser/API credential must answer `401` (or `503
+   admission-unavailable` on a host that publishes no `connection` service), and
+   a credentialed page request must still reach the guard below. Compare against
+   a host route in the same process: `GET /api/file` and this route must agree
+   about an unauthenticated caller.
 1. **Guard** (no data touched) — an unknown id must answer `404 {"error":{"code":"session-not-found"}}`, a `GET` or a cross-site `Origin` must answer `403`, a malformed body `400`:
 
    ```sh
