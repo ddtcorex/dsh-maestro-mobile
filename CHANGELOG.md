@@ -6,6 +6,36 @@ All notable changes to this project are documented in this file. Format follows
 
 ## [Unreleased]
 
+## [1.8.1] - 2026-10-28
+
+### Fixed
+
+- Session-header drawer toggle: 0.2.2's masked `titleCluster` made the
+  absolutely positioned control untappable (present, sized, never hit). The
+  phone branch now turns that mask off and the toggle keeps its composer-gutter
+  place at x=16.
+- Session-delete route: it registered an exact `/api` path on `webServer`, and
+  the launch-token fence is a `/api` prefix route an exact route shadows, so the
+  handler ran unauthenticated. It now calls `connection.requestRejection()` and
+  fails closed with 503 when the host publishes no such service.
+- Settings sheet: one content column instead of five left edges; the tab strip
+  fades only a cut edge; the panel is a column instead of the host's grid (the
+  drag handle had been auto-placed into the 36px header cell); a row's switcher
+  no longer overflows the column; the panel honours its own height cap.
+- Response compression now installs only when the host does not compress: 0.2.2
+  ships compression@1.8.2 and the deployed profile enables it, so the
+  process-wide patch was dead weight.
+- The contract scan hit-tests interactive controls and drives a real session
+  first (`hit=15 skip=33` -> `hit=26 skip=25` on the same page).
+
+### Changed
+
+- Peer ranges accept the running DSH prerelease (`>=0.2.2-0 <0.3.0-0`,
+  cordis `~4.0.6-alpha.1`); devDependencies pin the same release so `pnpm verify`
+  type-checks against the host the plugin runs on.
+- Removed the inert `dsh.client.inject` entry (`dsh-client-ui-primitives` is a
+  platform seed, not a boot row).
+
 ## [1.8.0] - 2026-10-26
 
 ### Added
