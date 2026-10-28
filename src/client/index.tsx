@@ -23,6 +23,7 @@ import { installModelMenuKeyboardGuard } from './effects/model-menu-keyboard-gua
 import { installSessionFocusGuard } from './effects/session-focus-guard.ts'
 import { installQuestionFullscreen } from './effects/question-fullscreen.ts'
 import { installSessionMenuDelete } from './effects/session-menu.ts'
+import { installSettingsTabsEdges } from './effects/settings-tabs-edges.ts'
 import { installDebugBadge } from './debug.ts'
 import { NS, en, zh } from './i18n/locales.ts'
 import type { MobileNavKey } from './i18n/locales.ts'
@@ -280,7 +281,13 @@ export function apply(ctx: ClientContext): void {
   }, MobileNavToggle))
 
 
+  // Settings tab strip: mark which ends are cut so the stylesheet fades exactly
+  // those edges (the strip is 1186px of tabs in a 356px viewport here, and its
+  // scrollbar is hidden).
+  installSettingsTabsEdges(ctx)
+
   // Session log download, relocated from the session header to the drawer
+
   // footer on mobile (the header capsule is hidden by CSS).
   //
   // Footer stacking relies on the list-slot sort by (priority, order):

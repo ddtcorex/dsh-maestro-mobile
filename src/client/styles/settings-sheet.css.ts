@@ -42,6 +42,9 @@ export const SETTINGS_SHEET_CSS = `
     border: 1px solid var(--dsw-alias-border-inverted, rgba(0,0,0,.08)) !important;
     border-bottom: none !important;
     box-shadow: var(--dsw-shadow-lv3, 0 8px 32px rgba(0,0,0,.18)) !important;
+    /* The height caps above are content-box by default: measured 731px for a
+       720px cap (720 + 10 padding-top + 1 border). */
+    box-sizing: border-box !important;
     padding-top: 10px !important;
     animation: dsh-maestro-mobile-sheet-in .22s var(--ds-ease-out, ease-in-out) !important;
     --dsh-scrollbar-thumb: var(--dsw-alias-scrollbar-bg-l2) !important;
@@ -73,8 +76,12 @@ export const SETTINGS_SHEET_CSS = `
     box-sizing: border-box !important;
     overflow: hidden !important;
   }
+  /* One 16px content inset for the whole sheet: the title used 4px and the tab
+     list inherited another 16 on top of the plugin's own wrapper, so at 390px
+     the title read at x=5, the first pill at x=33 and the content column at
+     x=17. 44px on the right keeps the close button's disc clear. */
   [class*="_panel"]:has([class*="_navList"]) [class*="_navTitle"] {
-    padding: 0 44px 2px 4px !important;
+    padding: 0 44px 2px 16px !important;
     font-size: 16px !important;
     line-height: 24px !important;
     font-weight: 500 !important;
@@ -99,9 +106,29 @@ export const SETTINGS_SHEET_CSS = `
     -webkit-overflow-scrolling: touch !important;
     overscroll-behavior-x: contain !important;
     touch-action: pan-x !important;
-    padding-bottom: 6px !important;
+    /* No horizontal padding of its own: the scroll area already insets the
+       column by 16px and the wrapper repeats it, which is how the pills ended
+       up at x=33 while everything else sat at x=17. */
+    padding: 12px 0 6px !important;
     margin-bottom: 0 !important;
     border-bottom: 1px solid var(--dsw-alias-border-l1, rgba(0,0,0,.08)) !important;
+  }
+  /* Edge affordance: the strip is 1186px wide in a 356px viewport on this
+     deployment (nine tabs, three visible) and its scrollbar is hidden, so
+     nothing said the tabs continue. The effect marks which ends are cut and
+     only those get a fade; a constant gradient would clip the last pill even
+     with nothing behind it. */
+  [class*="_panel"]:has([class*="_navList"]) [class*="_navList"][data-mobile-nav-tabs="end"] {
+    -webkit-mask-image: linear-gradient(to right, #000 calc(100% - 28px), transparent) !important;
+    mask-image: linear-gradient(to right, #000 calc(100% - 28px), transparent) !important;
+  }
+  [class*="_panel"]:has([class*="_navList"]) [class*="_navList"][data-mobile-nav-tabs="start"] {
+    -webkit-mask-image: linear-gradient(to left, #000 calc(100% - 28px), transparent) !important;
+    mask-image: linear-gradient(to left, #000 calc(100% - 28px), transparent) !important;
+  }
+  [class*="_panel"]:has([class*="_navList"]) [class*="_navList"][data-mobile-nav-tabs="both"] {
+    -webkit-mask-image: linear-gradient(to right, transparent, #000 24px, #000 calc(100% - 28px), transparent) !important;
+    mask-image: linear-gradient(to right, transparent, #000 24px, #000 calc(100% - 28px), transparent) !important;
   }
   [class*="_panel"]:has([class*="_navList"]) [class*="_navList"]::-webkit-scrollbar {
     display: none !important;
@@ -154,7 +181,10 @@ export const SETTINGS_SHEET_CSS = `
     height: auto !important;
     min-height: 0 !important;
     width: 100% !important;
-    padding: 4px 16px 4px !important;
+    /* The header sits inside the nav title, which already carries the sheet's
+       16px inset; repeating it here put the action at x=33 against a 17px
+       content column. */
+    padding: 4px 0 !important;
     display: flex !important;
     align-items: center !important;
     justify-content: flex-end !important;
@@ -194,6 +224,14 @@ export const SETTINGS_SHEET_CSS = `
     cursor: pointer !important;
     -webkit-tap-highlight-color: transparent !important;
   }
+  /* 36px face, 44px tap area: the touch target grows 4px on each side without
+     moving the glyph or eating into the title's reserved 44px. */
+  [class*="_panel"]:has([class*="_navList"]) [class*="_close"]::after {
+    content: '' !important;
+    position: absolute !important;
+    inset: -4px !important;
+    border-radius: 999px !important;
+  }
   [class*="_panel"]:has([class*="_navList"]) [class*="_close"]:hover {
     background: var(--dsw-alias-interactive-bg-hover, rgba(0,0,0,.06)) !important;
   }
@@ -205,8 +243,47 @@ export const SETTINGS_SHEET_CSS = `
     flex: 1 !important;
     min-height: 0 !important;
     overflow-y: auto !important;
+    /* A row wider than the column made the whole area scroll sideways:
+       measured 390px, the "Session plugins" row end reached x=494 in a column
+       ending at x=389 (scrollWidth 493 vs clientWidth 383). The rows below
+       shrink instead. */
+    overflow-x: hidden !important;
+    max-width: 100% !important;
+    box-sizing: border-box !important;
     -webkit-overflow-scrolling: touch !important;
     padding: 8px 16px calc(12px + env(safe-area-inset-bottom, 0px)) !important;
+  }
+  /* Row-end controls (the switcher chip) shrink and ellipsize inside the
+     column instead of pushing the row past it. */
+  /* The clamp has to reach every box between the scroll column and the chip:
+     a child's max-width:100% resolves against its PARENT's width, so clamping
+     only the row left it 469px wide inside a 383px column and the chip still
+     ended at x=494. */
+  [class*="_panel"]:has([class*="_navList"]) [class*="_options"] [class*="section"],
+  [class*="_panel"]:has([class*="_navList"]) [class*="_options"] [class*="catalog"],
+  [class*="_panel"]:has([class*="_navList"]) [class*="_options"] [class*="group"],
+  [class*="_panel"]:has([class*="_navList"]) [class*="_options"] [class*="groupTitleRow"],
+  [class*="_panel"]:has([class*="_navList"]) [class*="_options"] [class*="headerEnd"] {
+    min-width: 0 !important;
+    max-width: 100% !important;
+    box-sizing: border-box !important;
+  }
+  [class*="_panel"]:has([class*="_navList"]) [class*="_options"] [class*="groupTitleRow"] {
+    width: 100% !important;
+  }
+  [class*="_panel"]:has([class*="_navList"]) [class*="_options"] [class*="headerEnd"] {
+    flex: 0 1 auto !important;
+    overflow: hidden !important;
+  }
+  [class*="_panel"]:has([class*="_navList"]) [class*="_options"] [class*="switcher"] {
+    min-width: 0 !important;
+    max-width: 100% !important;
+  }
+  [class*="_panel"]:has([class*="_navList"]) [class*="_options"] [class*="switcherLabel"] {
+    min-width: 0 !important;
+    overflow: hidden !important;
+    text-overflow: ellipsis !important;
+    white-space: nowrap !important;
   }
   /* Bento: sections fill sheet on mobile */
   [class*="_panel"]:has([class*="_navList"]) [class*="_section"] {
