@@ -115,6 +115,40 @@ export interface DeleteSessionDeps {
   }
 }
 
+/** Which optional host faces the deletion flow can use on this host. */
+export interface DeleteCapabilities {
+  /** The JSONL backend publishes its storage root (`config.root`). */
+  readonly storageRoot: boolean
+  /** The live-agent/session teardown faces (`store`, `detach`, `detachEntered`) are present. */
+  readonly liveTeardown: boolean
+}
+
+/**
+ * Probe the host faces this flow reads through non-contractual members.
+ *
+ * `sessions.store`/`entry.detach()`, `agents.store`/`detachEntered()` and
+ * `persistence.config.root` all exist on 0.2.2-alpha.2 but are declared
+ * `private` in the shipped types. A TypeScript `private` is erased at runtime,
+ * so the read works today; this probe turns a future rename into one warning at
+ * load time instead of a delete that reports success and leaves the session
+ * registered.
+ * @param deps - the injected host services.
+ * @returns which optional faces are usable here.
+ */
+export function deleteCapabilities(deps: DeleteSessionDeps): DeleteCapabilities {
+  const root = deps.persistence.config?.root
+  const sessions = deps.sessions as unknown as { store?: unknown } | undefined
+  const agents = deps.agents as unknown as
+    | { store?: unknown; detachEntered?: unknown }
+    | undefined
+  const sessionFace = sessions?.store instanceof Map
+  const agentFace = agents?.store instanceof Map && typeof agents.detachEntered === 'function'
+  return {
+    storageRoot: typeof root === 'string' && root !== '',
+    liveTeardown: sessionFace || agentFace,
+  }
+}
+
 /** Structured outcome the HTTP layer maps to a status code. */
 export type DeleteSessionResult =
   | { status: 200; ok: true; deleted: string }

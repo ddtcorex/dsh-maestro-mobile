@@ -17,7 +17,7 @@
  *
  * No new secret is introduced and nothing about the caller is logged.
  */
-import type { IncomingMessage } from 'node:http'
+import type { IncomingHttpHeaders, IncomingMessage } from 'node:http'
 
 /** The request fields the gate reads. */
 export interface DeleteRequestFacts {
@@ -82,6 +82,59 @@ export function readDeleteBody(
       resolve({ outcome: 'error', message: error.message })
     })
   })
+}
+
+/**
+ * The host's connection admission face, read structurally so this module stays
+ * harness-free.
+ *
+ * `dsh-client-connection` serves the `/api` authentication fence as a PREFIX
+ * route, and the web server matches an exact route before a prefix route, so a
+ * route registered on `webServer` alone never sees that fence (measured on
+ * 0.2.2-alpha.2: `GET /api/file` answered 401 without a credential while this
+ * route's handler ran). The host publishes `requestRejection()` for exactly
+ * this case: "Apply Connection Host/Origin checks and browser authentication to
+ * another Web route".
+ */
+export interface ConnectionAdmission {
+  /** @param request - request headers of the route being guarded. @returns 401/403 to refuse, undefined to admit. */
+  requestRejection(request: { readonly headers: IncomingHttpHeaders }): 401 | 403 | undefined
+}
+
+/** Outcome of the host admission check. */
+export type AdmissionResult =
+  | { ok: true }
+  | { ok: false; status: 401; code: 'unauthorized' }
+  | { ok: false; status: 403; code: 'forbidden' }
+  | { ok: false; status: 503; code: 'admission-unavailable' }
+
+/**
+ * Ask the host whether this request carries a valid browser or API credential.
+ *
+ * Fails CLOSED: a host shape without the service, or a check that throws, is
+ * answered as 503 rather than letting a destructive route through
+ * unauthenticated.
+ * @param connection - the host `connection` service, or undefined when absent.
+ * @param headers - request headers forwarded to the host check unchanged.
+ * @returns admitted, or the status and code to answer with.
+ */
+export function admitRequest(connection: unknown, headers: IncomingHttpHeaders): AdmissionResult {
+  const face = connection as Partial<ConnectionAdmission> | undefined
+  if (typeof face?.requestRejection !== 'function') {
+    return { ok: false, status: 503, code: 'admission-unavailable' }
+  }
+  let rejection: 401 | 403 | undefined
+  try {
+    rejection = face.requestRejection({ headers })
+  } catch {
+    return { ok: false, status: 503, code: 'admission-unavailable' }
+  }
+  if (rejection === undefined) return { ok: true }
+  if (rejection === 401) return { ok: false, status: 401, code: 'unauthorized' }
+  if (rejection === 403) return { ok: false, status: 403, code: 'forbidden' }
+  // An answer outside the documented 401 | 403 | undefined contract is not a
+  // licence to proceed.
+  return { ok: false, status: 503, code: 'admission-unavailable' }
 }
 
 /**

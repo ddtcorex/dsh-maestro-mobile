@@ -3,6 +3,9 @@
  * transparent gzip/brotli compression for large JSON responses (long-session
  * history is megabytes on a phone) and the session-delete route the mobile
  * drawer needs (the host session menu only knows rename / fork / archive).
+ * The delete route authenticates through the host connection service before it
+ * touches anything (see delete-route.ts: the host's /api fence is a prefix
+ * route an exact route shadows).
  * The browser half ships via exports["./client"], discovered through the
  * package.json dsh.client declaration.
  *
@@ -13,9 +16,9 @@
  * instead of a crash.
  */
 import type { IncomingMessage, ServerResponse } from 'node:http'
-import { installResponseCompression } from './compress.js'
-import { deleteSession, type DeleteSessionDeps } from './delete-session.js'
-import { isTrustedDeleteRequest, parseDeleteBody, readDeleteBody } from './delete-route.js'
+import { hostCompressionEnabled, installResponseCompression } from './compress.js'
+import { deleteCapabilities, deleteSession, type DeleteSessionDeps } from './delete-session.js'
+import { admitRequest, isTrustedDeleteRequest, parseDeleteBody, readDeleteBody } from './delete-route.js'
 
 /** Minimal structural slice of the host cordis Context that apply() needs. */
 export interface HostContext {
@@ -67,16 +70,31 @@ function header(req: IncomingMessage, name: string): string | undefined {
 }
 
 export function apply(ctx: HostContext): void {
-  // Transparent gzip/brotli for large JSON responses (long-session history
-  // is megabytes on a phone). Patches http.ServerResponse.prototype; the
-  // disposer restores it on plugin unload/reload.
-  // Ported from mexiaosqwq/dsh-web-mobile v2.1.5 (wzxmt-zhc fork).
-  ctx.effect(() => installResponseCompression(), 'dsh-maestro-mobile: response compression')
-
   // Session-delete route. Registered once the web route registry exists; the
   // persistence / session / agent / workspace services are read per request so
   // host shapes without them degrade to a structured 503.
   ctx.inject(['webServer'], (webCtx) => {
+    // Transparent gzip/brotli for large JSON responses (long-session history
+    // is megabytes on a phone). Patches http.ServerResponse.prototype; the
+    // disposer restores it on plugin unload/reload.
+    // Ported from mexiaosqwq/dsh-web-mobile v2.1.5 (wzxmt-zhc fork).
+    //
+    // Skipped when the host already compresses: 0.2.2-alpha.2 ships
+    // compression@1.8.2 and the deployed profile enables it, and that
+    // middleware intercepts writeHead before a patched prototype sees it
+    // (measured: identical brotli body with and without this patch), so the
+    // process-wide patch would be dead weight. A profile that leaves the host
+    // default `compression: 'none'` still gets the patch.
+    webCtx.effect(() => {
+      if (hostCompressionEnabled(webCtx.webServer)) return () => {}
+      return installResponseCompression()
+    }, 'dsh-maestro-mobile: response compression')
+
+    // The delete flow reads three non-contractual host faces (store / detach /
+    // detachEntered / persistence.config.root). Report once, on the first
+    // delete request, when the host shape no longer offers them: the flow then
+    // cannot tear a live session down and would otherwise report success.
+    let warnedMissingTeardown = false
     webCtx.effect(() => webCtx.webServer.register({
       kind: 'exact',
       path: DELETE_ROUTE_PATH,
@@ -88,6 +106,21 @@ export function apply(ctx: HostContext): void {
           secFetchSite: header(req, 'sec-fetch-site'),
         })) {
           respond(res, 403, { error: { code: 'forbidden', message: 'POST from the same site required' } })
+          return
+        }
+        // Authentication before shape: the host's /api fence is a PREFIX route
+        // and an exact route shadows it, so this handler asks the connection
+        // service itself. Fails closed when the service is absent.
+        const admission = admitRequest(ctx.get('connection'), req.headers)
+        if (!admission.ok) {
+          respond(res, admission.status, {
+            error: {
+              code: admission.code,
+              message: admission.code === 'admission-unavailable'
+                ? 'the host connection service is unavailable: this route refuses to run unauthenticated'
+                : 'a valid browser or API credential is required',
+            },
+          })
           return
         }
         const read = await readDeleteBody(req)
@@ -124,12 +157,24 @@ export function apply(ctx: HostContext): void {
           })
           return
         }
-        const result = await deleteSession({
+        const deleteDeps: DeleteSessionDeps = {
           persistence: persistence as DeleteSessionDeps['persistence'],
           sessions: ctx.get('sessions') as DeleteSessionDeps['sessions'] | undefined,
           agents: ctx.get('agents') as DeleteSessionDeps['agents'] | undefined,
           workspaceRegistry: ctx.get('workspaceRegistry') as DeleteSessionDeps['workspaceRegistry'] | undefined,
-        }, sessionId)
+        }
+        if (!warnedMissingTeardown) {
+          warnedMissingTeardown = true
+          const capabilities = deleteCapabilities(deleteDeps)
+          if (!capabilities.liveTeardown) {
+            ctx.logger.warn(
+              'dsh-maestro-mobile: this host no longer exposes the live-agent/session teardown internals '
+              + '(store / detach / detachEntered); deleting a RUNNING session will detach its log while the '
+              + 'session stays registered. Re-check delete-session.ts against the host release.',
+            )
+          }
+        }
+        const result = await deleteSession(deleteDeps, sessionId)
         if (result.ok) {
           respond(res, 200, { ok: true, deleted: result.deleted })
           return
