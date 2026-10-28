@@ -23,6 +23,7 @@ import { installModelMenuKeyboardGuard } from './effects/model-menu-keyboard-gua
 import { installSessionFocusGuard } from './effects/session-focus-guard.ts'
 import { installQuestionFullscreen } from './effects/question-fullscreen.ts'
 import { installSessionMenuDelete } from './effects/session-menu.ts'
+import { installSettingsTabsEdges } from './effects/settings-tabs-edges.ts'
 import { installDebugBadge } from './debug.ts'
 import { NS, en, zh } from './i18n/locales.ts'
 import type { MobileNavKey } from './i18n/locales.ts'
@@ -265,6 +266,10 @@ export function apply(ctx: ClientContext): void {
     }),
   }, ShellOverlay))
 
+  // The directory toggle is positioned out of the band and pinned to the
+  // header's left gutter by CSS, so the band order only decides DOM order. Keep
+  // the historical value; see tests/header-cluster-clip.test.ts for why the
+  // cluster's mask must stay off while the control juts outside it.
   ctx.slots.inject('conversation.session.header.actions', () => ctx.slots.register({
     name: 'conversation.session.header.actions',
     id: 'mobile-nav-toggle',
@@ -276,7 +281,13 @@ export function apply(ctx: ClientContext): void {
   }, MobileNavToggle))
 
 
+  // Settings tab strip: mark which ends are cut so the stylesheet fades exactly
+  // those edges (the strip is 1186px of tabs in a 356px viewport here, and its
+  // scrollbar is hidden).
+  installSettingsTabsEdges(ctx)
+
   // Session log download, relocated from the session header to the drawer
+
   // footer on mobile (the header capsule is hidden by CSS).
   //
   // Footer stacking relies on the list-slot sort by (priority, order):

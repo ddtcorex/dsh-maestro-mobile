@@ -6,7 +6,12 @@
 //   - kind "marker": the selector must match at least one element;
 //   - kind "hash":   the fragment must appear in some element's class list;
 //   - kind "variable": the CSS custom property must resolve to a non-empty
-//     value on <body>, where the theme presenter publishes the content axis.
+//     value on <body>, where the theme presenter publishes the content axis;
+//   - kind "interactive": the element must be hit-testable, i.e.
+//     elementFromPoint at its centre resolves to it or a descendant. A rect-only
+//     check cannot see a control that is clipped or masked away by an ancestor,
+//     which is exactly how the header drawer toggle became untappable on
+//     0.2.2-alpha.2 while every presence check still passed.
 // A MISS on a contract with lazy:false fails the run (exit 1). A MISS on a
 // lazy contract is reported as SKIP with the manual state that would reveal it,
 // because that markup only exists in some states.
@@ -133,6 +138,56 @@ async function main() {
       }
     })
 
+    // Best effort: a cold boot lands on the hero screen, where the session
+    // header renders with hideChrome and half of the contract list cannot
+    // exist. Open the drawer through the plugin's own control and select a real
+    // session row (the "New Session" row carries no action button), exactly as
+    // the smoke probe does, then close the drawer again.
+    const openControl = await waitFor('an open control', timeoutMs, async () => {
+      try {
+        return await client.evaluate(`(() => {
+          const control = document.querySelector('[data-mobile-nav="toggle"], [data-mobile-nav="fab"]')
+          if (control === null) return null
+          const rect = control.getBoundingClientRect()
+          return rect.width > 0 && rect.height > 0 ? 'ready' : null
+        })()`)
+      } catch {
+        return null
+      }
+    }).catch(() => null)
+    if (openControl === null) {
+      console.log('drive: no visible open control; session-gated contracts stay SKIP')
+    } else {
+      await client.evaluate(`document.querySelector('[data-mobile-nav="toggle"], [data-mobile-nav="fab"]')?.click()`).catch(() => {})
+      const picked = await waitFor('session rows in the drawer', timeoutMs, async () => {
+        try {
+          return await client.evaluate(`(() => {
+            const rows = [...document.querySelectorAll('[class*="_sessionRow"]')]
+            const row = rows.find((candidate) => candidate.querySelector('button') !== null)
+            if (row === undefined) return null
+            row.click()
+            return (row.textContent || '').trim().slice(0, 40)
+          })()`)
+        } catch {
+          return null
+        }
+      }).catch(() => null)
+      console.log(picked === null
+        ? 'drive: no session row to open; session-gated contracts stay SKIP'
+        : `drive: opened session "${picked}"`)
+      // Let the conversation render, then close the drawer through the plugin's
+      // own backdrop so the scans read the on-screen header, not the overlay.
+      await waitFor('active conversation phase', timeoutMs, async () => {
+        try {
+          return await client.evaluate(`document.querySelector('[data-phase="active"]') !== null || document.querySelectorAll('[class*="_bubble"]').length > 0`)
+        } catch {
+          return false
+        }
+      }).catch(() => null)
+      await client.evaluate(`document.querySelector('[data-mobile-nav="backdrop"]')?.click()`).catch(() => {})
+      await sleep(600)
+    }
+
     // Collect every class fragment on the page once, then test each needle.
     const fragments = await client.evaluate(`(() => {
       const out = new Set();
@@ -156,6 +211,18 @@ async function main() {
           `getComputedStyle(document.body).getPropertyValue(${JSON.stringify(contract.needle)}).trim()`,
         )
         hit = typeof value === 'string' && value.length > 0
+      } else if (contract.kind === 'interactive') {
+        hit = await client.evaluate(`(() => {
+          const element = document.querySelector(${JSON.stringify(contract.needle)})
+          if (element === null) return false
+          const rect = element.getBoundingClientRect()
+          if (rect.width === 0 || rect.height === 0) return false
+          const target = document.elementFromPoint(
+            rect.left + rect.width / 2,
+            rect.top + rect.height / 2,
+          )
+          return target !== null && (target === element || element.contains(target))
+        })()`)
       } else {
         hit = fragmentBlob.includes(contract.needle)
       }
@@ -185,6 +252,7 @@ async function main() {
   console.log(`SUMMARY hit=${hits} skip=${skips} miss=${misses}`)
   if (misses > 0) {
     console.log('MISS means an upstream contract this plugin relies on is gone: read the note for that entry and fix the rule before shipping.')
+    console.log('An interactive MISS means the control exists but is clipped, masked, or covered: a tap at its centre never reaches it.')
   }
   process.exitCode = misses > 0 ? 1 : 0
 }

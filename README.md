@@ -16,8 +16,14 @@ Mobile adaptation for the DeepSeek Harness (DSH) Web UI. On touch-primary device
 ## Requirements
 
 - Node.js ≥ 22, pnpm ≥ 11
-- A running [DeepSeek Harness](https://github.com/deepseek-ai/deepseek-harness) `web` profile (`pnpm dsh web`)
+- A running [DeepSeek Harness](https://github.com/deepseek-ai/deepseek-harness) `web` profile (`pnpm dsh web`), DSH `0.2.x` (verified on `0.2.2-alpha.2`)
 - Chromium 105+ for the `:has()` selectors
+
+Response compression is the host's job when it is enabled: with `webServer`
+configured `compression: gzip` (the deployed profile does this) the plugin leaves
+the responses alone, because DSH's own middleware already serves brotli/gzip and
+wins the `writeHead` race. On a profile that keeps the host default
+(`compression: none`) the plugin installs its own transparent gzip/brotli patch.
 
 ## Install
 
@@ -60,7 +66,8 @@ DSH_PROBE_SESSION_ID=<id> pnpm smoke:cdp
 
 ## Architecture
 
-- Host / client split is load-bearing: `src/index.ts` owns transparent response compression plus the session-delete route (`POST /api/mobile-nav.session.delete`); all browser behavior lives in `src/client/`.
+- Host / client split is load-bearing: `src/index.ts` owns the session-delete route (`POST /api/mobile-nav.session.delete`) plus the conditional response-compression patch; all browser behavior lives in `src/client/`.
+- The delete route authenticates through the host (`connection.requestRejection`) because the `/api` launch-token fence is a prefix route that an exact route shadows; it fails closed with `503 admission-unavailable` when the host publishes no connection service.
 - `src/client/index.tsx` injects `['slots','layout','locale','sessionLogDownload','sessions','workspaces']`, registers locale dictionaries, injects one `<style data-plugin>` tag, and registers three slots (`MobileNavToggle` in the session header, `MobileDrawerFooter` in the sidebar foot, `ShellOverlay` backdrop + FAB).
 - Shared full-tree reconciler: `src/client/core/reconciler-core.ts` (zero-import engine) + `phone-chrome.ts` (a single `MutationObserver` driving `installMobileEffect`).
 - Styles are concatenated `tokens → base → layout → sheet → explorer-sheet → composer → settings-sheet → misc` into one tag; mobile rules target `(max-width: 1023px) and (pointer: coarse)`.

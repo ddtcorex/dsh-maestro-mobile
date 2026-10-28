@@ -204,6 +204,22 @@ function finishDeferred(
 }
 
 /**
+ * Whether the host web server already compresses responses.
+ *
+ * `Config.compression` is `private` on the shipped WebServer class, so this is
+ * a private read; it FAILS OPEN (false = install the plugin patch) whenever the
+ * shape is unreadable, because the host default is `compression: 'none'` and a
+ * default deployment still relies on this module.
+ * @param webServer - the host `webServer` service, or undefined when absent.
+ * @returns true when the host has response compression enabled.
+ */
+export function hostCompressionEnabled(webServer: unknown): boolean {
+  const config = (webServer as { config?: { compression?: unknown } } | undefined)?.config
+  const value = config?.compression
+  return typeof value === 'string' && value !== 'none'
+}
+
+/**
  * Install the compression patch on http.ServerResponse.prototype.
  * @returns disposer restoring the original methods (plugin reload safety).
  */

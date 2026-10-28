@@ -614,7 +614,16 @@ async function runCoreScenario(client, config, signal, pageErrors) {
   // by blanket: /open-in-app/icon/ 404s when the host ships no PNG for a
   // catalog id (live 0.1.6: linux filemanager) and the upstream component
   // falls back to a generic glyph after one fetch — not this plugin's breakage.
-  const upstreamNoise = [/\/open-in-app\/icon\//]
+  const upstreamNoise = [
+    /\/open-in-app\/icon\//,
+    // dsh-client-ui-deliverables asks the host for /api/changes.summary as soon
+    // as a session renders; this host answers 404 for the session it names while
+    // still serving the route (an unauthenticated call gets the /api fence's
+    // 401). Nothing in this plugin requests that path — verified by grep over
+    // src/ and lib/ — so it is upstream noise, not a mobile regression. It only
+    // shows up now because the probe can finally open a session.
+    /\/api\/changes\.summary/,
+  ]
   const uniqueErrors = [...new Set(pageErrors)].filter((text) => !upstreamNoise.some((re) => re.test(text)));
   check('page.errors', uniqueErrors.length === 0, uniqueErrors.length > 0
     ? `count=${uniqueErrors.length} first=${uniqueErrors[0].slice(0, 160)}`

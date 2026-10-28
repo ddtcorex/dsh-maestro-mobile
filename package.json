@@ -1,7 +1,7 @@
 {
   "name": "@ddtcorex/dsh-maestro-mobile",
   "private": false,
-  "version": "1.8.0",
+  "version": "1.8.1",
   "description": "Portrait and mobile adaptation for DeepSeek Harness Web UI \u2014 overlay drawer, full-width conversation, sheet-based dialogs, safe-area handling",
   "license": "MIT",
   "repository": {
@@ -61,33 +61,44 @@
       "patch": "./cordis.patch.yml"
     },
     "client": {
-      "platform": "web",
-      "inject": [
-        "@deepseek-ai/dsh-client-ui-primitives"
-      ]
+      "platform": "web"
     }
   },
   "peerDependencies": {
-    "@deepseek-ai/cordis": "~4.0.4",
-    "@deepseek-ai/dsh-api-session-controller": ">=0.2.0-rc.2 <0.3.0-0",
-    "@deepseek-ai/dsh-api-workspace-controller": ">=0.2.0-rc.2 <0.3.0-0",
-    "@deepseek-ai/dsh-client-locale": ">=0.2.0-rc.2 <0.3.0-0",
-    "@deepseek-ai/dsh-client-ui-conversation": ">=0.2.0-rc.2 <0.3.0-0",
-    "@deepseek-ai/dsh-client-ui-layout": ">=0.2.0-rc.2 <0.3.0-0",
-    "@deepseek-ai/dsh-client-ui-primitives": ">=0.2.0-rc.2 <0.3.0-0",
-    "@deepseek-ai/dsh-client-ui-renderer": ">=0.2.0-rc.2 <0.3.0-0",
-    "@deepseek-ai/dsh-client-ui-session": ">=0.2.0-rc.2 <0.3.0-0",
-    "@deepseek-ai/dsh-client-ui-settings": ">=0.2.0-rc.2 <0.3.0-0",
-    "@deepseek-ai/dsh-client-ui-sidebar": ">=0.2.0-rc.2 <0.3.0-0",
-    "@deepseek-ai/dsh-client-ui-slots": ">=0.2.0-rc.2 <0.3.0-0",
-    "@deepseek-ai/dsh-session-log-export": ">=0.2.0-rc.2 <0.3.0-0",
+    "@deepseek-ai/cordis": "~4.0.4 || ~4.0.6-alpha.1",
+    "@deepseek-ai/dsh-api-session-controller": ">=0.2.0-rc.2 <0.3.0-0 || >=0.2.2-0 <0.3.0-0",
+    "@deepseek-ai/dsh-api-workspace-controller": ">=0.2.0-rc.2 <0.3.0-0 || >=0.2.2-0 <0.3.0-0",
+    "@deepseek-ai/dsh-client-locale": ">=0.2.0-rc.2 <0.3.0-0 || >=0.2.2-0 <0.3.0-0",
+    "@deepseek-ai/dsh-client-ui-conversation": ">=0.2.0-rc.2 <0.3.0-0 || >=0.2.2-0 <0.3.0-0",
+    "@deepseek-ai/dsh-client-ui-layout": ">=0.2.0-rc.2 <0.3.0-0 || >=0.2.2-0 <0.3.0-0",
+    "@deepseek-ai/dsh-client-ui-primitives": ">=0.2.0-rc.2 <0.3.0-0 || >=0.2.2-0 <0.3.0-0",
+    "@deepseek-ai/dsh-client-ui-renderer": ">=0.2.0-rc.2 <0.3.0-0 || >=0.2.2-0 <0.3.0-0",
+    "@deepseek-ai/dsh-client-ui-session": ">=0.2.0-rc.2 <0.3.0-0 || >=0.2.2-0 <0.3.0-0",
+    "@deepseek-ai/dsh-client-ui-settings": ">=0.2.0-rc.2 <0.3.0-0 || >=0.2.2-0 <0.3.0-0",
+    "@deepseek-ai/dsh-client-ui-sidebar": ">=0.2.0-rc.2 <0.3.0-0 || >=0.2.2-0 <0.3.0-0",
+    "@deepseek-ai/dsh-client-ui-slots": ">=0.2.0-rc.2 <0.3.0-0 || >=0.2.2-0 <0.3.0-0",
+    "@deepseek-ai/dsh-session-log-export": ">=0.2.0-rc.2 <0.3.0-0 || >=0.2.2-0 <0.3.0-0",
     "react": "^18.2.0"
   },
   "devDependencies": {
-    "@deepseek-ai/dsh-client-store": ">=0.2.0-rc.2 <0.3.0-0",
+    "@deepseek-ai/dsh-api-session-controller": ">=0.2.2-0 <0.3.0-0",
+    "@deepseek-ai/dsh-api-workspace-controller": ">=0.2.2-0 <0.3.0-0",
+    "@deepseek-ai/dsh-client-locale": ">=0.2.2-0 <0.3.0-0",
+    "@deepseek-ai/dsh-client-store": "0.2.2-alpha.2",
+    "@deepseek-ai/dsh-client-ui-conversation": ">=0.2.2-0 <0.3.0-0",
+    "@deepseek-ai/dsh-client-ui-layout": ">=0.2.2-0 <0.3.0-0",
+    "@deepseek-ai/dsh-client-ui-primitives": ">=0.2.2-0 <0.3.0-0",
+    "@deepseek-ai/dsh-client-ui-renderer": ">=0.2.2-0 <0.3.0-0",
+    "@deepseek-ai/dsh-client-ui-session": ">=0.2.2-0 <0.3.0-0",
+    "@deepseek-ai/dsh-client-ui-settings": ">=0.2.2-0 <0.3.0-0",
+    "@deepseek-ai/dsh-client-ui-sidebar": ">=0.2.2-0 <0.3.0-0",
+    "@deepseek-ai/dsh-client-ui-slots": ">=0.2.2-0 <0.3.0-0",
+    "@deepseek-ai/dsh-session-log-export": ">=0.2.2-0 <0.3.0-0",
     "@types/node": "^22.0.0",
     "@types/react": "~18.3.1",
     "@types/react-dom": "~18.3.0",
+    "@types/semver": "^7.5.8",
+    "semver": "^7.7.1",
     "typescript": "^6.0.3"
   },
   "packageManager": "pnpm@11.7.0"
