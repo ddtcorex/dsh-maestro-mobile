@@ -6,6 +6,31 @@ All notable changes to this project are documented in this file. Format follows
 
 ## [Unreleased]
 
+### Changed
+
+- Ported the transferable parts of `mexiaosqwq/dsh-web-mobile` v3.2.3 (#258,
+  #260), re-expressed for this plugin's own layout:
+  - the composer yields its stats row only in landscape; in portrait the seat
+    has room for both rows, and hiding the secondary one only shortened the
+    composer by a row.
+  - `session-focus-guard` connects its whole-tree observer only inside the
+    ≤800ms guard window. It used to stay connected for the plugin's lifetime
+    and its body returned early, so every streaming mutation batch still paid
+    a callback.
+  - the ask-card lookup resolves the composer seat once, caches the card and
+    queries inside the seat, instead of walking the whole document on every
+    mutation batch (the task is unscoped, so that walk ran per batch).
+  - the client bundle ships stylesheets without their design-record comments:
+    `lib/client.js` 480,391 → 420,718 bytes.
+
+### Fixed
+
+- `.gitignore` anchored the build-output rule to the repo root (`/lib/` instead
+  of `lib/`). The bare pattern also matched nested directories, so a build-time
+  module placed in `scripts/lib/` was never committed while `git status` looked
+  clean; only the sandboxed CI rehearse clone failed. A test now pins the
+  anchor.
+
 ### Fixed
 
 - Session content on DSH 0.2.2-alpha.3: the host layout sheet now pins the

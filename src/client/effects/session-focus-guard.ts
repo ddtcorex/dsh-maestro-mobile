@@ -183,6 +183,27 @@ export function installSessionFocusGuard(ctx: ClientContext): void {
     let windowOpen = false
 
     /**
+     * A remount inside the window needs a fresh shadow: the editor is
+     * Session-owned, so a switch can replace the element this module resolved
+     * at arm time, and the host focuses it before this microtask can react.
+     *
+     * Connected ONLY while the window is open (ported from
+     * mexiaosqwq/dsh-web-mobile v3.2.3 #260). A whole-tree childList observer
+     * that lives for the whole plugin lifetime is woken by every mutation
+     * batch, and a streaming turn produces one per token flush; the old
+     * `if (!windowOpen) return` body still paid the observer callback for each
+     * of them. The window is ≤800ms per session switch, so the observer now
+     * costs nothing the rest of the time.
+     */
+    const observer = new MutationObserver(() => {
+      if (!windowOpen) return
+      const editor = editorElement()
+      if (editor === null) return
+      shadow.arm()
+      editor.setAttribute(SESSION_GUARD_MARKER, '')
+    })
+
+    /**
      * Close the window and undo everything it did.
      *
      * The marker is swept from the live document rather than from a tracked
@@ -195,6 +216,7 @@ export function installSessionFocusGuard(ctx: ClientContext): void {
       window.clearTimeout(windowTimer)
       windowTimer = 0
       windowOpen = false
+      observer.disconnect()
       shadow.restore()
       for (const el of document.querySelectorAll(`[${SESSION_GUARD_MARKER}]`)) {
         el.removeAttribute(SESSION_GUARD_MARKER)
@@ -205,6 +227,7 @@ export function installSessionFocusGuard(ctx: ClientContext): void {
     const arm = (): void => {
       restore()
       windowOpen = true
+      observer.observe(document.documentElement, { childList: true, subtree: true })
       const editor = editorElement()
       if (editor !== null) {
         shadow.arm()
@@ -213,19 +236,6 @@ export function installSessionFocusGuard(ctx: ClientContext): void {
       windowTimer = window.setTimeout(restore, FOCUS_GUARD_WINDOW_MS)
     }
 
-    /**
-     * A remount inside the window needs a fresh shadow: the editor is
-     * Session-owned, so a switch can replace the element this module resolved
-     * at arm time, and the host focuses it before this microtask can react.
-     */
-    const observer = new MutationObserver(() => {
-      if (!windowOpen) return
-      const editor = editorElement()
-      if (editor === null) return
-      shadow.arm()
-      editor.setAttribute(SESSION_GUARD_MARKER, '')
-    })
-    observer.observe(document.documentElement, { childList: true, subtree: true })
 
     /**
      * A finger on the editing surface is the user saying "I want to type":

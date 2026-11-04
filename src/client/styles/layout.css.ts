@@ -450,8 +450,16 @@ export const LAYOUT_CSS = `/* ---------- mobile-only layout ---------- */
   [data-mobile-nav="frame"][data-mobile-nav-composer-tight] [data-composer-seat] {
     z-index: 31 !important;
   }
-  [data-mobile-nav="frame"][data-mobile-nav-composer-tight] [data-mobile-nav="stats"] {
-    display: none !important;
+  /* Yield the stats row only in LANDSCAPE. In portrait the seat has room for
+     both rows, so hiding the secondary row just shortens the composer by one
+     row height (ported from mexiaosqwq/dsh-web-mobile v3.2.3 #258, field
+     measurement 402x684 portrait: seat 76px tight vs 106px otherwise, exactly
+     the stats row; that is the "input box shrank" report). The z-index rule
+     above is unaffected: in portrait it only keeps the seat above the header. */
+  @media (orientation: landscape) {
+    [data-mobile-nav="frame"][data-mobile-nav-composer-tight] [data-mobile-nav="stats"] {
+      display: none !important;
+    }
   }
 
   /* --- Composer model selector: long names must not drop the toolbar to 2 lines ---
