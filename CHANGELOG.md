@@ -25,6 +25,14 @@ All notable changes to this project are documented in this file. Format follows
 
 ### Fixed
 
+- `.gitignore` anchored the build-output rule to the repo root (`/lib/` instead
+  of `lib/`). The bare pattern also matched nested directories, so a build-time
+  module placed in `scripts/lib/` was never committed while `git status` looked
+  clean; only the sandboxed CI rehearse clone failed. A test now pins the
+  anchor.
+
+### Fixed
+
 - Session content on DSH 0.2.2-alpha.3: the host layout sheet now pins the
   shell columns to explicit tracks (`grid-area` 1/1, 1/2, 1/3) instead of
   letting them auto-place, so the frame override's `minmax(0, 1fr) 0 0`
