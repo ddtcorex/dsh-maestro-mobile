@@ -6,6 +6,8 @@ All notable changes to this project are documented in this file. Format follows
 
 ## [Unreleased]
 
+## [1.9.0] - 2026-11-04
+
 ### Changed
 
 - Ported the transferable parts of `mexiaosqwq/dsh-web-mobile` v3.2.3 (#258,
@@ -22,14 +24,6 @@ All notable changes to this project are documented in this file. Format follows
     mutation batch (the task is unscoped, so that walk ran per batch).
   - the client bundle ships stylesheets without their design-record comments:
     `lib/client.js` 480,391 → 420,718 bytes.
-
-### Fixed
-
-- `.gitignore` anchored the build-output rule to the repo root (`/lib/` instead
-  of `lib/`). The bare pattern also matched nested directories, so a build-time
-  module placed in `scripts/lib/` was never committed while `git status` looked
-  clean; only the sandboxed CI rehearse clone failed. A test now pins the
-  anchor.
 
 ### Fixed
 
@@ -51,6 +45,11 @@ All notable changes to this project are documented in this file. Format follows
   the mask instead of the sidebar (measured: mask 0x844 at z-index 150 with the
   drawer fill, sidebar column left at the host's own -100% translate). Those
   rules now address `[class*="_sidebarCol"]` directly.
+- `.gitignore` anchored the build-output rule to the repo root (`/lib/` instead
+  of `lib/`). The bare pattern also matched nested directories, so a build-time
+  module placed in `scripts/lib/` was never committed while `git status` looked
+  clean; only the sandboxed CI rehearse clone failed. A test now pins the
+  anchor.
 
 ## [1.8.1] - 2026-10-28
 
