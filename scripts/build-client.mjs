@@ -6,6 +6,7 @@
 import { mkdir, readFile, readdir, rm, writeFile } from 'node:fs/promises'
 import { dirname, join, posix } from 'node:path'
 import { fileURLToPath } from 'node:url'
+import { stripEmittedCssModule } from './strip-css-comments.mjs'
 
 const root = dirname(fileURLToPath(new URL('../package.json', import.meta.url)))
 const buildDir = join(root, '.client-build')
@@ -34,6 +35,11 @@ async function collectSources(dir, { rel = '' } = {}) {
 }
 
 const sources = await collectSources(buildDir)
+
+// Ship the stylesheet without its design-record comments (sources keep them).
+for (const [file, source] of sources) {
+  if (/^styles\/[^/]+\.css\.js$/u.test(file)) sources.set(file, stripEmittedCssModule(source))
+}
 
 const REQUIRE_RE = /require\("(\.[^"]+\.js)"\)/g
 // Resolve a `./x.js` child relative to its parent module to the canonical

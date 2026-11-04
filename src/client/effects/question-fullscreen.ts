@@ -43,7 +43,22 @@ export function installQuestionFullscreen(ctx: ClientContext): void {
     let reserveText = ''
     let frame = 0
 
-    const cardOf = (): HTMLElement | null => document.querySelector<HTMLElement>(CARD_SELECTOR)
+    // The reconciler task that owns this effect runs on every DOM mutation
+    // batch, so a document-wide `[class*="_card"]` query per batch is a full
+    // tree walk for the ~all of the time no ask-card exists. The card only
+    // ever renders inside the composer seat: resolve the seat once, then keep
+    // the card while it stays connected inside it. Falls back to the document
+    // when the seat is missing or holds no card (older hosts).
+    let seatCache: HTMLElement | null = null
+    let cardCache: HTMLElement | null = null
+    const cardOf = (): HTMLElement | null => {
+      if (seatCache === null || !seatCache.isConnected) seatCache = seatElement()
+      const scope = seatCache
+      if (cardCache !== null && cardCache.isConnected && (scope === null || scope.contains(cardCache))) return cardCache
+      cardCache = scope === null ? null : scope.querySelector<HTMLElement>(CARD_SELECTOR)
+      if (cardCache === null) cardCache = document.querySelector<HTMLElement>(CARD_SELECTOR)
+      return cardCache
+    }
     const label = (): string => t(armed ? 'questionCollapse' : 'questionExpand')
 
     const syncButton = (): void => {
