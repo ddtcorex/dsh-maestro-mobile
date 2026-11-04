@@ -6,6 +6,17 @@ All notable changes to this project are documented in this file. Format follows
 
 ## [Unreleased]
 
+### Fixed
+
+- Session content on DSH 0.2.2-alpha.3: the host layout sheet now pins the
+  shell columns to explicit tracks (`grid-area` 1/1, 1/2, 1/3) instead of
+  letting them auto-place, so the frame override's `minmax(0, 1fr) 0 0`
+  template sent the conversation into the zero-width second track. Measured
+  at 390x844: the center column was 0x844 at x=390 and the phone showed a
+  blank screen under a correct session title. The center column is now pinned
+  to track 1; `tests/frame-grid-placement.test.ts` guards both the template
+  and the placement.
+
 ## [1.8.1] - 2026-10-28
 
 ### Fixed

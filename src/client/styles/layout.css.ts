@@ -50,6 +50,23 @@ export const LAYOUT_CSS = `/* ---------- mobile-only layout ---------- */
     padding-top: env(safe-area-inset-top, 0px) !important;
   }
 
+  /* The template above assumes the center column is AUTO-PLACED into the
+     track the drawer vacated. DSH 0.2.2-alpha.3 stopped auto-placing: the host
+     layout sheet now pins every shell column to an explicit track
+     (_sidebarCol grid-area 1/1, _centerCol 1/2, _rightbarCol 1/3), so the
+     center column stays in track 2, which this plugin keeps at 0px. Measured
+     2026-11-04 on 0.2.2-alpha.3 at 390x844: _centerCol was 0x844 at x=390 —
+     the conversation header, message flow and composer were all rendered into
+     a zero-width track off the right edge, i.e. a blank phone screen with the
+     session title still correct in the tab. Pinning the center back to track 1
+     restores it, and on a host that still auto-places this resolves to the
+     same track. The right column keeps track 3 (also 0px here): the host
+     already collapses it on narrow viewports and the panel surfaces ride the
+     overlay layer instead. */
+  [data-mobile-nav="frame"] > [class*="_centerCol"] {
+    grid-column: 1 !important;
+  }
+
   /* The sidebar column (first grid child) becomes a left drawer. The drawer
      hugs the sidebar content exactly (the wide sidebar carries an inline
      width, ~280px): a fixed 92vw box would leave a white strip where the
