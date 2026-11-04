@@ -73,7 +73,7 @@ export const MISC_CSS = `@media (max-width: 1023px) and (pointer: coarse) {
   /* ---------- drawer session tree: skip off-screen rendering ----------
      content-visibility: auto lets engine skip layout/paint of off-screen rows
      when drawer closed (early-commit) and of off-screen rows in long history. */
-  [data-mobile-nav="frame"] > :first-child [role="tree"] {
+  [data-mobile-nav="frame"] > [class*="_sidebarCol"] [role="tree"] {
     content-visibility: auto;
     contain-intrinsic-size: auto 600px;
   }
