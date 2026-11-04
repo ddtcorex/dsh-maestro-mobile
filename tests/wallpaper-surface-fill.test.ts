@@ -12,12 +12,12 @@ test('the drawer keeps an opaque fill when a wallpaper plugin empties bg-base (d
   // the ungated (no-wallpaper) path must keep resolving the token.
   assert.match(
     layout,
-    /body\[data-dsh-bg\] \[data-mobile-nav="frame"\] > :first-child \{[\s\S]*?background: #ffffff !important;/,
+    /body\[data-dsh-bg\] \[data-mobile-nav="frame"\] > \[class\*="_sidebarCol"\] \{[\s\S]*?background: #ffffff !important;/,
     'light wallpaper-gated drawer fill is missing',
   )
   assert.match(
     layout,
-    /body\[data-ds-dark-theme\]\[data-dsh-bg\] \[data-mobile-nav="frame"\] > :first-child \{[\s\S]*?background: #151517 !important;/,
+    /body\[data-ds-dark-theme\]\[data-dsh-bg\] \[data-mobile-nav="frame"\] > \[class\*="_sidebarCol"\] \{[\s\S]*?background: #151517 !important;/,
     'dark wallpaper-gated drawer fill is missing',
   )
 })
@@ -25,7 +25,7 @@ test('the drawer keeps an opaque fill when a wallpaper plugin empties bg-base (d
 test('the base drawer rule still resolves the theme token', () => {
   // The base drawer rule must keep resolving the theme token so the
   // no-wallpaper path is byte-identical with and without this fix.
-  const base = /\[data-mobile-nav="frame"\] > :first-child \{([\s\S]*?)\n  \}/.exec(layout)?.[1]
+  const base = /\[data-mobile-nav="frame"\] > \[class\*="_sidebarCol"\] \{([\s\S]*?)\n  \}/.exec(layout)?.[1]
   assert.ok(base, 'base drawer rule is missing from layout.css.ts')
   assert.match(base, /background: var\(--dsw-alias-bg-base, #ffffff\);/)
 })

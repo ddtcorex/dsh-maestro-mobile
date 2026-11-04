@@ -16,6 +16,16 @@ All notable changes to this project are documented in this file. Format follows
   blank screen under a correct session title. The center column is now pinned
   to track 1; `tests/frame-grid-placement.test.ts` guards both the template
   and the placement.
+- Drawer opener: 0.2.2-alpha.3 moved the host's own opener into the drawer
+  corner (`[data-sidebar-drawer] .leadingSeat` at 12,11) and it paints above
+  the header, so the plugin's toggle at 16,11 was present, sized and
+  unreachable. The toggle is now hidden whenever the host mounts a
+  leading-seat opener; it stays for hosts that render none.
+- Drawer column: the same release prepends a drawerMask element to the frame,
+  so every `[data-mobile-nav="frame"] > :first-child` drawer rule was styling
+  the mask instead of the sidebar (measured: mask 0x844 at z-index 150 with the
+  drawer fill, sidebar column left at the host's own -100% translate). Those
+  rules now address `[class*="_sidebarCol"]` directly.
 
 ## [1.8.1] - 2026-10-28
 

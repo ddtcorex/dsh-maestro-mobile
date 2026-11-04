@@ -40,9 +40,10 @@ test('the backdrop does not outrank sibling overlay occupants', () => {
 })
 
 test('the backdrop still sits below the drawer', () => {
-  // The drawer is the frame's first child, raised to 150 by layout.css.ts; the
-  // backdrop lives in the z-20 overlay layer, so it stays underneath it.
-  assert.match(layout, /\[data-mobile-nav="frame"\][^{]*> :first-child\s*\{[^}]*z-index:\s*150 !important/, 'drawer must stay at z 150')
+  // The drawer is the host's sidebar column in the frame, raised to 150 by
+  // layout.css.ts; the backdrop lives in the z-20 overlay layer, so it stays
+  // underneath it.
+  assert.match(layout, /\[data-mobile-nav="frame"\][^{]*> \[class\*="_sidebarCol"\]\s*\{[^}]*z-index:\s*150 !important/, 'drawer must stay at z 150')
   const layerZ = /\[data-shell-overlay\][^{]*\{[^}]*z-index:\s*(\d+)/.exec(layout)?.[1]
   assert.ok(
     layerZ === undefined || Number(layerZ) < 150,

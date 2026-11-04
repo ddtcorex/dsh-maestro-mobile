@@ -19,11 +19,25 @@ const CHROME_GRACE_MS = 5_000;
 const CHIP_SELECTOR = '[data-gitgraph-chip-anchor] [data-gitgraph-chip]';
 const MOBILE_STYLE_SELECTOR = 'style[data-plugin="@ddtcorex/dsh-maestro-mobile"]';
 const MOBILE_FRAME_SELECTOR = '[data-mobile-nav="frame"]';
-const MOBILE_DRAWER_SELECTOR = '[data-mobile-nav="frame"] > :first-child';
+// The drawer column is the host's sidebarCol. 0.2.2-alpha.3 prepends a
+// drawerMask element to the frame, so "> :first-child" now names the mask.
+const MOBILE_DRAWER_SELECTOR = '[data-mobile-nav="frame"] > [class*="_sidebarCol"]';
 const MOBILE_BACKDROP_SELECTOR = '[data-mobile-nav="backdrop"]';
 const MOBILE_TOGGLE_SELECTOR = '[data-mobile-nav="toggle"]';
 const MOBILE_FAB_SELECTOR = '[data-mobile-nav="fab"]';
-const MOBILE_CONTROL_SELECTORS = [MOBILE_TOGGLE_SELECTOR, MOBILE_FAB_SELECTOR];
+// The host mounts its own drawer opener in the frame's window-chrome seat. From
+// 0.2.2-alpha.3 that seat sits in the drawer corner (top 11px, left 12px) and
+// paints above the center column, so it wins every tap that lands on this
+// plugin's own toggle; the plugin hides its duplicate there. The host opener
+// therefore leads the list: it is the control a phone user actually presses.
+const MOBILE_HOST_OPENER_SELECTOR = '[data-slot="shell.leading"] button[data-sidebar-opener]';
+// The host's own drawer scrim, prepended to the frame in 0.2.2-alpha.3.
+const MOBILE_HOST_MASK_SELECTOR = '[data-sidebar-mask]';
+const MOBILE_CONTROL_SELECTORS = [
+  MOBILE_HOST_OPENER_SELECTOR,
+  MOBILE_TOGGLE_SELECTOR,
+  MOBILE_FAB_SELECTOR,
+];
 
 function readConfig(env = process.env) {
   const sessionId = env.DSH_PROBE_SESSION_ID?.trim();
@@ -177,6 +191,48 @@ async function rectFor(client, selector) {
     if (style.display === 'none' || style.visibility === 'hidden' || rect.width <= 0 || rect.height <= 0) return null;
     return { left: rect.left, top: rect.top, right: rect.right, bottom: rect.bottom, width: rect.width, height: rect.height, x: rect.x, y: rect.y };
   })()`);
+}
+
+/**
+ * Resolve the drawer opener a phone user can actually press: the host's
+ * leading-seat opener when the host mounts one (the plugin hides its own
+ * duplicate there), the plugin toggle otherwise, and the floating FAB on the
+ * empty state. A control counts only when its own centre hit-tests back to it,
+ * because the sliding drawer covers the corner while it animates out.
+ * @param client - CDP client bound to the page.
+ * @param config - probe config (timeout budget).
+ * @param signal - abort signal shared by the probe.
+ * @returns the first reachable selector, or null when none is usable.
+ */
+async function resolveOpenControl(client, config, signal) {
+  for (const selector of MOBILE_CONTROL_SELECTORS) {
+    const present = await client
+      .evaluate(`document.querySelector(${JSON.stringify(selector)}) !== null`)
+      .catch(() => false);
+    // Skip a selector the page does not carry at all: waiting out the full
+    // timeout for an absent element would cost a minute per run.
+    if (!present) continue;
+    const reachable = await waitFor(`mobile open control ${selector}`, config.timeoutMs, signal, async () => {
+      try {
+        const rect = await rectFor(client, selector);
+        if (rect === null) return null;
+        const x = rect.left + rect.width / 2;
+        const y = rect.top + rect.height / 2;
+        return await client.evaluate(`(() => {
+          const element = document.elementFromPoint(${x}, ${y});
+          const target = document.querySelector(${JSON.stringify(selector)});
+          return element !== null && target !== null && (element === target || target.contains(element));
+        })()`);
+      } catch {
+        return null;
+      }
+    }).catch((error) => {
+      if (error instanceof TimeoutError) return null;
+      throw error;
+    });
+    if (reachable) return selector;
+  }
+  return null;
 }
 
 async function clickPoint(client, x, y) {
@@ -414,7 +470,7 @@ async function runCoreScenario(client, config, signal, pageErrors) {
   };
 
   // An open control is usable only when its center hit-tests back to it: the
-  // sliding drawer can cover the toggle while animating out after a close.
+  // sliding drawer can cover the corner while animating out after a close.
   const waitControlReachable = (label, selector) => waitFor(label, config.timeoutMs, signal, async () => {
     try {
       const rect = await rectFor(client, selector);
@@ -431,20 +487,12 @@ async function runCoreScenario(client, config, signal, pageErrors) {
     }
   });
 
-  // Pick the first visible open control: header toggle, else floating fab.
+  // Pick the first visible open control: the host's leading-seat opener, the
+  // plugin toggle on hosts without one, else the floating fab.
   let drawerUsable = true;
-  let openSelector = null;
-  for (const selector of MOBILE_CONTROL_SELECTORS) {
-    try {
-      await waitControlReachable(`mobile open control ${selector}`, selector);
-      openSelector = selector;
-      break;
-    } catch (error) {
-      if (!(error instanceof TimeoutError)) throw error;
-    }
-  }
+  let openSelector = await resolveOpenControl(client, config, signal);
   if (openSelector === null) {
-    check('mobile.open-control', false, 'neither toggle nor fab became visible before deadline');
+    check('mobile.open-control', false, 'no opener (host leading seat, plugin toggle, fab) was reachable');
     drawerUsable = false;
   }
 
@@ -453,9 +501,30 @@ async function runCoreScenario(client, config, signal, pageErrors) {
     await clickSelector(client, openSelector);
     if (!(await waitDrawerChecked('mobile drawer open', true, 'mobile.drawer.open'))) drawerUsable = false;
 
-    // Close via the backdrop, at a point derived from live geometry: midway
-    // between the open drawer's right edge and the viewport right edge.
-    const drawerRect = await rectFor(client, MOBILE_DRAWER_SELECTOR);
+    // Close via the scrim, at a point derived from live geometry: midway
+    // between the open drawer's right edge and the viewport right edge. Wait
+    // for the slide-in to settle first: the frame drops
+    // data-sidebar-collapsed before the transform finishes, so measuring the
+    // instant the state flips yields the still-off-screen rect (right edge 0)
+    // and the click lands inside the drawer instead of beside it.
+    const settledRect = await waitFor('drawer settled', config.timeoutMs, signal, async () => {
+      try {
+        const first = await rectFor(client, MOBILE_DRAWER_SELECTOR);
+        if (first === null || first.right <= 0) return null;
+        await sleep(150, signal);
+        const second = await rectFor(client, MOBILE_DRAWER_SELECTOR);
+        // Same geometry twice in a row: the slide-in finished. A rect captured
+        // mid-transition puts the "beside the drawer" point inside the drawer
+        // by the time the click lands, and the drawer stays open.
+        const stable = second !== null
+          && Math.abs(second.right - first.right) < 0.5
+          && Math.abs(second.width - first.width) < 0.5;
+        return stable ? second : null;
+      } catch {
+        return null;
+      }
+    }).catch(() => null);
+    const drawerRect = settledRect;
     if (drawerRect === null) {
       check('geometry.drawer', false, 'drawer rect unavailable while open');
       drawerUsable = false;
@@ -463,9 +532,13 @@ async function runCoreScenario(client, config, signal, pageErrors) {
       const viewport = await client.evaluate('({ width: innerWidth, height: innerHeight })');
       const backdropX = (drawerRect.right + viewport.width) / 2;
       const backdropY = viewport.height / 2;
+      // The scrim is either the plugin's own backdrop or, from 0.2.2-alpha.3,
+      // the host's drawerMask that sits above it; both dismiss the drawer, so
+      // accept whichever one owns the point.
       const overBackdrop = await client.evaluate(`(() => {
+        const SCREENS = ${JSON.stringify([MOBILE_BACKDROP_SELECTOR, MOBILE_HOST_MASK_SELECTOR])};
         const element = document.elementFromPoint(${backdropX}, ${backdropY});
-        return element !== null && element.closest(${JSON.stringify(MOBILE_BACKDROP_SELECTOR)}) !== null;
+        return element !== null && SCREENS.some((selector) => element.closest(selector) !== null);
       })()`);
       if (!overBackdrop) {
         check('mobile.backdrop.point', false, `(${Math.round(backdropX)}, ${Math.round(backdropY)}) not over backdrop`);
@@ -573,15 +646,15 @@ async function runCoreScenario(client, config, signal, pageErrors) {
         const rect = element.getBoundingClientRect();
         return style.display !== 'none' && style.visibility !== 'hidden' && rect.width > 0 && rect.height > 0;
       };
+      const OPENERS = ${JSON.stringify(MOBILE_CONTROL_SELECTORS)};
       const frame = document.querySelector(${JSON.stringify(MOBILE_FRAME_SELECTOR)});
       return {
         frame: frame !== null,
         collapsed: frame === null ? null : frame.hasAttribute('data-sidebar-collapsed'),
-        toggleVisible: visible(${JSON.stringify(MOBILE_TOGGLE_SELECTOR)}),
-        fabVisible: visible(${JSON.stringify(MOBILE_FAB_SELECTOR)}),
+        openerVisible: OPENERS.some(visible),
       };
     })()`);
-    return state.frame && state.collapsed === true && (state.toggleVisible || state.fabVisible) ? state : null;
+    return state.frame && state.collapsed === true && state.openerVisible ? state : null;
   });
   pass('mobile.boundary-1023', 'frame=present control=visible collapsed=true');
 
@@ -597,15 +670,15 @@ async function runCoreScenario(client, config, signal, pageErrors) {
         const rect = element.getBoundingClientRect();
         return style.display !== 'none' && style.visibility !== 'hidden' && rect.width > 0 && rect.height > 0;
       };
+      const OPENERS = ${JSON.stringify(MOBILE_CONTROL_SELECTORS)};
       const frame = document.querySelector(${JSON.stringify(MOBILE_FRAME_SELECTOR)});
       return {
         frame: frame !== null,
         collapsed: frame === null ? null : frame.hasAttribute('data-sidebar-collapsed'),
-        toggleVisible: visible(${JSON.stringify(MOBILE_TOGGLE_SELECTOR)}),
-        fabVisible: visible(${JSON.stringify(MOBILE_FAB_SELECTOR)}),
+        openerVisible: OPENERS.some(visible),
       };
     })()`);
-    return state.frame && state.collapsed === true && (state.toggleVisible || state.fabVisible) ? state : null;
+    return state.frame && state.collapsed === true && state.openerVisible ? state : null;
   });
   pass('mobile.breakpoint-rearm', 'frame=present control=visible collapsed=true');
 
@@ -754,17 +827,15 @@ async function runMarketScenario(client, config, signal) {
   // (the brand header may transiently sit over the toggle); poll until the
   // toggle really owns its own center point, then click through the guarded
   // helper.
-  await waitFor('toggle clickable', config.timeoutMs, signal, async () => {
-    const ok = await client.evaluate(`(() => {
-      const toggle = document.querySelector(${JSON.stringify(MOBILE_TOGGLE_SELECTOR)});
-      if (!toggle) return null;
-      const rect = toggle.getBoundingClientRect();
-      const hit = document.elementFromPoint(rect.left + rect.width / 2, rect.top + rect.height / 2);
-      return hit !== null && (hit === toggle || toggle.contains(hit)) ? true : null;
-    })()`);
-    return ok || null;
-  });
-  await clickSelector(client, MOBILE_TOGGLE_SELECTOR);
+  // The corner opener is whichever control owns that point on this host: the
+  // host's leading-seat button from 0.2.2-alpha.3 on, the plugin toggle before
+  // that. Resolve it instead of assuming the plugin's own button.
+  const marketOpenSelector = await resolveOpenControl(client, config, signal);
+  if (marketOpenSelector === null) {
+    fail('market.open-control', 'no reachable opener for the market scenario');
+    throw new ProbeFailure('market.open-control', 'no reachable opener');
+  }
+  await clickSelector(client, marketOpenSelector);
   await waitFor('drawer expanded', config.timeoutMs, signal, async () => {
     const state = await client.evaluate(
       `(() => {

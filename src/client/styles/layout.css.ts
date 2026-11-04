@@ -77,7 +77,7 @@ export const LAYOUT_CSS = `/* ---------- mobile-only layout ---------- */
      before) left 14px of the drawer plus a long 32px-blur shadow gradient
      visible along the left edge of the main UI. No box-shadow at all: the
      dimmed backdrop already separates drawer from content. */
-  [data-mobile-nav="frame"] > :first-child {
+  [data-mobile-nav="frame"] > [class*="_sidebarCol"] {
     position: absolute !important;
     inset: 0 auto 0 0 !important;
     width: max-content;
@@ -114,10 +114,10 @@ export const LAYOUT_CSS = `/* ---------- mobile-only layout ---------- */
      theme token byte-identical. Verified as a synthetic host cascade + unit
      anchor; appearance under a real wallpaper install still needs on-device
      re-check (same caveat as upstream). */
-  body[data-dsh-bg] [data-mobile-nav="frame"] > :first-child {
+  body[data-dsh-bg] [data-mobile-nav="frame"] > [class*="_sidebarCol"] {
     background: #ffffff !important;
   }
-  body[data-ds-dark-theme][data-dsh-bg] [data-mobile-nav="frame"] > :first-child {
+  body[data-ds-dark-theme][data-dsh-bg] [data-mobile-nav="frame"] > [class*="_sidebarCol"] {
     background: #151517 !important;
   }
 
@@ -130,19 +130,19 @@ export const LAYOUT_CSS = `/* ---------- mobile-only layout ---------- */
      overflow:hidden drawer to scrollLeft=102, and every static child (plus the
      fixed overlay) shifts 102px off-screen. With transform:none the overlay is
      viewport-anchored: it dims the full screen and the sheet sits at left:8. */
-  [data-mobile-nav="frame"]:not([data-sidebar-collapsed]) > :first-child {
+  [data-mobile-nav="frame"]:not([data-sidebar-collapsed]) > [class*="_sidebarCol"] {
     transform: none !important;
   }
 
   /* Drawer swipe gestures: touch-action pan-y lets horizontal pointermove reach the
      gesture layer without browser pan/pointercancel; start-hit is geometry-only
      (45% viewport) with no hotspot element. */
-  [data-mobile-nav="frame"] > :first-child {
+  [data-mobile-nav="frame"] > [class*="_sidebarCol"] {
     touch-action: pan-y !important;
   }
 
   @media (prefers-reduced-motion: reduce) {
-    [data-mobile-nav="frame"] > :first-child {
+    [data-mobile-nav="frame"] > [class*="_sidebarCol"] {
       transition: none !important;
     }
   }
@@ -559,6 +559,21 @@ export const LAYOUT_CSS = `/* ---------- mobile-only layout ---------- */
     left: 8px !important;
     top: 12px !important;
     z-index: 2 !important;
+  }
+  /* One drawer opener, not two. DSH 0.2.2-alpha.3 moved the host's own opener
+     into the drawer corner (.frame[data-sidebar-drawer] .leadingSeat
+     { top: 11px; left: 12px }), where alpha.2 kept the seat at left: 88px. The
+     leading seat is a frame child painted after the center column, so it now
+     lands exactly on this plugin's toggle (ours 16,11 28x28 at z-index 2,
+     host's 12,11 28x28 in shell.leading) and wins every tap: measured
+     2026-11-04 with elementFromPoint at the toggle's centre, the hit was the
+     host's button, ours present, sized and unreachable. Both controls call
+     toggleSidebar(), so the plugin's copy is pure duplication wherever the
+     host mounts one; hide it and keep a single control. The :has() guard keeps
+     the toggle alive for a host that renders no leading-seat opener, which is
+     the only case where this button is the user's way into the drawer. */
+  [data-mobile-nav="frame"]:has([data-slot="shell.leading"] button[data-sidebar-opener]) [data-mobile-nav="toggle"] {
+    display: none !important;
   }
   /* No fade on the title cluster on phones. The crumbs nav hides its own overflow and truncates the session title inside its own box, so the
      decorative fade is the only thing lost here — nothing bleeds under the
