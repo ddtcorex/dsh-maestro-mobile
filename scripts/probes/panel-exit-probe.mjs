@@ -167,11 +167,9 @@ const clickUnselectedPanelRow = (client) =>
 
 const openDrawer = async (client, timeoutMs) => {
   const state = await panelState(client)
-  if (state.fabMode === 'open-drawer') {
-    await client.evaluate(`document.querySelector(${JSON.stringify(FAB_SELECTOR)})?.click()`)
-  } else {
-    await clickSelector(client, 'button[aria-label="Open sidebar"]')
-  }
+  // The FAB no longer carries a hero face, so the host's own opener is the
+  // only drawer entry on every screen.
+  await clickSelector(client, 'button[aria-label="Open sidebar"]')
   await waitFor('drawer open', timeoutMs, async () => {
     const frame = await client.evaluate(`(() => {
       const frame = document.querySelector('[data-mobile-nav="frame"]');

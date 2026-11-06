@@ -19,32 +19,39 @@ const overlay = readFileSync(new URL('../src/client/components/ShellOverlay.tsx'
  * no session header and therefore no drawer toggle either.
  */
 test('a panel turns the FAB into the way back to the conversation', () => {
-  assert.equal(fabMode({ heroPhase: true, drawerOpen: false, panelOpen: true }), 'exit-panel')
-  // The panel wins even when a conversation phase is somehow still present.
-  assert.equal(fabMode({ heroPhase: false, drawerOpen: false, panelOpen: true }), 'exit-panel')
-})
+  assert.equal(fabMode({ drawerOpen: false, panelOpen: true }), 'exit-panel')
+  })
 
-test('the FAB still opens the drawer on the genuine hero screen', () => {
-  assert.equal(fabMode({ heroPhase: true, drawerOpen: false, panelOpen: false }), 'open-drawer')
+test('the FAB is gone on the genuine hero screen', () => {
+  // The hero face duplicated the host's own drawer opener (the rail button in
+  // the shell corner, visible on every phone width) and the owner called it
+  // redundant on the start screen: two controls, one action, and the FAB
+  // floating over the hero content below the opener. The host opener is the
+  // only entry now; the FAB keeps the panel-page face only (owner report
+  // 2026-11-06).
+  assert.equal(fabMode({ drawerOpen: false, panelOpen: false }), 'hidden')
 })
 
 test('the FAB is hidden while the drawer itself is open', () => {
-  assert.equal(fabMode({ heroPhase: true, drawerOpen: true, panelOpen: false }), 'hidden')
-  assert.equal(fabMode({ heroPhase: true, drawerOpen: true, panelOpen: true }), 'hidden')
+  assert.equal(fabMode({ drawerOpen: true, panelOpen: false }), 'hidden')
+  assert.equal(fabMode({ drawerOpen: true, panelOpen: true }), 'hidden')
 })
 
 test('no FAB on a normal conversation phase, panel or not', () => {
-  assert.equal(fabMode({ heroPhase: false, drawerOpen: false, panelOpen: false }), 'hidden')
+  assert.equal(fabMode({ drawerOpen: false, panelOpen: false }), 'hidden')
 })
 
-test('the overlay consults the panel predicate, not heroPhase alone', () => {
+test('the overlay consults the panel predicate, not absence alone', () => {
   assert.match(overlay, /from '\.\.\/effects\/panel-presence\.ts'/)
+  assert.match(overlay, /isPanelOpen\(\)/)
   assert.match(overlay, /fabMode\(/)
 })
 
-test('the overlay routes the two faces to the two actions and labels them', () => {
-  assert.match(overlay, /exitPanel\(\)/)
+test('the overlay keeps the backdrop toggle and routes the FAB to exit only', () => {
+  // The backdrop click-to-close drawer still routes through toggleSidebar.
   assert.match(overlay, /toggleSidebar\(\)/)
   assert.match(overlay, /data-mobile-nav-fab-mode=\{mode\}/)
   assert.match(overlay, /backToConversation/)
+  // The hero face is gone: no second drawer opener next to the host's own one.
+  assert.doesNotMatch(overlay, /'open'/)
 })
