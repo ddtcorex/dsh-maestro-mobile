@@ -25,6 +25,7 @@ import semver from 'semver'
 const here = dirname(fileURLToPath(import.meta.url))
 const manifest = JSON.parse(readFileSync(resolve(here, '../package.json'), 'utf8')) as {
   peerDependencies?: Record<string, string>
+  peerDependenciesMeta?: Record<string, { optional?: boolean }>
   devDependencies?: Record<string, string>
 }
 
@@ -104,4 +105,15 @@ test('the devDependency used for type-checking is not pinned to a rejected relea
     true,
     `dsh-client-store ${HOST_RELEASE_UNDER_TEST} must satisfy ${range}`,
   )
+})
+
+test('react is an optional peer so a peer-validating host cannot disable the plugin', () => {
+  // React reaches the browser as a module the host serves; it is NOT a
+  // node_modules entity inside this package. A host that resolves peers from
+  // disk therefore reports the plugin as missing a dependency and disables it
+  // before it ever mounts (mexiaosqwq/dsh-web-mobile v3.3.1 #271, ported here).
+  // Keeping react in peerDependencies documents the runtime contract; the meta
+  // flag is what stops the false negative.
+  assert.equal(manifest.peerDependencies?.react, '^18.2.0', 'react stays a declared peer')
+  assert.deepEqual(manifest.peerDependenciesMeta?.react, { optional: true })
 })

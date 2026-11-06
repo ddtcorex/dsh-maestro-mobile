@@ -102,8 +102,6 @@ export function shouldReleaseBackEntry(panelViewOpen: boolean, armed: boolean): 
 export interface PanelExit {
   /** Leave the panel (no-op while an exit is already in flight). */
   exit: () => void
-  /** Whether this host can select panels; false makes every route inert. */
-  supported: boolean
   /** Whether a panel owns the main column (DOM truth; the FAB reads this). */
   panelOpen: () => boolean
   /** The reconciler task that owns the system-back route. */
@@ -247,7 +245,9 @@ export function createPanelExit(layout: unknown): PanelExit {
     },
   }
 
-  return { exit, supported, panelOpen, task }
+  // Only the members the shell wires are exposed: the host-capability flag
+  // stays inside `ensure()` (nothing outside read it, so it was dead API).
+  return { exit, panelOpen, task }
 }
 
 /**
