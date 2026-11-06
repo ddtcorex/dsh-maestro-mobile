@@ -64,6 +64,60 @@
       "note": "ask card root: scrollport + field sizing rules"
     },
     {
+      "id": "ask-card-minimized",
+      "kind": "hash",
+      "needle": "_cardMinimized",
+      "owner": "dsh-client-ui-user-questions",
+      "lazy": true,
+      "state": "trigger an ask_user_question card",
+      "note": "phone-tier card transforms exclude the collapsed one-line card (:not guard on the scrollport, footer and header surgery)"
+    },
+    {
+      "id": "ask-card-heading",
+      "kind": "hash",
+      "needle": "_headingBlock",
+      "owner": "dsh-client-ui-user-questions",
+      "lazy": true,
+      "state": "trigger an ask_user_question card",
+      "note": "phone tier: heading block spans the card while the action column parks absolutely"
+    },
+    {
+      "id": "ask-card-option-copy",
+      "kind": "hash",
+      "needle": "_optionCopy",
+      "owner": "dsh-client-ui-user-questions",
+      "lazy": true,
+      "state": "trigger an ask_user_question card",
+      "note": "wrap + min-width guard family so a long label cannot refuse to shrink"
+    },
+    {
+      "id": "ask-card-option-label",
+      "kind": "hash",
+      "needle": "_optionLabel",
+      "owner": "dsh-client-ui-user-questions",
+      "lazy": true,
+      "state": "trigger an ask_user_question card",
+      "note": "wrap + min-width guard family so a long label cannot refuse to shrink"
+    },
+    {
+      "id": "ask-card-description",
+      "kind": "hash",
+      "needle": "_description",
+      "owner": "dsh-client-ui-user-questions",
+      "lazy": true,
+      "state": "trigger an ask_user_question card",
+      "note": "same text family on the custom-answer stack"
+    },
+    {
+      "id": "ask-card-review-note",
+      "kind": "hash",
+      "needle": "_reviewNote",
+      "owner": "dsh-client-ui-user-questions",
+      "lazy": true,
+      "state": "trigger an ask_user_question card",
+      "note": "same text family on the review note"
+    },
+    {
       "id": "overlay-option-menu",
       "kind": "marker",
       "needle": "[role=\"menu\"]",

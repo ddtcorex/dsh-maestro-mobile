@@ -70,10 +70,48 @@ test('title, tab strip and list share the content column inset', () => {
 })
 
 test('the "Open configuration file" action sits on the content column', () => {
-  // The header row lives inside the nav title, so its own horizontal padding
-  // would stack on the title's: measured 33 vs the 17 column before this rule.
-  const headerRule = ruleBody(settings, /\[class\*="_panel"\]:has\(\[class\*="_navList"\]\) \[class\*="_header"\]\s*\{([^}]*)\}/)
-  assert.match(headerRule, /padding:\s*4px 0[^;]*!important/)
+  // Measured 2026-11-06 at 390px: the header spans the same full-width box as
+  // _options (both x=1, w=388), the options column insets its content 16px on
+  // both sides, and an `margin-right: auto` on the action row parked the
+  // button at the viewport edge. The header now repeats the content inset and
+  // the action row carries no auto margin, so its right edge lands inside the
+  // 16px column exactly like the rows below.
+  const headerRule = ruleBody(settings, /\[class\*="_panel"\]:has\(\[class\*="_navList"\]\) \[class\*="_header"\]:not\(\[class\*="headerEnd"\]\)\s*\{([^}]*)\}/)
+  assert.match(headerRule, /padding:\s*4px 16px\s*!important/)
+  const actionsRule = ruleBody(settings, /\[class\*="_panel"\]:has\(\[class\*="_navList"\]\) \[class\*="_header"\]:not\(\[class\*="headerEnd"\]\) \[class\*="_actions"\]\s*\{([^}]*)\}/)
+  assert.match(actionsRule, /margin-right:\s*0\s*!important/)
+  assert.doesNotMatch(actionsRule, /margin-right:\s*auto/)
+})
+
+test('the header rules never reach the row headerEnd cells', () => {
+  // The plugin group rows render their chip in a cell classed `<hash>_headerEnd`,
+  // whose family contains the `_header` substring. The bare `[class*="_header"]`
+  // therefore also styled the Session plugins row's end cell with the 16px
+  // header inset and shifted the chip (owner report 2026-11-06; measured in
+  // the live sheet: qSYn7G_headerEnd pad 0px -> 4px 16px under the first cut).
+  // Every `_header`-family rule in this sheet must carry the :not(headerEnd)
+  // prefix-overlap guard (docs/maintenance/pitfalls.md, 哈希子串 rule).
+  const selectors = settings
+    .split('\n')
+    .map((line, index, all) => (line.trim().startsWith('[') ? line : null))
+    .filter(Boolean)
+  // collect multi-line selector groups ending with '{'
+  const groups: string[] = []
+  let pending = ''
+  for (const line of settings.split('\n')) {
+    const trimmed = line.trim()
+    if (!trimmed || trimmed.startsWith('/*') || trimmed.startsWith('*') || trimmed.startsWith('}')) continue
+    pending += ' ' + trimmed
+    if (trimmed.endsWith('{')) {
+      groups.push(pending.trim())
+      pending = ''
+    }
+  }
+  const involved = groups.filter((sel) => sel.includes('[class*="_header"]') && sel.includes('header"'))
+  assert.ok(involved.length >= 3, 'expected the header rules, saw ' + String(involved.length))
+  for (const sel of involved) {
+    assert.match(sel, /:not\(\[class\*="headerEnd"\]\)/, `header rule missing the headerEnd guard: ${sel}`)
+  }
 })
 
 test('the tab strip fades only on an edge that is cut', () => {

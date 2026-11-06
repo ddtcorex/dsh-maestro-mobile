@@ -52,11 +52,12 @@ const ACTIVE_PANEL_ROW_SELECTOR = 'nav[aria-label] button[aria-current="page"]'
  * exit-panel face is anchored to the top-left corner in base.css.ts instead of
  * the hero seat.
  */
-export type FabMode = 'hidden' | 'open-drawer' | 'exit-panel'
+export type FabMode = 'hidden' | 'exit-panel'
 
-/** The shell's three live inputs for the FAB decision. */
+/** The shell's two live inputs for the FAB decision. With the hero face gone
+ *  the host's own opener owns every drawer entry, so only the open drawer
+ *  (hide the button) and the panel page (show the way back) matter. */
 export interface ShellFabState {
-  heroPhase: boolean
   drawerOpen: boolean
   panelOpen: boolean
 }
@@ -70,7 +71,7 @@ export interface ShellFabState {
 export function fabMode(state: ShellFabState): FabMode {
   if (state.drawerOpen) return 'hidden'
   if (state.panelOpen) return 'exit-panel'
-  return state.heroPhase ? 'open-drawer' : 'hidden'
+  return 'hidden'
 }
 
 /**
