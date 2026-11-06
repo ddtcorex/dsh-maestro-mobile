@@ -6,6 +6,21 @@ All notable changes to this project are documented in this file. Format follows
 
 ## [Unreleased]
 
+## [1.10.1] - 2026-11-06
+
+### Fixed
+
+- Ask card: the phone-tier sticky footer pinned to the card's content box
+  bottom while the scrollport clips at the padding edge, so the host card's
+  10px padding-bottom sat below the pinned band and showed question text
+  scrolling under it mid-scroll (measured at 360x792: footerBottom 760 vs
+  cardBottom 770, elementFromPoint below the band returned the card's own
+  scrolling text; owner screenshot showed text under the Skip/Submit band).
+  The phone tier now zeroes the card padding-bottom, so the pinned footer is
+  flush with the card's bottom edge; the live mid-scroll read after the fix
+  shows footer.Bottom 770 == card.Bottom 770 and the probe point below the
+  band hits the frame instead of the card text (#95).
+
 ## [1.10.0] - 2026-11-06
 
 ### Changed
