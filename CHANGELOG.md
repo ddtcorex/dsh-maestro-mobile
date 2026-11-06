@@ -6,6 +6,8 @@ All notable changes to this project are documented in this file. Format follows
 
 ## [Unreleased]
 
+## [1.11.0] - 2026-11-06
+
 ### Changed
 
 - `react` is now an OPTIONAL peer (`peerDependenciesMeta`). It stays a declared
