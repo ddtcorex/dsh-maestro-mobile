@@ -54,7 +54,8 @@
     "probe:multi-width": "node scripts/probes/multi-width-layout-probe.mjs",
     "probe:effort-panel": "node scripts/probes/effort-panel-probe.mjs",
     "test:core": "node --test tests/reconciler-core.test.ts tests/composer-keyboard-touch.test.ts",
-    "prepack": "npm run build"
+    "prepack": "npm run build",
+    "probe:question-card": "node scripts/probes/question-card-audit-probe.mjs"
   },
   "dsh": {
     "bundle": {
