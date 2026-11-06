@@ -137,6 +137,15 @@ export const COMPOSER_CSS = `
       overflow-x: hidden !important;
       -webkit-overflow-scrolling: touch;
       overscroll-behavior-y: contain !important;
+      /* Zero the host's padding-bottom: the scrollport clips at the PADDING
+         edge, so with the host's 10px strip kept, question text scrolling
+         under the pinned footer stayed visible in that 10px band below the
+         sticky band (measured mid-scroll at 360x792: footerBottom 760,
+         cardBottom 770, elementFromPoint below the band returned the card's
+         own scrolling text). With padding zeroed, the pinned footer's box
+         ends exactly at the card's bottom edge and nothing can show under
+         it. */
+      padding-bottom: 0 !important;
       /* Positioning context for the absolute header action pair below. */
       position: relative !important;
     }
