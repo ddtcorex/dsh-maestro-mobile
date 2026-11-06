@@ -123,3 +123,14 @@ test('the client entry point installs the panel exit and its back task', () => {
   assert.match(entry, /installPanelRowExit\(ctx, panelExit\.exit\)/)
   assert.match(entry, /addReconcilerTask\(panelExit\.task\)/)
 })
+
+test('the panel-exit face exposes only what a caller reads', () => {
+  // Ported from mexiaosqwq/dsh-web-mobile v3.3.1 (b52b2cb): `supported` was on
+  // the public face with no reader anywhere in the repo or its tests. The
+  // capability check itself stays inside ensure(); the face keeps the three
+  // members the shell actually wires (exit, panelOpen, task).
+  const face = createPanelExit({ selectPanel: (): void => {} }) as unknown as Record<string, unknown>
+  assert.deepEqual(Object.keys(face).sort(), ['exit', 'panelOpen', 'task'])
+  const inert = createPanelExit({}) as unknown as Record<string, unknown>
+  assert.deepEqual(Object.keys(inert).sort(), ['exit', 'panelOpen', 'task'])
+})

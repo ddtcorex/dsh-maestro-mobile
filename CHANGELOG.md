@@ -6,6 +6,18 @@ All notable changes to this project are documented in this file. Format follows
 
 ## [Unreleased]
 
+### Changed
+
+- `react` is now an OPTIONAL peer (`peerDependenciesMeta`). It stays a declared
+  peer, because that is the runtime contract the host satisfies for the browser,
+  but a host that validates peers against `node_modules` no longer reports the
+  plugin as missing a dependency and disables it before it mounts. Ported from
+  `mexiaosqwq/dsh-web-mobile` v3.3.1 (#271); pinned by the peer-contract test.
+- `PanelExit.supported` is gone from the panel-exit face. The flag was exported
+  with no reader anywhere in the repo or its tests; the host-capability check it
+  represents still runs inside the reconciler task's `ensure()`. Ported from
+  `mexiaosqwq/dsh-web-mobile` v3.3.1 (dead-code pass).
+
 ### Fixed
 
 - Drawer swipe on the phone opened the sidebar and closed it again in the same
