@@ -6,6 +6,35 @@ All notable changes to this project are documented in this file. Format follows
 
 ## [Unreleased]
 
+### Fixed
+
+- Drawer swipe on the phone opened the sidebar and closed it again in the same
+  stroke. DSH 0.2.2 marks the shell's own open drawer
+  `role="dialog" aria-modal="true" data-shortcut-modal="sidebar"`, so the swipe
+  layer's bare `[aria-modal="true"]` modal guard answered "a modal is up" for
+  the drawer itself: the open follow armed at the 8px axis lock, the arm flipped
+  the drawer open, the very next `pointermove` aborted the stroke and
+  `abortStroke` animated the drawer straight back into its slot (measured on
+  0.2.2-rc.1 at 390x844, abort 16ms after the arm). Blocking-modal queries now
+  go through `src/client/effects/modal-scope.ts`, which excludes the drawer's
+  own dialog while a real dialog portaled into the drawer is still detected.
+- The drawer element is resolved through `src/client/effects/drawer-dom.ts`
+  instead of the frame's first element child: AppFrame renders its own
+  `div[data-sidebar-mask]` dimming layer first in drawer mode, so the open
+  follow pinned and translated that empty div while the real drawer jumped to
+  its resting position, and the close direction measured its `-110%` slot
+  against the mask's 390px width instead of the drawer's 280px.
+- A `pointercancel` mid-stroke no longer reverts an armed open follow: the
+  event carries no coordinates (measured: `clientX`/`clientY` are 0), so the
+  verdict is computed from the last observed sample with the same classifier a
+  release uses. A swipe that already travelled past the open threshold now
+  stays open instead of closing itself; a twitch still springs back.
+- `pnpm probe:swipe` gained the scenarios that pin all three
+  (`swipe.open-follow-targets-drawer`, `swipe.cancel-keeps-open`,
+  `swipe.cancel-twitch-reverts`) plus a post-hydration settle before its first
+  stroke, because the first touch on a fresh page is claimed by the browser and
+  by the host's own layout effects.
+
 ## [1.10.1] - 2026-11-06
 
 ### Fixed

@@ -3,6 +3,8 @@ import { fadeDrawerBackdrop } from './backdrop-fade.ts'
 import { installMobileEffect, getFrame } from './phone-chrome.ts'
 import { markGestureConsumed, consumeIfGestured, markStrokeLocked, clearStrokeLocked } from './gesture-guard.ts'
 import { dragMarkYields, floatingWidgetYields, isClosestLike } from './drag-yield.ts'
+import { findBlockingModal } from './modal-scope.ts'
+import { pickDrawerColumn } from './drawer-dom.ts'
 
 /**
  * Sidebar drawer swipe gestures (B 档 hybrid follow, per the 2026-08-29
@@ -160,6 +162,10 @@ let samples: Array<{ t: number; x: number }> = []
 /** Stroke origin (for the direction-bias check). */
 let startX = 0
 let startY = 0
+/** Last observed pointer position. `pointercancel` carries no coordinates
+ * (measured: clientX/clientY are 0), so the cancel verdict reads these. */
+let lastX = 0
+let lastY = 0
 /** Drawer visibility at lock time. */
 let lockDrawerOpen = false
 /** Expiry of the post-release cooldown (performance.now()). */
@@ -234,6 +240,51 @@ function classifySwipe(
   if (dx / t.viewportWidthPx >= t.openDistanceRatio) return 'open'
   const velX = rtl ? -m.velX : m.velX
   return velX >= t.openVelocity ? 'open' : 'none'
+}
+
+/**
+ * Whether an ARMED open stroke survives the browser taking the gesture away.
+ *
+ * `pointercancel` means the browser claimed the interaction: a native scroll
+ * it decided to run, a system gesture, a second finger, the OS interrupting.
+ * The event carries no coordinates (measured in Chromium: `clientX`/`clientY`
+ * are both 0), so the verdict has to be computed from the last observed
+ * sample, and it must be the SAME verdict a release at that point would get —
+ * the open follow already flipped the host state, so reverting a completed
+ * swipe is what reads as "the drawer opens and immediately closes".
+ *
+ * Pure and exported for the decision-table tests; the runtime passes the last
+ * sample's deltas plus the recent-window velocity.
+ * @param m - last observed stroke deltas (raw, unmirrored) and X velocity.
+ * @param viewportWidthPx - viewport width in CSS pixels.
+ * @param rtl - whether the frame reads right-to-left.
+ * @returns true when the drawer must stay open.
+ */
+export function armedStrokeSurvivesCancel(
+  m: { dx: number; dy: number; velX: number },
+  viewportWidthPx: number,
+  rtl: boolean,
+): boolean {
+  return (
+    classifySwipe(
+      {
+        openDistanceRatio: OPEN_DISTANCE_RATIO,
+        closeDistanceRatio: CLOSE_DISTANCE_RATIO,
+        velocityWindowMs: VELOCITY_WINDOW_MS,
+        openVelocity: OPEN_VELOCITY,
+        closeVelocity: CLOSE_VELOCITY,
+        lockPx: LOCK_PX,
+        cooldownMs: COOLDOWN_MS,
+        startZonePx: startZonePxFor(viewportWidthPx),
+        viewportWidthPx,
+        // An armed stroke began on a CLOSED drawer; that is the question the
+        // user answered, exactly as endStroke classifies its own release.
+        drawerOpen: false,
+      },
+      m,
+      rtl,
+    ) === 'open'
+  )
 }
 
 /**
@@ -377,12 +428,10 @@ function findHorizontalScroller(node: SwipeChainNode | null): SwipeChainNode | n
   return null
 }
 
-/** The open drawer element: first child of the plugin frame. */
+/** The open drawer element: the sidebar column of the frame. */
 function findDrawer(): HTMLElement | null {
-  const frame = getFrame()
-  return frame !== null && frame.firstElementChild instanceof HTMLElement
-    ? frame.firstElementChild
-    : null
+  const drawn = pickDrawerColumn(getFrame())
+  return drawn instanceof HTMLElement ? drawn : null
 }
 
 /** True when the drawer is currently open (per the collapsed marker). */
@@ -412,9 +461,17 @@ function chainFrom(target: Element): SwipeChainNode | null {
   return node
 }
 
-/** Whether a modal dialog owns the screen (gestures must yield to it). */
+/**
+ * Whether a modal dialog owns the screen (gestures must yield to it).
+ *
+ * A blocking modal is an `[aria-modal="true"]` that is not the shell's own
+ * drawer dialog: DSH 0.2.2 marks the open drawer `aria-modal="true"
+ * data-shortcut-modal="sidebar"`, so the bare query answered "a modal" for the
+ * drawer itself. See modal-scope.ts for the measurements.
+ * @returns true when a real dialog is up.
+ */
 function modalOpen(): boolean {
-  return document.querySelector('[aria-modal="true"]') !== null
+  return findBlockingModal() !== null
 }
 
 /**
@@ -862,6 +919,52 @@ function abortStroke(ctx: ClientContext | null, immediate = false): void {
   }
 }
 
+/**
+ * The browser took the stroke away (`pointercancel`): settle it from the last
+ * observed sample instead of reverting blindly.
+ *
+ * An armed open follow has ALREADY flipped the host state, so the plain abort
+ * animates the drawer back into its slot — the user watches the drawer open
+ * and close itself. Measured on 0.2.2-rc.1 at 390x844 (Chromium, CDP touch):
+ * the drawer flipped open at the 8px axis lock, the browser claimed the
+ * horizontal drag one move later, `onPointerCancel` → `abortStroke` → the
+ * drawer was collapsed again 320ms later. When the finger already travelled
+ * past the open threshold the stroke is honoured instead: the inline follow
+ * pair is dropped (the host transition finishes the motion from the finger
+ * position, exactly like a release) and the drawer stays open.
+ *
+ * Everything else keeps the old abort: a twitch never opened the drawer
+ * meaningfully, a multi-touch pinch is not a swipe, and a terminal close
+ * commit must still land.
+ * @param ctx - client context (host layout service).
+ * @param viewportWidthPx - viewport width for the distance threshold.
+ */
+function cancelStroke(ctx: ClientContext, viewportWidthPx: number): void {
+  if (pendingCommit !== null || !openFollowArmed || !tracking) {
+    abortStroke(ctx)
+    return
+  }
+  const vel = slidingVelocity(samples, VELOCITY_WINDOW_MS, performance.now())
+  const keep = armedStrokeSurvivesCancel(
+    { dx: lastX - startX, dy: lastY - startY, velX: vel },
+    viewportWidthPx,
+    strokeRtl,
+  )
+  if (!keep) {
+    abortStroke(ctx)
+    return
+  }
+  // Keep it. The release below mirrors endStroke's armed-open 'open' branch:
+  // drop the inline follow pair first so the host transition animates from the
+  // finger position, then cool down so the same stroke cannot toggle twice.
+  openFollowArmed = false
+  openFollowRefused = false
+  revealDrawerContent()
+  releaseFollowStyles()
+  reset()
+  cooldownUntil = performance.now() + COOLDOWN_MS
+}
+
 /** Start a stroke; returns true when it may be tracked. */
 function beginStroke(
   event: PointerEvent,
@@ -924,6 +1027,8 @@ function beginStroke(
   tracking = false
   startX = event.clientX
   startY = event.clientY
+  lastX = event.clientX
+  lastY = event.clientY
   samples = [{ t: event.timeStamp, x: event.clientX }]
   return true
 }
@@ -1146,6 +1251,10 @@ export function installSidebarSwipe(ctx: ClientContext): void {
 
     const onPointerMove = (event: PointerEvent): void => {
       if (event.pointerId !== trackingPointer) return
+      // Recorded before any guard: a pointercancel that follows this move has
+      // no coordinates of its own (see cancelStroke).
+      lastX = event.clientX
+      lastY = event.clientY
       // A modal may rise mid-stroke (e.g. an a11y trap opening) — spec review
       // 缺陷 1's guard, now per-MOVE because B 档 paints a transform the
       // modal must not inherit: abandon and spring the drawer back.
@@ -1186,9 +1295,13 @@ export function installSidebarSwipe(ctx: ClientContext): void {
       endStroke(ctx, event, frameRtl(), viewportWidth())
     }
 
+    // The browser claimed the gesture (native scroll, system gesture, OS
+    // interruption). Cancel carries no coordinates, so the stroke is settled
+    // from the last observed sample: an armed open follow that already
+    // travelled past the open threshold is honoured instead of reverted.
     const onPointerCancel = (event: PointerEvent): void => {
       if (event.pointerId !== trackingPointer) return
-      abortStroke(ctx)
+      cancelStroke(ctx, viewportWidth())
     }
 
     // The browser may synthesize a click a few ms after the stroke's

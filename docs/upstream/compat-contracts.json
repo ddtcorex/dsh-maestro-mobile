@@ -511,6 +511,32 @@
       "lazy": true,
       "state": "open the drawer",
       "note": "the drawer footer session-log pill must be tappable"
+    },
+    {
+      "id": "sidebar-drawer-dialog",
+      "kind": "marker",
+      "needle": "[data-shortcut-modal=\"sidebar\"]",
+      "owner": "dsh-client-ui-sidebar",
+      "lazy": true,
+      "state": "phone width (< 768px) with the drawer open",
+      "note": "the shell marks its OWN sidebar root role=dialog aria-modal=true; every blocking-modal query must exclude it (modal-scope.ts) or the drawer reads as a modal the instant it opens"
+    },
+    {
+      "id": "sidebar-drawer-mask",
+      "kind": "marker",
+      "needle": "[data-sidebar-mask]",
+      "owner": "dsh-client-ui-layout",
+      "lazy": true,
+      "state": "phone width (< 768px), drawer mode",
+      "note": "AppFrame renders this dimming layer as the frame's FIRST element child; the drawer is the sidebar column, never the first child (drawer-dom.ts)"
+    },
+    {
+      "id": "sidebar-column",
+      "kind": "hash",
+      "needle": "_sidebarCol",
+      "owner": "dsh-client-ui-layout",
+      "lazy": false,
+      "note": "the drawer element itself: CSS anchor for the off-canvas rules and the JS target of the follow transform and slot measurement"
     }
   ]
 }
