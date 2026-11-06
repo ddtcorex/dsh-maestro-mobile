@@ -6,6 +6,44 @@ All notable changes to this project are documented in this file. Format follows
 
 ## [Unreleased]
 
+## [1.10.0] - 2026-11-06
+
+### Changed
+
+- Ask card (ask_user_question) phone layout rebuilt on the upstream
+  `mexiaosqwq/dsh-web-mobile` v3.2.3/v3.3.0 rounds plus this day's live audit
+  (pending card measured at 390x844 over dsh 0.2.2-rc.1) (#93):
+  - the card is the single scroll port; the 23vh/155px internal title cap
+    opened a second scroll area under the card's and split the text mid-line
+    on every scroll.
+  - the footer pins itself to the card bottom (sticky), so Submit and Skip
+    stay reachable when the question and the options spend the height budget.
+  - 44px touch targets and the absolute action column are phone-tier
+    (<=767px coarse); 768px to 1023px touch keeps the host inline row at the
+    32px floor.
+  - the eyebrow reserve is 120px: the measured 56px reserve let eyebrow text
+    paint through all three 44px hit boxes.
+  - the card rules exclude `_cardMinimized` (present in the 0.2.2 bundle) and
+    the frame pad write uses the compound `[data-question-key][class*=_frame]`
+    selector, because the frame itself owns the marker.
+  - the question type is 15px/23px to match the host mobile body measure, and
+    the injected expand button carries no default button chrome.
+- Hero FAB removed: the open-drawer face duplicated the host rail opener on
+  the start screen; the button survives only as the panel-page way back to the
+  conversation, where no session header renders (#93).
+
+### Fixed
+
+- Settings sheet: the "Open configuration file" action repeats the content
+  column's 16px inset and its row carries no auto margin, so the button's
+  right edge lands inside the 16px column like the rows below (#93).
+- Settings sheet: the header inset must not reach the plugin group rows'
+  `headerEnd` cells, whose hash family contains the `_header` substring and
+  was styled by the first cut, shifting the Session plugins switcher row
+  (#93). Every `_header`-family rule in the sheet now carries the
+  `:not([class*="headerEnd"])` guard; the alignment contract test pins it and
+  a live CDP read confirmed the chip cell restored to the host 0px.
+
 ## [1.9.0] - 2026-11-04
 
 ### Changed
