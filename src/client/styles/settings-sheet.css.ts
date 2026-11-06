@@ -191,10 +191,11 @@ export const SETTINGS_SHEET_CSS = `
     height: auto !important;
     min-height: 0 !important;
     width: 100% !important;
-    /* The header sits inside the nav title, which already carries the sheet's
-       16px inset; repeating it here put the action at x=33 against a 17px
-       content column. */
-    padding: 4px 0 !important;
+    /* The header spans the same full-width box as _options (measured
+       2026-11-06: both x=1, w=388 at 390), so repeating the options column's
+       16px inset here aligns the action row's right edge with the panel
+       content's right edge instead of hugging the viewport. */
+    padding: 4px 16px !important;
     display: flex !important;
     align-items: center !important;
     justify-content: flex-end !important;
@@ -209,12 +210,16 @@ export const SETTINGS_SHEET_CSS = `
     min-height: 0 !important;
   }
   [class*="_panel"]:has([class*="_navList"]) [class*="_header"] [class*="_actions"] {
-    margin-left: 0 !important;
+    /* The header is justify-content:flex-end, so any margin-right: auto on
+       the action row shuttled it back to the left edge (the owner saw the
+       "Open configuration file" button flush left under the tab strip).
+       Zero both margins and let the header's own 16px inset place it. */
+    margin-left: auto !important;
+    margin-right: 0 !important;
     display: flex !important;
     align-items: center !important;
     gap: 8px !important;
     min-width: 0 !important;
-    margin-right: auto !important;
   }
   /* Collapse the empty 44px gap entirely when header has no visible actions (only the now-absolute close) */
   [class*="_panel"]:has([class*="_navList"]) [class*="_header"]:has(> [class*="_actions"]:empty) {

@@ -70,10 +70,17 @@ test('title, tab strip and list share the content column inset', () => {
 })
 
 test('the "Open configuration file" action sits on the content column', () => {
-  // The header row lives inside the nav title, so its own horizontal padding
-  // would stack on the title's: measured 33 vs the 17 column before this rule.
+  // Measured 2026-11-06 at 390px: the header spans the same full-width box as
+  // _options (both x=1, w=388), the options column insets its content 16px on
+  // both sides, and an `margin-right: auto` on the action row parked the
+  // button at the viewport edge. The header now repeats the content inset and
+  // the action row carries no auto margin, so its right edge lands inside the
+  // 16px column exactly like the rows below.
   const headerRule = ruleBody(settings, /\[class\*="_panel"\]:has\(\[class\*="_navList"\]\) \[class\*="_header"\]\s*\{([^}]*)\}/)
-  assert.match(headerRule, /padding:\s*4px 0[^;]*!important/)
+  assert.match(headerRule, /padding:\s*4px 16px\s*!important/)
+  const actionsRule = ruleBody(settings, /\[class\*="_panel"\]:has\(\[class\*="_navList"\]\) \[class\*="_header"\] \[class\*="_actions"\]\s*\{([^}]*)\}/)
+  assert.match(actionsRule, /margin-right:\s*0\s*!important/)
+  assert.doesNotMatch(actionsRule, /margin-right:\s*auto/)
 })
 
 test('the tab strip fades only on an edge that is cut', () => {
