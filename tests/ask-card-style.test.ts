@@ -84,6 +84,23 @@ test('a long question scrolls the card instead of clipping its options', () => {
   assert.match(card, /position: relative !important;/)
 })
 
+test('scrolled text cannot leak below the sticky footer band', () => {
+  // Measured mid-scroll at 360x792 with an overflowing card (2026-11-06): the
+  // sticky footer pins to the card's CONTENT box bottom while the host card
+  // keeps a 10px padding-bottom, and the scrollport clips at the PADDING
+  // edge, so question text scrolling under the footer stayed visible in that
+  // strip below the pinned band (footerBottom 760 vs cardBottom 770,
+  // elementFromPoint below the band hit the card's own scrolling text). The
+  // phone tier must zero the card's padding-bottom so the pinned footer is
+  // flush with the card's bottom edge; the footer's own padding keeps the
+  // surface covered.
+  const card = /(^|\n\s*)\[data-question-key\] \[class\*="_card"\]:not\(\[class\*="_cardMinimized"\]\) \{([\s\S]*?)\n\s*\}/.exec(composer)?.[2]
+  assert.match(card, /padding-bottom: 0 !important;/)
+  const footer = /(^|\n\s*)\[data-question-key\] \[class\*="_card"\]:not\(\[class\*="_cardMinimized"\]\) > \[class\*="_footer"\] \{([\s\S]*?)\n\s*\}/.exec(composer)?.[2]
+  assert.match(footer, /bottom: 0 !important;/)
+  assert.match(footer, /padding-bottom: 12px !important;/)
+})
+
 test('only the card scrolls — the question opens no second scrollport', () => {
   // The 23vh/155px internal title cap opened a second scrollport under the
   // card's: two nested scroll areas on one card read as one seam that always
