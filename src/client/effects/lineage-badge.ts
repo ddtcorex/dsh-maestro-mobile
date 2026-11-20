@@ -14,17 +14,24 @@ import type { ReconcilerTask } from '../core/reconciler-core.ts'
 // naming that scope with the CSS-module hashes of the day makes the swallow
 // stop firing on the next build, silently (subagent-chip-touch.ts).
 //
-// The lineage trigger is the only accordion in the session header with
-// aria-haspopup="tree" *and* a matching class: the switcher variant beside it
-// in a subagent session carries no `_trigger` class at all (measured live on
-// 0.1.7 at 390px: `IwR9Qa_switcherTrigger`, so the substring match misses it)
-// and the session switcher in the crumbs carries no popup attributes, so the
-// marker cannot land on another control. Scoped to the header seat, not the
-// crumbs nav: 0.1.7 moved the triggers out of the crumbs into the title
-// cluster (no header button has a _crumbs ancestor there), and the old crumbs
-// scope silently missed (measured live 2026-09-22).
+// The trigger is identified by what upstream declares, not by a role value it
+// is free to change: `[data-subagent-action]` is the marker the lineage
+// reconciler sets on the component's own root, and `[class*="_trigger"]`
+// selects its count trigger. The switcher variant beside it in a subagent
+// session carries `_switcherTrigger`, which does NOT contain the lowercase
+// `_trigger` fragment (measured live on 0.1.7 at 390px), so it cannot match.
+// Scoped to the header seat, not the crumbs nav: 0.1.7 moved the triggers out
+// of the crumbs into the title cluster, and a crumbs scope silently missed
+// (measured live 2026-09-22).
+//
+// DO NOT reintroduce `[aria-haspopup="tree"]`: 0.2.2 changed that attribute to
+// "dialog", the whole selector matched nothing, and both the compact badge and
+// the `data-lineage-root` scope marker silently stopped landing (measured live
+// on 0.2.2-rc.2 at 390px, 2026-11-20: `ZKlsPq_root[data-subagent-action]` with
+// `button.ZKlsPq_trigger[aria-haspopup="dialog"]`, zero matches for the old
+// form). `tests/lineage-badge.test.ts` pins the anchor.
 const LINEAGE_TRIGGER =
-  '[data-mobile-nav="frame"] [data-slot="conversation.session.header"] button[class*="_trigger"][aria-haspopup="tree"]'
+  '[data-mobile-nav="frame"] [data-slot="conversation.session.header"] [data-subagent-action] button[class*="_trigger"]'
 
 /**
  * Read the lineage count out of the trigger's accessible name. Upstream

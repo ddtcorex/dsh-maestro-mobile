@@ -58,7 +58,7 @@ class FakeElement {
 
 /** Selector matching for the stub. An unknown selector is a stub bug, not a miss. */
 function matches(node: FakeElement, selector: string): boolean {
-  if (selector.includes('aria-haspopup')) return node.isTrigger
+  if (selector.includes('_trigger')) return node.isTrigger
   if (selector.includes('data-lineage-root')) return node.inScope
   throw new Error(`document stub: unexpected selector ${selector}`)
 }

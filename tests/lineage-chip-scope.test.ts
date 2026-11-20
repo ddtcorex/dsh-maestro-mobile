@@ -13,9 +13,13 @@ test('the synthetic-hover swallow is scoped by our marker and the catalog role',
   // silently killed the swallow (measured live on 0.1.7: 31 in-scope hover events
   // over three taps still reached every later document listener, one of them
   // targeting the chip itself).
+  // The popover itself is named by the marker upstream puts on it
+  // (`data-subagent-panel`); 0.2.2 inserted a `_menuBody` layer between the
+  // `_menu` popover and its `role="tree"` list, so the `_menu:has(> [role="tree"])`
+  // form stopped describing the catalog and is kept only for nested menus.
   assert.match(
     chip,
-    /const HOVER_SUBTREE_SELECTOR = '\[data-lineage-root\], \[class\*="_menu"\]:has\(> \[role="tree"\]\)'/,
+    /const HOVER_SUBTREE_SELECTOR = '\[data-lineage-root\], \[data-subagent-panel\], \[class\*="_menu"\]:has\(> \[role="tree"\]\)'/,
   )
   assert.doesNotMatch(chip, /class\*=\s*["'][A-Za-z0-9_-]{6}_/)
 })

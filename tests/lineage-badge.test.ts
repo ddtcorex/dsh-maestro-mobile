@@ -26,13 +26,19 @@ test('the reconciler marks only the header lineage trigger', () => {
   // 0.1.7 moved the triggers out of the crumbs nav into the title cluster
   // (measured live: no header button has a [class*="_crumbs"] ancestor), so
   // the old crumbs scope misses and the trigger never collapses. Scope to
-  // the header seat instead. Uniqueness still holds: the lineage trigger is
-  // the only accordion in the seat with aria-haspopup="tree" — the session
-  // switcher beside it carries no popup attributes, and the plugin's own
-  // drawer toggle lives in the header actions slot.
-  assert.match(effect, /\[data-slot="conversation\.session\.header"\]/)
-  assert.doesNotMatch(effect, /\[class\*="_crumbs"\]/)
-  assert.match(effect, /button\[class\*="_trigger"\]\[aria-haspopup="tree"\]/)
+  // the header seat instead. Uniqueness holds by the host's own marker: the
+  // chip root carries [data-subagent-action] and its count trigger carries the
+  // `_trigger` fragment, which `_switcherTrigger` does not contain.
+  // Assert on the constant itself: the file's comments are allowed to name the
+  // attribute that rotted, the selector is not.
+  const selector = /const LINEAGE_TRIGGER =\s*'([^']*)'/.exec(effect)?.[1] ?? ''
+  assert.match(selector, /\[data-slot="conversation\.session\.header"\]/)
+  assert.doesNotMatch(selector, /\[class\*="_crumbs"\]/)
+  assert.match(selector, /\[data-subagent-action\] button\[class\*="_trigger"\]/)
+  // 0.2.2 changed aria-haspopup from "tree" to "dialog" and this selector then
+  // matched nothing for a whole release, which silently killed both the compact
+  // badge and the scope marker. Never anchor on that value again.
+  assert.doesNotMatch(selector, /aria-haspopup/)
 })
 
 test('the compact control removes its markers so desktop stays a no-op', () => {

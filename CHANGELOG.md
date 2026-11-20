@@ -6,6 +6,25 @@ All notable changes to this project are documented in this file. Format follows
 
 ## [Unreleased]
 
+### Fixed
+
+- The subagent lineage chip lost its compact badge, its `data-lineage-root` scope
+  marker and its whole touch shim on DSH 0.2.2. Both selectors that find it
+  required `aria-haspopup="tree"`, and 0.2.2 declares that trigger as
+  `aria-haspopup="dialog"`, so they matched nothing while their unit tests (which
+  assert the selector text) stayed green. They are re-anchored on the markers the
+  host sets for its own consumers, `[data-subagent-action]` for the chip and
+  `[data-subagent-panel]` for its portalled catalog, which 0.2.2 also moved
+  behind a `_menuBody` layer. Verified live at 390px: the badge is back
+  (28x28 with a count), the catalog is 6 rows, and no in-scope hover event
+  reaches the document on either channel.
+- `pnpm probe:lineage-chip` reported SKIP for a session with six subagents because
+  it waited a fixed 2.5 s for a chip that appears when the session projection
+  loads, four to six seconds after the row click. It now waits for the condition
+  (12 s bound) and prints every row it opened with `[chip]` or `[no chip]`. With
+  the pointer family of the swallow list removed it fails on 9 leaked events, so
+  the probe pins the fix rather than skipping past it.
+
 ## [1.12.0] - 2026-11-20
 
 ### Added
