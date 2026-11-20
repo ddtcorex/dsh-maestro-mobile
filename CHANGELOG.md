@@ -6,6 +6,17 @@ All notable changes to this project are documented in this file. Format follows
 
 ## [Unreleased]
 
+### Added
+
+- The plugin now shows a card of its own in the host's plugin manager instead of
+  the bare package name and the default artwork. `package.json` declares
+  `icon: assets/icon.svg`, and `locale/en.json` carries `meta.title` /
+  `meta.description`; the host resolves both through the `./locale/*.json`
+  export before it runs any plugin code, so `assets` and `locale` are in `files`
+  too. `tests/plugin-meta.test.ts` pins the reader's own rules (relative path
+  inside the package, SVG/PNG/JPEG/WebP, 256 KiB cap, language-id filenames).
+  Ported from `mexiaosqwq/dsh-web-mobile` v3.3.5 (#279).
+
 ### Fixed
 
 - The lineage chip's card closed itself ~120 ms after a tap on the current host.
