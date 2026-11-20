@@ -52,16 +52,30 @@ import { installMobileEffect } from './phone-chrome.ts'
  *    SWALLOWED_TYPES.
  */
 
-/** Count-variant trigger only: the switcher variant has its own onClick. */
+/**
+ * Count-variant trigger only: the switcher variant has its own onClick.
+ *
+ * Anchored on `[data-subagent-action]` (the marker upstream sets on the chip's
+ * own root) instead of `[aria-haspopup="tree"]`. 0.2.2 changed that value to
+ * "dialog", which made this whole selector match nothing: the shim's tap toggle
+ * and its click swallow were dead on the host while every unit test still
+ * passed against the selector text (measured live 2026-11-20 on 0.2.2-rc.2 at
+ * 390px). Anything that re-anchors this must be re-checked in the live DOM.
+ */
 const CHIP_TRIGGER_SELECTOR =
-  '[data-mobile-nav="frame"] button[class*="_trigger"][aria-haspopup="tree"][aria-expanded]:not([class*="_switcherTrigger"])'
+  '[data-mobile-nav="frame"] [data-subagent-action] button[class*="_trigger"][aria-expanded]:not([class*="_switcherTrigger"])'
 
 /**
  * The chip's own box, plus its open catalog. The box carries the stable marker
  * the lineage reconciler sets (`data-lineage-root`); upstream renders the
  * catalog through a portal on `document.body`, so it sits outside that box and
- * needs its own name — the popover holding the `role="tree"` list upstream draws
- * unconditionally.
+ * needs its own name.
+ *
+ * 0.2.2 wraps the `role="tree"` list in a `_menuBody` div inside the `_menu`
+ * popover, so `_menu:has(> [role="tree"])` no longer describes the catalog
+ * (measured live: `_menu > _menuBody > [role="tree"]`). The stable name is the
+ * marker upstream puts on the popover itself, `data-subagent-panel`; the
+ * `_menu:has(> [role="tree"])` half stays for nested menus drawn inside it.
  *
  * The literal CSS-module hashes this used to name (`ZKlsPq`, `h8S2Va`) stopped
  * matching when the package was rebuilt: measured live on 0.1.7 at 390px, all
@@ -71,7 +85,7 @@ const CHIP_TRIGGER_SELECTOR =
  * three taps, one targeting the chip itself) — the very events era-1 hover
  * timers feed on.
  */
-const HOVER_SUBTREE_SELECTOR = '[data-lineage-root], [class*="_menu"]:has(> [role="tree"])'
+const HOVER_SUBTREE_SELECTOR = '[data-lineage-root], [data-subagent-panel], [class*="_menu"]:has(> [role="tree"])'
 
 /** How long after touch activity synthesized hover events stay suppressed. */
 const SWALLOW_WINDOW_MS = 800

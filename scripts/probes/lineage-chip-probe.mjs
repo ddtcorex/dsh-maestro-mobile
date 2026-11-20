@@ -29,7 +29,11 @@ const DEFAULT_URL = 'http://127.0.0.1:3080/'
 const DEFAULT_TIMEOUT_MS = 30_000
 const FRAME_SELECTOR = '[data-mobile-nav="frame"]'
 const MOBILE_STYLE_SELECTOR = 'style[data-plugin="@ddtcorex/dsh-maestro-mobile"]'
-const CHIP_SELECTOR = '[data-slot="conversation.session.header"] button[class*="_trigger"][aria-haspopup="tree"]'
+// Anchored on the marker upstream puts on the chip's own root, never on a role
+// value it is free to change: 0.2.2 moved aria-haspopup from "tree" to "dialog"
+// and the old selector matched nothing, so every check that depends on it would
+// have SKIPped while the feature was silently dead (measured live 2026-11-20).
+const CHIP_SELECTOR = '[data-slot="conversation.session.header"] [data-subagent-action] button[class*="_trigger"][aria-expanded]'
 // Both channels the tap's hover travels on: the mouse family is what the shim
 // silenced originally, and 0.2.2 moved the same timer pair to pointerout /
 // pointerleave (the lineage root carries onPointerLeave -> scheduleHoverClose).
@@ -135,6 +139,8 @@ async function waitFor(label, timeoutMs, probe) {
 
 /** How many drawer rows to open while looking for a session that has a chip. */
 const ROW_SCAN_LIMIT = 8
+/** How long one row may take to render its lineage chip (projection load). */
+const CHIP_WAIT_MS = 12_000
 
 /** Labels of the drawer rows that own an action button (i.e. real sessions). */
 async function sessionRows(client) {
@@ -189,10 +195,17 @@ async function revealHeader(client, config) {
   for (const label of candidates) {
     await openDrawer(client)
     if (!await openRow(client, label)) continue
-    await sleep(2_500)
-    // The chip's own root declares the subagent action; report what was actually
-    // on the header so a SKIP is actionable instead of a shrug.
-    const found = await client.evaluate(`document.querySelector(${JSON.stringify(CHIP_SELECTOR)}) !== null`)
+    // The chip appears only once the client has loaded that session's projection,
+    // which happened four to six seconds after the row click on 0.2.2-rc.2
+    // (measured 2026-11-20). A fixed sleep either skips a chip that is coming or
+    // wastes the whole scan, so wait for the condition with a bound.
+    const found = await waitFor('lineage chip', CHIP_WAIT_MS, async () => {
+      try {
+        return await client.evaluate(`document.querySelector(${JSON.stringify(CHIP_SELECTOR)}) !== null`)
+      } catch {
+        return false
+      }
+    }).catch(() => false)
     scanned.push(`${label}${found ? ' [chip]' : ' [no chip]'}`)
     if (!found) continue
     await client.evaluate(`document.querySelector('[data-mobile-nav="backdrop"]')?.click()`)
