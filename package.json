@@ -2,7 +2,8 @@
   "name": "@ddtcorex/dsh-maestro-mobile",
   "private": false,
   "version": "1.11.0",
-  "description": "Portrait and mobile adaptation for DeepSeek Harness Web UI \u2014 overlay drawer, full-width conversation, sheet-based dialogs, safe-area handling",
+  "description": "Portrait and mobile adaptation for DeepSeek Harness Web UI — overlay drawer, full-width conversation, sheet-based dialogs, safe-area handling",
+  "icon": "assets/icon.svg",
   "license": "MIT",
   "repository": {
     "type": "git",
@@ -23,6 +24,7 @@
       "types": "./lib/types/client/index.d.ts",
       "default": "./lib/client.js"
     },
+    "./locale/*.json": "./locale/*.json",
     "./cordis.patch.yml": "./cordis.patch.yml",
     "./package.json": "./package.json"
   },
@@ -31,7 +33,9 @@
     "src",
     "cordis.patch.yml",
     "README.md",
-    "LICENSE"
+    "LICENSE",
+    "assets",
+    "locale"
   ],
   "scripts": {
     "build": "tsc -p tsconfig.json && tsc -p tsconfig.client.json && node scripts/build-client.mjs",

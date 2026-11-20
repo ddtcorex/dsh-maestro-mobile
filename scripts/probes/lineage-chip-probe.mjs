@@ -30,7 +30,12 @@ const DEFAULT_TIMEOUT_MS = 30_000
 const FRAME_SELECTOR = '[data-mobile-nav="frame"]'
 const MOBILE_STYLE_SELECTOR = 'style[data-plugin="@ddtcorex/dsh-maestro-mobile"]'
 const CHIP_SELECTOR = '[data-slot="conversation.session.header"] button[class*="_trigger"][aria-haspopup="tree"]'
-const HOVER_TYPES = ['mouseover', 'mouseout', 'mouseenter', 'mouseleave']
+// Both channels the tap's hover travels on: the mouse family is what the shim
+// silenced originally, and 0.2.2 moved the same timer pair to pointerout /
+// pointerleave (the lineage root carries onPointerLeave -> scheduleHoverClose).
+// Recording only the mouse family here would let the leak that closes a
+// just-opened card pass this probe.
+const HOVER_TYPES = ['mouseover', 'mouseout', 'mouseenter', 'mouseleave', 'pointerout', 'pointerleave']
 
 const results = []
 const report = (status, name, detail = '') => {
@@ -128,30 +133,73 @@ async function waitFor(label, timeoutMs, probe) {
   }
 }
 
+/** How many drawer rows to open while looking for a session that has a chip. */
+const ROW_SCAN_LIMIT = 8
+
+/** Labels of the drawer rows that own an action button (i.e. real sessions). */
+async function sessionRows(client) {
+  return client.evaluate(`(() => [...document.querySelectorAll('[class*="_sessionRow"]')]
+    .filter((row) => row.querySelector('button') !== null)
+    .map((row) => (row.textContent || '').trim().slice(0, 60)))()`)
+}
+
+/** Make sure the sessions drawer is open. */
+async function openDrawer(client) {
+  const open = await client.evaluate(`document.querySelector('[data-mobile-nav="backdrop"]') !== null`)
+  if (open) return
+  await client.evaluate(`document.querySelector('button[aria-label="Open sidebar"]')?.click()`)
+  await sleep(1_200)
+}
+
+/** Select the row whose label starts with `label`. */
+async function openRow(client, label) {
+  return client.evaluate(`(() => {
+    const rows = [...document.querySelectorAll('[class*="_sessionRow"]')]
+      .filter((row) => row.querySelector('button') !== null);
+    const wanted = ${JSON.stringify(label)};
+    const row = rows.find((candidate) => (candidate.textContent || '').trim().startsWith(wanted));
+    if (row === undefined) return false;
+    row.click();
+    return true;
+  })()`)
+}
+
 /**
  * Open the header: the hero (blank session) renders no session header, so a real
  * Session must be selected through the drawer first. Read-only: it selects a
  * session, it never mutates one.
+ *
+ * A session only carries a lineage chip if it ever spawned subagents, so a probe
+ * that always looks at the FIRST row skips exactly when the chip matters. It
+ * therefore scans rows in order (bounded by ROW_SCAN_LIMIT) until one renders the
+ * chip, or reports that none of the scanned rows has one.
  */
 async function revealHeader(client, config) {
   const mounted = await client.evaluate(`document.querySelector(${JSON.stringify(CHIP_SELECTOR)}) !== null`)
   if (mounted) return 'chip already mounted'
-  await client.evaluate(`document.querySelector('button[aria-label="Open sidebar"]')?.click()`)
-  await sleep(1_200)
-  const opened = await client.evaluate(`(() => {
-    const rows = [...document.querySelectorAll('[class*="_sessionRow"]')]
-      .filter((row) => row.querySelector('button') !== null);
-    const wanted = ${JSON.stringify(config.rowLabel)};
-    const row = wanted === null ? rows[0] : rows.find((candidate) => (candidate.textContent || '').includes(wanted));
-    if (row === undefined) return null;
-    row.click();
-    return (row.textContent || '').trim().slice(0, 40);
-  })()`)
-  if (opened === null) return 'no session row in the drawer'
-  await sleep(2_500)
-  await client.evaluate(`document.querySelector('[data-mobile-nav="backdrop"]')?.click()`)
-  await sleep(600)
-  return `opened "${opened}"`
+  await openDrawer(client)
+  const rows = await sessionRows(client)
+  if (rows.length === 0) return 'no session row in the drawer'
+  const wanted = config.rowLabel
+  const candidates = wanted === null
+    ? rows.slice(0, ROW_SCAN_LIMIT)
+    : rows.filter((label) => label.includes(wanted))
+  if (candidates.length === 0) return `no row labelled "${wanted}"`
+  const scanned = []
+  for (const label of candidates) {
+    await openDrawer(client)
+    if (!await openRow(client, label)) continue
+    await sleep(2_500)
+    // The chip's own root declares the subagent action; report what was actually
+    // on the header so a SKIP is actionable instead of a shrug.
+    const found = await client.evaluate(`document.querySelector(${JSON.stringify(CHIP_SELECTOR)}) !== null`)
+    scanned.push(`${label}${found ? ' [chip]' : ' [no chip]'}`)
+    if (!found) continue
+    await client.evaluate(`document.querySelector('[data-mobile-nav="backdrop"]')?.click()`)
+    await sleep(600)
+    return { where: `opened "${label}"`, scanned }
+  }
+  return { where: `no lineage chip in ${scanned.length} scanned row(s)`, scanned }
 }
 
 /** Tap the point through a real touch sequence, then read the chip's state. */
@@ -202,7 +250,12 @@ async function main() {
       return
     }
     const revealed = await revealHeader(client, config)
-    pass('lineage-chip.frame', revealed)
+    if (typeof revealed === 'string') {
+      pass('lineage-chip.frame', revealed)
+    } else {
+      pass('lineage-chip.frame', revealed.where)
+      for (const row of revealed.scanned) console.log(`  row ${row}`)
+    }
 
     const chip = await client.evaluate(`(() => {
       const el = document.querySelector(${JSON.stringify(CHIP_SELECTOR)});

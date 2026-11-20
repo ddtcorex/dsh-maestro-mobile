@@ -6,6 +6,51 @@ All notable changes to this project are documented in this file. Format follows
 
 ## [Unreleased]
 
+### Added
+
+- The plugin now shows a card of its own in the host's plugin manager instead of
+  the bare package name and the default artwork. `package.json` declares
+  `icon: assets/icon.svg`, and `locale/en.json` carries `meta.title` /
+  `meta.description`; the host resolves both through the `./locale/*.json`
+  export before it runs any plugin code, so `assets` and `locale` are in `files`
+  too. `tests/plugin-meta.test.ts` pins the reader's own rules (relative path
+  inside the package, SVG/PNG/JPEG/WebP, 256 KiB cap, language-id filenames).
+  Ported from `mexiaosqwq/dsh-web-mobile` v3.3.5 (#279).
+
+- A syntax error in a probe script is now a test failure instead of a surprise
+  on the next manual run. `tests/probes-syntax.test.ts` parses every
+  `scripts/**/*.mjs` in one child process (`vm.SourceTextModule`, about 30 ms)
+  and self-checks the parser against a known-bad source, so the gate cannot go
+  green forever. Idea from `mexiaosqwq/dsh-web-mobile` v3.3.5 (#282), where an
+  unparsable probe had shipped unnoticed for weeks.
+
+- The lineage chip probe now scans the drawer's rows (bounded) instead of only
+  the first one, and reports which rows it opened and whether each one rendered a
+  chip. A session carries a lineage chip only if it has subagent children, so the
+  old single-row version skipped in the common case and its SKIP said nothing
+  about what it had looked at.
+
+### Fixed
+
+- The lineage chip's card closed itself ~120 ms after a tap on the current host.
+  DSH 0.2.2 feeds that component's open/close timers from the POINTER channel
+  (`onPointerLeave` on the lineage root, `scheduleHoverClose`, gated only by a
+  `pinnedRef` that the keyboard path this plugin drives never sets), and the
+  synthetic-hover swallow only listed the mouse family, so the tap's own
+  `pointerout`/`pointerleave` reached the timer the swallow exists to starve. The
+  swallow now covers both channels; `tests/lineage-chip-touch-swallow.test.ts`
+  drives the real installer against a document stub, and the CDP probe records
+  the same six types. Ported from `mexiaosqwq/dsh-web-mobile` v3.3.5 (#283).
+
+- The drawer no longer pops out mid-scroll. The OPEN follow armed at the first
+  move sample past 8 px, and the axis lock behind it only demanded
+  `|dx| > |dy|` for that one sample, so a vertical scroll flick whose first
+  pixels drifted sideways mounted the drawer under the thumb. Arming now also
+  requires 1.2x horizontal dominance over the stroke's vertical travel; a real
+  swipe keeps the vertical travel near zero, so the arm point and the
+  no-dead-zone behaviour are unchanged. Ported from `mexiaosqwq/dsh-web-mobile`
+  v3.3.6 (#297/#298).
+
 ## [1.11.0] - 2026-11-06
 
 ### Changed

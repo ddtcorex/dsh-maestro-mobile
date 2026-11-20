@@ -45,10 +45,11 @@ import { installMobileEffect } from './phone-chrome.ts'
  *    swallowing it is a no-op — one deterministic toggle per tap across
  *    both upstreams.
  * 3. For a short window after every touch pointer activity, swallow trusted
- *    synthesized mouseover/out/enter/leave events targeting the lineage
- *    root or its menu, so era-1 hover timers can neither cancel our toggle
- *    nor resurrect a just-closed card (no-op on rc.6, which has no hover
- *    timers at all).
+ *    synthesized hover events targeting the lineage root or its menu, so the
+ *    hover timers can neither cancel our toggle nor resurrect a just-closed
+ *    card. Both channels are covered (mouse family and pointerout/pointerleave)
+ *    because 0.2.2 feeds those timers from `onPointerLeave`; see
+ *    SWALLOWED_TYPES.
  */
 
 /** Count-variant trigger only: the switcher variant has its own onClick. */
@@ -83,7 +84,32 @@ const SWALLOW_WINDOW_MS = 800
  */
 const CLICK_GRACE_MS = 1000
 
-const SWALLOWED_TYPES = ['mouseover', 'mouseout', 'mouseenter', 'mouseleave'] as const
+/**
+ * Every channel the tap's own hover moves through.
+ *
+ * The mouse family is what the shim was written for (upstream 0.1.7 fed its
+ * hover timers from `onMouseEnter`/`onMouseLeave`). 0.2.2 moved the same pair
+ * to the POINTER channel: `SubagentHeaderLineage`'s root and its menu carry
+ * `onPointerLeave` -> `scheduleHoverClose`, and that close is gated only by
+ * `pinnedRef`, which the keyboard path this shim drives never sets (the
+ * component pins on its own click path and on ArrowDown only when the count is
+ * hidden). A touch tap ends with `pointerout` + `pointerleave`, so with the
+ * mouse family alone the card we just opened was closed 120 ms later: measured
+ * upstream as `aria-expanded` true at 60 ms and false by 150 ms. The listener
+ * set is pinned here by tests/lineage-chip-touch-swallow.test.ts, which fails on
+ * the pre-fix list because the leaked event reaches a later listener.
+ *
+ * CAPTURE phase is what makes this work for the non-bubbling `*leave` types: a
+ * capture listener on `document` still sees an element's own leave.
+ */
+const SWALLOWED_TYPES = [
+  'mouseover',
+  'mouseout',
+  'mouseenter',
+  'mouseleave',
+  'pointerout',
+  'pointerleave',
+] as const
 
 export function installSubagentChipTouch(ctx: ClientContext): void {
   installMobileEffect(ctx, 'dsh-maestro-mobile: lineage chip touch toggle', () => {

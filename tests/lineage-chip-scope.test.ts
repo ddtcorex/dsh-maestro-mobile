@@ -28,8 +28,14 @@ test('the swallow keeps its guards', () => {
   assert.match(chip, /if \(!event\.isTrusted\) return/)
   assert.match(chip, /if \(target\.closest\(HOVER_SUBTREE_SELECTOR\) === null\) return/)
   assert.match(chip, /event\.stopImmediatePropagation\(\)/)
-  // Both hover directions are covered; a partial list leaves one timer live.
-  assert.match(chip, /const SWALLOWED_TYPES = \['mouseover', 'mouseout', 'mouseenter', 'mouseleave'\] as const/)
+  // Both hover directions are covered on BOTH channels: the mouse family is what
+  // the original shim silenced, and 0.2.2 moved the same open/close timer pair to
+  // pointerout/pointerleave (a partial list leaves one timer live, and after
+  // 0.2.2 that timer is the one that closes a just-opened card).
+  // tests/lineage-chip-touch-swallow.test.ts drives the real installer to prove it.
+  for (const type of ['mouseover', 'mouseout', 'mouseenter', 'mouseleave', 'pointerout', 'pointerleave']) {
+    assert.match(chip, new RegExp(`'${type}'`), `${type} is not swallowed`)
+  }
 })
 
 test('the tap toggle stays scoped to the count trigger and its follow-up click', () => {
