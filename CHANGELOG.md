@@ -24,6 +24,12 @@ All notable changes to this project are documented in this file. Format follows
   green forever. Idea from `mexiaosqwq/dsh-web-mobile` v3.3.5 (#282), where an
   unparsable probe had shipped unnoticed for weeks.
 
+- The lineage chip probe now scans the drawer's rows (bounded) instead of only
+  the first one, and reports which rows it opened and whether each one rendered a
+  chip. A session carries a lineage chip only if it has subagent children, so the
+  old single-row version skipped in the common case and its SKIP said nothing
+  about what it had looked at.
+
 ### Fixed
 
 - The lineage chip's card closed itself ~120 ms after a tap on the current host.
