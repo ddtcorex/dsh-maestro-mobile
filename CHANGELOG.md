@@ -6,6 +6,8 @@ All notable changes to this project are documented in this file. Format follows
 
 ## [Unreleased]
 
+## [1.12.0] - 2026-11-20
+
 ### Added
 
 - The plugin now shows a card of its own in the host's plugin manager instead of
