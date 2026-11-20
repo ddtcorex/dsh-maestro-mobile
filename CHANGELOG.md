@@ -6,6 +6,18 @@ All notable changes to this project are documented in this file. Format follows
 
 ## [Unreleased]
 
+### Fixed
+
+- The lineage chip's card closed itself ~120 ms after a tap on the current host.
+  DSH 0.2.2 feeds that component's open/close timers from the POINTER channel
+  (`onPointerLeave` on the lineage root, `scheduleHoverClose`, gated only by a
+  `pinnedRef` that the keyboard path this plugin drives never sets), and the
+  synthetic-hover swallow only listed the mouse family, so the tap's own
+  `pointerout`/`pointerleave` reached the timer the swallow exists to starve. The
+  swallow now covers both channels; `tests/lineage-chip-touch-swallow.test.ts`
+  drives the real installer against a document stub, and the CDP probe records
+  the same six types. Ported from `mexiaosqwq/dsh-web-mobile` v3.3.5 (#283).
+
 ## [1.11.0] - 2026-11-06
 
 ### Changed

@@ -30,7 +30,12 @@ const DEFAULT_TIMEOUT_MS = 30_000
 const FRAME_SELECTOR = '[data-mobile-nav="frame"]'
 const MOBILE_STYLE_SELECTOR = 'style[data-plugin="@ddtcorex/dsh-maestro-mobile"]'
 const CHIP_SELECTOR = '[data-slot="conversation.session.header"] button[class*="_trigger"][aria-haspopup="tree"]'
-const HOVER_TYPES = ['mouseover', 'mouseout', 'mouseenter', 'mouseleave']
+// Both channels the tap's hover travels on: the mouse family is what the shim
+// silenced originally, and 0.2.2 moved the same timer pair to pointerout /
+// pointerleave (the lineage root carries onPointerLeave -> scheduleHoverClose).
+// Recording only the mouse family here would let the leak that closes a
+// just-opened card pass this probe.
+const HOVER_TYPES = ['mouseover', 'mouseout', 'mouseenter', 'mouseleave', 'pointerout', 'pointerleave']
 
 const results = []
 const report = (status, name, detail = '') => {
