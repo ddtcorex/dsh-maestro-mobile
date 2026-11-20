@@ -117,17 +117,38 @@ const COOLDOWN_MS = 350
 const CONSUME_WINDOW_MS = 300
 /**
  * Rightward travel (from the stroke start) that arms the OPEN follow, i.e.
- * flips the host state early so the real drawer subtree mounts. Slightly
- * above LOCK_PX so an 8px horizontal twitch inside the wide start zone does
- * not mount-and-unmount 389 nodes; small enough that the dead zone before
- * the drawer's edge appears is imperceptible.
- */
-/** The open follow arms at the AXIS LOCK itself: tryLock already demanded
- * 8px of horizontal-dominant travel, so no extra twitch margin is needed —
+ * flips the host state early so the real drawer subtree mounts. The arm sits at
+ * the AXIS LOCK itself: tryLock already demanded horizontal dominance, and
  * every pixel between lock and arm was dead drag (user report 2026-08-29
  * 「右滑的过程中最开始有真空期,有一段卡的地方」). The release verdict still
- * decides the outcome, so arming early cannot commit a false open. */
+ * decides the outcome, so arming early cannot commit a false open.
+ */
 const OPEN_FOLLOW_ARM_PX = 8
+/**
+ * Horizontal dominance the stroke must still show at ARM time. The axis lock
+ * only demands `|dx| > |dy|` for the ONE sample that crosses the lock
+ * threshold, and arming flips the host state immediately, so a scroll flick
+ * whose first few pixels drifted sideways mounted the drawer mid-scroll
+ * (dsh-web-mobile v3.3.6 #297/#298 reports the same shape). A genuine
+ * horizontal swipe keeps |dy| near zero and still arms at OPEN_FOLLOW_ARM_PX, so
+ * the no-dead-zone behaviour above survives. The margin (1.2 rather than 1.0)
+ * keeps a stroke that merely ties from arming on one lucky sample.
+ */
+const OPEN_ARM_DOMINANCE = 1.2
+
+/**
+ * May an OPEN stroke arm yet?
+ *
+ * @param travelPx - rightward-logical travel from the stroke start (already
+ *   mirrored for RTL by the caller, positive = toward the drawer's edge).
+ * @param dy - raw vertical travel from the stroke start (sign ignored).
+ * @returns true when the stroke has travelled far enough AND is still
+ *   horizontal-dominant by OPEN_ARM_DOMINANCE.
+ */
+export function openArmReady(travelPx: number, dy: number): boolean {
+  if (travelPx < OPEN_FOLLOW_ARM_PX) return false
+  return travelPx >= Math.abs(dy) * OPEN_ARM_DOMINANCE
+}
 /**
  * The host's closed-slot offset as a PERCENTAGE of the drawer's own width
  * (`transform: translateX(-110%)` — the 10% overshoot hides the drawer's
@@ -754,14 +775,15 @@ function armOpenFollow(ctx: ClientContext): void {
  * assertion passed (2026-08-29) — assert COMPUTED transform, never
  * `element.style.transform`.
  */
-function applyFollow(ctx: ClientContext, dx: number): void {
+function applyFollow(ctx: ClientContext, dx: number, dy: number): void {
   if (!tracking) return
   if (!lockDrawerOpen) {
-    // OPEN direction: arm past the twitch threshold, then follow with the
-    // percentage baseline (the element's width changes across the mount).
+    // OPEN direction: arm once the stroke is far enough AND still horizontal,
+    // then follow with the percentage baseline (the element's width changes
+    // across the mount).
     const travel = strokeRtl ? -dx : dx
     if (!openFollowArmed) {
-      if (travel < OPEN_FOLLOW_ARM_PX) return
+      if (!openArmReady(travel, dy)) return
       armOpenFollow(ctx)
       if (!openFollowArmed) return
     }
@@ -1282,11 +1304,11 @@ export function installSidebarSwipe(ctx: ClientContext): void {
         }
         if (tryLock(event)) {
           pushSample(event)
-          applyFollow(ctx, event.clientX - startX)
+          applyFollow(ctx, event.clientX - startX, event.clientY - startY)
         }
       } else {
         pushSample(event)
-        applyFollow(ctx, event.clientX - startX)
+        applyFollow(ctx, event.clientX - startX, event.clientY - startY)
       }
     }
 

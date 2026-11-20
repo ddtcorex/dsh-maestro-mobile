@@ -18,6 +18,15 @@ All notable changes to this project are documented in this file. Format follows
   drives the real installer against a document stub, and the CDP probe records
   the same six types. Ported from `mexiaosqwq/dsh-web-mobile` v3.3.5 (#283).
 
+- The drawer no longer pops out mid-scroll. The OPEN follow armed at the first
+  move sample past 8 px, and the axis lock behind it only demanded
+  `|dx| > |dy|` for that one sample, so a vertical scroll flick whose first
+  pixels drifted sideways mounted the drawer under the thumb. Arming now also
+  requires 1.2x horizontal dominance over the stroke's vertical travel; a real
+  swipe keeps the vertical travel near zero, so the arm point and the
+  no-dead-zone behaviour are unchanged. Ported from `mexiaosqwq/dsh-web-mobile`
+  v3.3.6 (#297/#298).
+
 ## [1.11.0] - 2026-11-06
 
 ### Changed
