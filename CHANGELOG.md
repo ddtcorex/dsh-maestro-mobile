@@ -17,6 +17,13 @@ All notable changes to this project are documented in this file. Format follows
   inside the package, SVG/PNG/JPEG/WebP, 256 KiB cap, language-id filenames).
   Ported from `mexiaosqwq/dsh-web-mobile` v3.3.5 (#279).
 
+- A syntax error in a probe script is now a test failure instead of a surprise
+  on the next manual run. `tests/probes-syntax.test.ts` parses every
+  `scripts/**/*.mjs` in one child process (`vm.SourceTextModule`, about 30 ms)
+  and self-checks the parser against a known-bad source, so the gate cannot go
+  green forever. Idea from `mexiaosqwq/dsh-web-mobile` v3.3.5 (#282), where an
+  unparsable probe had shipped unnoticed for weeks.
+
 ### Fixed
 
 - The lineage chip's card closed itself ~120 ms after a tap on the current host.
