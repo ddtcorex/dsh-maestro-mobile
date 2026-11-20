@@ -902,9 +902,34 @@ export const LAYOUT_CSS = `/* ---------- mobile-only layout ---------- */
     gap: 0 !important;
     border-radius: 999px !important;
   }
-  /* The sentence span is what made the control wide; the chevron stays as
-     the glyph (unlike jobs there is no live-dot variant to preserve). */
-  [data-mobile-nav="lineage"] > span {
+  /* The sentence span is what made the control wide; the glyph stays (unlike
+     jobs there is no live-dot variant to preserve).
+     0.2.2 moved that glyph INTO a direct span child: the trigger is now
+     span.activitySlot (users icon, plus the running StateDot) followed by
+     span.count (the sentence), so the blanket direct-span rule this replaced hid
+     the icon together with the text and left an empty 28px circle whose only
+     content was the count pill (measured live 2026-11-20 on 0.2.2-rc.5 at
+     390px, dark and light: activitySlot display none, users svg rect 0x0).
+     Hide what carries no glyph of its own, and the sentence by the marker
+     upstream puts on it, never a slot that carries one. */
+  [data-mobile-nav="lineage"] > [data-subagent-count],
+  [data-mobile-nav="lineage"] > span:not(:has(> svg)) {
+    display: none !important;
+  }
+  /* The slot upstream wraps the glyph in: keep it a centered flex box inside
+     our 28px circle, and give it the 15px box upstream's own compact container
+     query uses for the same control at the same widths. */
+  [data-mobile-nav="lineage"] > span:has(> svg) {
+    display: inline-flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    width: 15px !important;
+    height: 15px !important;
+  }
+  /* The running state dot upstream draws beside the glyph does not fit the
+     15px slot; upstream hides the same dot in its own compact query, and the
+     count pill is this badge's surface. */
+  [data-mobile-nav="lineage"] > span:has(> svg) > [class*="_textModeActivity"] {
     display: none !important;
   }
   [data-mobile-nav="lineage"]::after {

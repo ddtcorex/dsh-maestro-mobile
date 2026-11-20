@@ -78,7 +78,11 @@ test('the lineage control collapses to a 28px icon button with a count badge', (
   assert.match(trigger, /height: 28px !important;/)
   assert.match(trigger, /border-radius: 999px !important;/)
 
-  const hidden = /\[data-mobile-nav="lineage"\] > span \{([\s\S]*?)\n  \}/.exec(layout)?.[1]
+  // The sentence is hidden by what it is (a span with no glyph) and by the
+  // marker upstream puts on it. The old blanket "> span" form hid the users
+  // icon with it from 0.2.2 on, once upstream wrapped the glyph in a span;
+  // tests/lineage-chip-glyph.test.ts owns the full rationale.
+  const hidden = /\[data-mobile-nav="lineage"\] > \[data-subagent-count\],\n[^{]+\{([\s\S]*?)\n  \}/.exec(layout)?.[1]
   assert.ok(hidden, 'the hidden-sentence rule is missing')
   assert.match(hidden, /display: none !important;/)
 

@@ -247,6 +247,12 @@ async function main() {
       width: 390, height: 844, deviceScaleFactor: 2, mobile: true, hasTouch: true,
     })
     await client.send('Emulation.setTouchEmulationEnabled', { enabled: true, maxTouchPoints: 5 })
+    // The reported failure was "the agent icon does not show in dark mode", and
+    // every check below is colour-agnostic except the contrast row, so the probe
+    // runs on the phone the report came from: dark scheme, `body[data-ds-dark-theme]`.
+    await client.send('Emulation.setEmulatedMedia', {
+      features: [{ name: 'prefers-color-scheme', value: 'dark' }],
+    })
     await client.send('Page.navigate', { url: config.url })
 
     const armed = await waitFor('mobile shell', config.timeoutMs, async () => {
@@ -294,6 +300,109 @@ async function main() {
     // 1. The box marker the swallow scopes to.
     if (chip.boxMarked) pass('lineage-chip.mark', `box ${chip.boxClass} carries data-lineage-root`)
     else fail('lineage-chip.mark', `box ${chip.boxClass} has no data-lineage-root marker`)
+
+    // 1b. The compact badge must still SHOW upstream's glyph. The collapse rule
+    //     hides the "N subagents" sentence, and 0.2.2 wrapped the glyph in a
+    //     direct `<span>` child, so a blanket `> span` rule hid the icon too and
+    //     the badge became an empty circle whose only content is the count pill
+    //     (measured on the pre-fix build: span activitySlot display none, users
+    //     svg rect 0x0). A rect and a display read are not a render, so the glyph
+    //     is also hit-tested: a glyph painted outside the control, or under a
+    //     sibling, fails here.
+    const glyph = await client.evaluate(`(() => {
+      const trigger = document.querySelector(${JSON.stringify(CHIP_SELECTOR)});
+      const sentence = trigger.querySelector('[data-subagent-count]');
+      const svgs = [...trigger.querySelectorAll('svg')];
+      const svg = svgs.find((el) => el.getBoundingClientRect().width > 0) || svgs[0] || null;
+      const r = svg === null ? null : svg.getBoundingClientRect();
+      const cs = svg === null ? null : getComputedStyle(svg);
+      const hit = r !== null && r.width > 0
+        ? document.elementFromPoint(r.left + r.width / 2, r.top + r.height / 2)
+        : null;
+      const channels = (value) => String(value).split('(').pop().split(')')[0].split(',').slice(0, 3).map(Number);
+      const luminance = (rgb) => {
+        const linear = (v) => { const c = v / 255; return c <= 0.03928 ? c / 12.92 : ((c + 0.055) / 1.055) ** 2.4; };
+        return 0.2126 * linear(rgb[0]) + 0.7152 * linear(rgb[1]) + 0.0722 * linear(rgb[2]);
+      };
+      // The first OPAQUE ancestor fill: a translucent layer would make the ratio
+      // read against a colour that is not what the eye sees.
+      const opaque = (bg) => {
+        const parts = bg.split('(').pop().split(')')[0].split(',');
+        return parts.length === 3 || Number(parts[3]) === 1;
+      };
+      let backdrop = null;
+      for (let node = trigger; node !== null; node = node.parentElement) {
+        const bg = getComputedStyle(node).backgroundColor;
+        if (opaque(bg)) { backdrop = bg; break; }
+      }
+      let ratio = null;
+      if (cs !== null && backdrop !== null) {
+        const ink = luminance(channels(cs.color));
+        const base = luminance(channels(backdrop));
+        ratio = Math.round(((Math.max(ink, base) + 0.05) / (Math.min(ink, base) + 0.05)) * 100) / 100;
+      }
+      return {
+        exists: svg !== null,
+        icon: svg === null ? null : svg.getAttribute('data-icon'),
+        size: r === null ? null : [Math.round(r.width), Math.round(r.height)],
+        display: cs === null ? null : cs.display,
+        visibility: cs === null ? null : cs.visibility,
+        opacity: cs === null ? null : cs.opacity,
+        ink: cs === null ? null : cs.color,
+        backdrop,
+        ratio,
+        insideTrigger: hit !== null && (hit === trigger || trigger.contains(hit)),
+        sentence: sentence === null ? null : getComputedStyle(sentence).display,
+        dark: matchMedia('(prefers-color-scheme: dark)').matches,
+      };
+    })()`)
+    const painted = glyph.exists && glyph.size !== null && glyph.size[0] > 0 && glyph.size[1] > 0
+      && glyph.display !== 'none' && glyph.visibility !== 'hidden' && glyph.opacity !== '0'
+    if (painted && glyph.insideTrigger) {
+      pass('lineage-chip.glyph', `${glyph.icon} painted ${glyph.size.join('x')} inside the trigger`)
+    } else {
+      fail('lineage-chip.glyph',
+        `${glyph.icon ?? 'no svg'} exists=${glyph.exists} size=${JSON.stringify(glyph.size)} display=${glyph.display} visibility=${glyph.visibility} opacity=${glyph.opacity} insideTrigger=${glyph.insideTrigger}`)
+    }
+    // 1c. The running state dot fits inside neither the 15px slot nor the 28px
+    //     circle, and it cannot be summoned on demand (it needs a subagent that
+    //     is running at that instant), so the rule is measured against a
+    //     synthetic dot in the REAL cascade: the upstream class fragment must
+    //     resolve to display none, while a plain span in the same slot must stay
+    //     visible. A rule the browser dropped would show both, which is the only
+    //     way this row can tell a live rule from a missing one.
+    const dot = await client.evaluate(`(() => {
+      const trigger = document.querySelector(${JSON.stringify(CHIP_SELECTOR)});
+      const slot = trigger.querySelector('span:has(> svg)');
+      if (slot === null) return { error: 'no glyph slot' };
+      const probe = document.createElement('span');
+      probe.className = 'probe_textModeActivity';
+      slot.appendChild(probe);
+      const hidden = getComputedStyle(probe).display;
+      probe.remove();
+      const plain = document.createElement('span');
+      slot.appendChild(plain);
+      const shown = getComputedStyle(plain).display;
+      plain.remove();
+      return { hidden, shown };
+    })()`)
+    if (dot.error !== undefined) skip('lineage-chip.dot', dot.error)
+    else if (dot.hidden === 'none' && dot.shown !== 'none') {
+      pass('lineage-chip.dot', `running dot ${dot.hidden}, plain slot child ${dot.shown}`)
+    } else {
+      fail('lineage-chip.dot', `running dot ${dot.hidden} (want none), plain slot child ${dot.shown} (want visible)`)
+    }
+    // The sentence must stay collapsed, or the circle grows back into the wide
+    // trigger this badge exists to prevent.
+    if (glyph.sentence === null) skip('lineage-chip.sentence', 'this host renders no [data-subagent-count] span')
+    else if (glyph.sentence === 'none') pass('lineage-chip.sentence', 'the "N subagents" sentence stays collapsed')
+    else fail('lineage-chip.sentence', `the sentence span renders (display ${glyph.sentence}) and stretches the badge`)
+    // Dark mode is where the owner reported the badge as missing, so the ink is
+    // measured against the pill's real backdrop instead of assumed to be visible.
+    if (!painted) skip('lineage-chip.contrast', 'nothing is painted, so there is no ink to measure')
+    else if (glyph.ratio === null) skip('lineage-chip.contrast', 'no opaque backdrop resolved behind the chip')
+    else if (glyph.ratio >= 3) pass('lineage-chip.contrast', `ink ${glyph.ink} on ${glyph.backdrop} = ${glyph.ratio}:1 (dark=${glyph.dark})`)
+    else fail('lineage-chip.contrast', `ink ${glyph.ink} on ${glyph.backdrop} = ${glyph.ratio}:1 is under 3:1 (dark=${glyph.dark})`)
 
     // 2. The scope reaches the portalled catalog too: open the card through a
     //    plain click (the shim's own tap path is exercised in check 3) and look
