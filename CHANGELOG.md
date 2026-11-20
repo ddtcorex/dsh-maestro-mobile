@@ -6,6 +6,8 @@ All notable changes to this project are documented in this file. Format follows
 
 ## [Unreleased]
 
+## [1.12.1] - 2026-11-20
+
 ### Fixed
 
 - The subagent lineage chip lost its compact badge, its `data-lineage-root` scope
