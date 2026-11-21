@@ -29,9 +29,15 @@ const MOBILE_STYLE_SELECTOR = 'style[data-plugin="@ddtcorex/dsh-maestro-mobile"]
 const MENU_TRIGGER = '[data-slot="conversation.session.header"] button[data-context-menu-trigger]'
 const MENU_SURFACE = '[role="menu"]'
 const MENU_ITEMS = '[role="menu"] [role="menuitem"], [role="menu"] button'
-// When the hide decision was taken the menu carried one entry. Three is the
-// floor that keeps this a real assertion without pinning upstream's exact list.
-const MIN_ENTRIES = 3
+// The decision to keep this control rests on the menu's CONTENT: on 0.2.2 it
+// carries four entries and three of them have no other mobile path. Pin the
+// count, not the labels (they are localized): a host that drops one entry is a
+// decision point for the owner, not a silent pass.
+const MIN_ENTRIES = 4
+// The menu costs the title lane a 28px control plus its gap. Measured at 390px
+// the crumbs lane keeps ~155-191px with the menu present; the floor catches a
+// layout regression that would crush the session title to nothing.
+const MIN_TITLE_PX = 120
 
 const results = []
 const report = (status, name, detail = '') => {
@@ -215,6 +221,29 @@ async function main() {
       pass('header-menu.trigger', `${trigger.aria ?? 'menu'} painted ${trigger.rect[2]}x${trigger.rect[3]} at ${trigger.rect[0]},${trigger.rect[1]}`)
     } else {
       fail('header-menu.trigger', `display=${trigger.display} visibility=${trigger.visibility} opacity=${trigger.opacity} reachable=${trigger.reachable} (hit ${trigger.hitTag})`)
+    }
+
+    // The row must still give the session title a readable lane with the menu
+    // present, and must not overflow the viewport.
+    const title = await client.evaluate(`(() => {
+      const crumbs = document.querySelector('[data-slot="conversation.session.header"] [class*="_crumbs"]');
+      const row = document.querySelector('[data-slot="conversation.session.header"] > div:first-child, [data-slot="conversation.session.header"] > header');
+      if (crumbs === null || row === null) return null;
+      const c = crumbs.getBoundingClientRect();
+      const r = row.getBoundingClientRect();
+      return {
+        crumbs: Math.round(c.width),
+        rowRight: Math.round(r.right),
+        viewport: innerWidth,
+        title: (crumbs.textContent || '').trim().slice(0, 40),
+      };
+    })()`)
+    if (title === null) {
+      fail('header-menu.title-lane', 'no crumbs lane or row in the session header')
+    } else if (title.crumbs >= MIN_TITLE_PX && title.rowRight <= title.viewport) {
+      pass('header-menu.title-lane', `crumbs ${title.crumbs}px, row ends ${title.rowRight} <= ${title.viewport}`)
+    } else {
+      fail('header-menu.title-lane', `crumbs ${title.crumbs}px (want >= ${MIN_TITLE_PX}) rowRight ${title.rowRight} viewport ${title.viewport}`)
     }
 
     // Open it through its own click: a synthetic tap on iOS-shaped DOM is the

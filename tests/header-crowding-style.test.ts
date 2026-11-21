@@ -159,20 +159,34 @@ test('the header Open-in-Files group stays off mobile', () => {
 })
 
 test('the emptied utilities cluster yields the row to the actions', () => {
-  // Measured live at 402px: with the split group + ⋯ menu both hidden, the
-  // utilities cluster kept an 8px gap slice that stacked with the row gap
-  // and the corner clearance into a 24px hole between the trailing buttons
-  // and the corner toggle (mobile report 2026-09-22). Remove the emptied
-  // cluster from the row outright while its only content is the hidden
-  // split group; the grown title cluster then fills to the reservation and
-  // the buttons land one rhythm from the corner. If upstream ever removes
-  // the split markup — or ships another visible utilities entry — the
-  // guard stops matching and the cluster comes back on its own.
-  assert.match(
-    layout,
-    /\[class\*="headerUtilities"\]:has\(\[class\*="_split"\]\)\s*\{[^}]*display:\s*none\s*!important;/s,
-    'emptied utilities cluster must leave the row entirely',
-  )
+  // Measured live at 402px: with the split group hidden the utilities cluster
+  // kept an 8px gap slice that stacked with the row gap and the corner
+  // clearance into a 24px hole between the trailing buttons and the corner
+  // toggle (mobile report 2026-09-22). A cluster with nothing visible must
+  // leave the row outright; the grown title cluster then fills to the
+  // reservation and the buttons land one rhythm from the corner.
+  //
+  // The trigger lives INSIDE this cluster, so the hide must exclude it: a bare
+  // cluster hide would take the ⋯ menu and its three mobile-only entries with
+  // it, and the class-fragment assertions above would stay green while it did.
+  const cluster = /\[class\*="headerUtilities"\]:has\(\[class\*="_split"\]\)([^{]*)\{([^}]*)\}/.exec(css)
+  assert.ok(cluster, 'the emptied utilities cluster rule is missing')
+  assert.match(cluster[2], /display:\s*none\s*!important;/)
+  assert.match(cluster[1], /:not\(:has\(\[data-context-menu-trigger\]\)\)/,
+    'the cluster hide must never own the More-actions trigger')
+
+  // No rule may hide one of the trigger's ANCESTORS outright either: the
+  // invariant is "the menu stays reachable", not "the two dead fragments are
+  // gone". Rules that hide a DESCENDANT (the Files split group) are fine and are
+  // skipped; a rule that hides the cluster or the title row itself must exclude
+  // the trigger by its marker.
+  for (const rule of css.matchAll(/([^{}]+)\{([^}]*display:\s*none\s*!important[^}]*)\}/g)) {
+    const selector = rule[1]
+    if (!/headerUtilities|_titleRow|_titleCluster/.test(selector)) continue
+    if (/_split|moreButton/.test(selector)) continue
+    assert.match(selector, /data-context-menu-trigger/,
+      `a header ancestor hide does not exclude the More-actions trigger: ${selector.trim()}`)
+  }
 })
 
 test('0.1.7 header row anchors on the titleRow div, not <header>', () => {
