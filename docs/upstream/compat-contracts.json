@@ -425,11 +425,11 @@
     {
       "id": "session-header-lineage-trigger",
       "kind": "marker",
-      "needle": "[data-slot=\"conversation.session.header\"] button[aria-haspopup=\"tree\"]",
-      "owner": "dsh-client-ui-conversation",
+      "needle": "[data-subagent-action] button[class*=\"_trigger\"]",
+      "owner": "dsh-client-ui-subagent",
       "lazy": true,
       "state": "session with subagents (running or idle)",
-      "note": "0.1.7+: trigger left the crumbs nav for the title cluster; the lineage-badge effect keys on tree popup without a crumbs ancestor."
+      "note": "0.1.7+ moved the trigger out of the crumbs nav into the title cluster. 0.2.2 declares it aria-haspopup=\"dialog\" (was \"tree\"), so the old aria needle matched nothing for a release; the badge and the touch shim anchor on the data-subagent-action marker plus the trigger class fragment instead. 0.2.2 also wraps the glyph in span[class*=activitySlot] and the sentence in span[data-subagent-count], which is what the collapse rule keys on (see probe:lineage-chip)."
     },
     {
       "id": "session-header-lineage-catalog",
@@ -537,6 +537,15 @@
       "owner": "dsh-client-ui-layout",
       "lazy": false,
       "note": "the drawer element itself: CSS anchor for the off-canvas rules and the JS target of the follow transform and slot measurement"
+    },
+    {
+      "id": "session-header-lineage-count",
+      "kind": "marker",
+      "needle": "[data-subagent-count]",
+      "owner": "dsh-client-ui-subagent",
+      "lazy": true,
+      "state": "session with subagents (running or idle)",
+      "note": "the \"N subagents\" sentence span. The compact badge hides THIS and keeps the glyph slot, so a collapse written as \"hide every direct span\" takes the users icon with it when upstream wraps it (measured 0.2.2-rc.5: empty circle, users svg 0x0). probe:lineage-chip fails if the glyph stops painting or the sentence starts stretching the badge"
     }
   ]
 }
