@@ -313,12 +313,25 @@ async function main() {
       const trigger = document.querySelector(${JSON.stringify(CHIP_SELECTOR)});
       const sentence = trigger.querySelector('[data-subagent-count]');
       const svgs = [...trigger.querySelectorAll('svg')];
-      const svg = svgs.find((el) => el.getBoundingClientRect().width > 0) || svgs[0] || null;
-      const r = svg === null ? null : svg.getBoundingClientRect();
-      const cs = svg === null ? null : getComputedStyle(svg);
-      const hit = r !== null && r.width > 0
-        ? document.elementFromPoint(r.left + r.width / 2, r.top + r.height / 2)
-        : null;
+      const painted = svgs
+        .map((el) => {
+          const r = el.getBoundingClientRect();
+          const cs = getComputedStyle(el);
+          return {
+            icon: el.getAttribute('data-icon'),
+            state: el.getAttribute('data-state'),
+            width: Math.round(r.width), height: Math.round(r.height),
+            left: r.left, top: r.top,
+            shown: r.width > 0 && r.height > 0 && cs.display !== 'none' && cs.visibility !== 'hidden' && cs.opacity !== '0',
+            color: cs.color,
+          };
+        });
+      const visible = painted.filter((svg) => svg.shown);
+      const users = painted.find((svg) => svg.icon !== null) ?? null;
+      const spinner = painted.find((svg) => svg.state !== null) ?? null;
+      const hit = visible.length === 0
+        ? null
+        : document.elementFromPoint(visible[0].left + visible[0].width / 2, visible[0].top + visible[0].height / 2);
       const channels = (value) => String(value).split('(').pop().split(')')[0].split(',').slice(0, 3).map(Number);
       const luminance = (rgb) => {
         const linear = (v) => { const c = v / 255; return c <= 0.03928 ? c / 12.92 : ((c + 0.055) / 1.055) ** 2.4; };
@@ -336,61 +349,45 @@ async function main() {
         if (opaque(bg)) { backdrop = bg; break; }
       }
       let ratio = null;
-      if (cs !== null && backdrop !== null) {
-        const ink = luminance(channels(cs.color));
+      const ink = visible.length === 0 ? null : visible[0].color;
+      if (ink !== null && backdrop !== null) {
+        const above = luminance(channels(ink));
         const base = luminance(channels(backdrop));
-        ratio = Math.round(((Math.max(ink, base) + 0.05) / (Math.min(ink, base) + 0.05)) * 100) / 100;
+        ratio = Math.round(((Math.max(above, base) + 0.05) / (Math.min(above, base) + 0.05)) * 100) / 100;
       }
       return {
-        exists: svg !== null,
-        icon: svg === null ? null : svg.getAttribute('data-icon'),
-        size: r === null ? null : [Math.round(r.width), Math.round(r.height)],
-        display: cs === null ? null : cs.display,
-        visibility: cs === null ? null : cs.visibility,
-        opacity: cs === null ? null : cs.opacity,
-        ink: cs === null ? null : cs.color,
-        backdrop,
-        ratio,
+        painted,
+        visibleCount: visible.length,
+        visibleSize: visible.length === 0 ? null : [visible[0].width, visible[0].height],
+        visibleIcon: visible.length === 0 ? null : visible[0].icon,
+        visibleState: visible.length === 0 ? null : visible[0].state,
         insideTrigger: hit !== null && (hit === trigger || trigger.contains(hit)),
+        usersShown: users !== null && users.shown,
+        spinnerShown: spinner !== null && spinner.shown,
+        ink, backdrop, ratio,
         sentence: sentence === null ? null : getComputedStyle(sentence).display,
         dark: matchMedia('(prefers-color-scheme: dark)').matches,
       };
     })()`)
-    const painted = glyph.exists && glyph.size !== null && glyph.size[0] > 0 && glyph.size[1] > 0
-      && glyph.display !== 'none' && glyph.visibility !== 'hidden' && glyph.opacity !== '0'
-    if (painted && glyph.insideTrigger) {
-      pass('lineage-chip.glyph', `${glyph.icon} painted ${glyph.size.join('x')} inside the trigger`)
+    // Exactly one glyph owns the 28px circle: the users icon while everything is
+    // idle, upstream's spinner while a subagent runs. Two at once would mean the
+    // hand-off rules stopped applying, zero means the badge is empty.
+    if (glyph.visibleCount === 1 && glyph.insideTrigger && glyph.visibleSize.join('x') === '15x15') {
+      pass('lineage-chip.glyph', `${glyph.visibleIcon ?? `spinner(${glyph.visibleState})`} painted 15x15 inside the trigger`)
     } else {
       fail('lineage-chip.glyph',
-        `${glyph.icon ?? 'no svg'} exists=${glyph.exists} size=${JSON.stringify(glyph.size)} display=${glyph.display} visibility=${glyph.visibility} opacity=${glyph.opacity} insideTrigger=${glyph.insideTrigger}`)
+        `visible=${glyph.visibleCount} size=${JSON.stringify(glyph.visibleSize)} insideTrigger=${glyph.insideTrigger} glyphs=${JSON.stringify(glyph.painted)}`)
     }
-    // 1c. The running state dot fits inside neither the 15px slot nor the 28px
-    //     circle, and it cannot be summoned on demand (it needs a subagent that
-    //     is running at that instant), so the rule is measured against a
-    //     synthetic dot in the REAL cascade: the upstream class fragment must
-    //     resolve to display none, while a plain span in the same slot must stay
-    //     visible. A rule the browser dropped would show both, which is the only
-    //     way this row can tell a live rule from a missing one.
-    const dot = await client.evaluate(`(() => {
-      const trigger = document.querySelector(${JSON.stringify(CHIP_SELECTOR)});
-      const slot = trigger.querySelector('span:has(> svg)');
-      if (slot === null) return { error: 'no glyph slot' };
-      const probe = document.createElement('span');
-      probe.className = 'probe_textModeActivity';
-      slot.appendChild(probe);
-      const hidden = getComputedStyle(probe).display;
-      probe.remove();
-      const plain = document.createElement('span');
-      slot.appendChild(plain);
-      const shown = getComputedStyle(plain).display;
-      plain.remove();
-      return { hidden, shown };
-    })()`)
-    if (dot.error !== undefined) skip('lineage-chip.dot', dot.error)
-    else if (dot.hidden === 'none' && dot.shown !== 'none') {
-      pass('lineage-chip.dot', `running dot ${dot.hidden}, plain slot child ${dot.shown}`)
+    // 1c. The running hand-off. It needs a subagent that is running at the
+    // moment the probe samples, which a probe cannot summon, so this row SKIPs
+    // when the chip is idle and names why; the CSS itself is pinned by
+    // tests/lineage-chip-glyph.test.ts.
+    if (glyph.visibleState === null && !glyph.spinnerShown) {
+      skip('lineage-chip.running', 'no subagent running at sample time (idle chip), hand-off not exercised')
+    } else if (glyph.spinnerShown && !glyph.usersShown) {
+      pass('lineage-chip.running', 'spinner took the slot and the users glyph stepped aside')
     } else {
-      fail('lineage-chip.dot', `running dot ${dot.hidden} (want none), plain slot child ${dot.shown} (want visible)`)
+      fail('lineage-chip.running', `spinnerShown=${glyph.spinnerShown} usersShown=${glyph.usersShown} visible=${glyph.visibleCount}`)
     }
     // The sentence must stay collapsed, or the circle grows back into the wide
     // trigger this badge exists to prevent.
@@ -399,7 +396,7 @@ async function main() {
     else fail('lineage-chip.sentence', `the sentence span renders (display ${glyph.sentence}) and stretches the badge`)
     // Dark mode is where the owner reported the badge as missing, so the ink is
     // measured against the pill's real backdrop instead of assumed to be visible.
-    if (!painted) skip('lineage-chip.contrast', 'nothing is painted, so there is no ink to measure')
+    if (glyph.visibleCount === 0) skip('lineage-chip.contrast', 'nothing is painted, so there is no ink to measure')
     else if (glyph.ratio === null) skip('lineage-chip.contrast', 'no opaque backdrop resolved behind the chip')
     else if (glyph.ratio >= 3) pass('lineage-chip.contrast', `ink ${glyph.ink} on ${glyph.backdrop} = ${glyph.ratio}:1 (dark=${glyph.dark})`)
     else fail('lineage-chip.contrast', `ink ${glyph.ink} on ${glyph.backdrop} = ${glyph.ratio}:1 is under 3:1 (dark=${glyph.dark})`)

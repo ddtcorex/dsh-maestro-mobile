@@ -930,10 +930,20 @@ export const LAYOUT_CSS = `/* ---------- mobile-only layout ---------- */
     width: 15px !important;
     height: 15px !important;
   }
-  /* The running state dot upstream draws beside the glyph does not fit the
-     15px slot; upstream hides the same dot in its own compact query, and the
-     count pill is this badge's surface. */
-  [data-mobile-nav="lineage"] > span:has(> svg) > [class*="_textModeActivity"] {
+  /* Running subagents: upstream's StateDot is not a dot but a 14px animated
+     spinner (svg[data-state="ongoing"], track plus dash arc, 1.5s rotation),
+     drawn BESIDE the users glyph inside the same activity slot. A 28px circle
+     holds one glyph, so while it runs the spinner takes the slot and the users
+     icon steps aside; when the last subagent settles the spinner leaves the DOM
+     and the glyph comes back on its own. Both rules key on upstream's own
+     data-state marker, never on a hash or the running-dot class fragment (an
+     earlier fix hid that fragment and killed the spinner with it). */
+  [data-mobile-nav="lineage"] > span:has(> svg[data-state="ongoing"]) > svg[data-state="ongoing"] {
+    display: block !important;
+    width: 15px !important;
+    height: 15px !important;
+  }
+  [data-mobile-nav="lineage"] > span:has(> svg[data-state="ongoing"]) > svg:not([data-state]) {
     display: none !important;
   }
   [data-mobile-nav="lineage"]::after {

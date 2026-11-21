@@ -45,14 +45,29 @@ test('the glyph slot is laid out as the badge content', () => {
   assert.match(slot[1], /justify-content:\s*center\s*!important/)
 })
 
-test('the running state dot stays inside the circle instead of beside the glyph', () => {
-  // With one glyph the 28px circle reads as the twin of the jobs chip; the
-  // running dot upstream draws next to the glyph would be pushed out of the
-  // 14px slot. Upstream hides the same dot in its own compact container query,
-  // so the phone matches that reading and the count pill is the badge.
-  const dot = /\[data-mobile-nav="lineage"\][^{]*_textModeActivity[^{]*\{([\s\S]*?)\}/.exec(css)
-  assert.ok(dot, 'the running-dot rule is missing from layout.css.ts')
-  assert.match(dot[1], /display:\s*none\s*!important/)
+test('the running spinner takes the badge slot and the users glyph steps aside', () => {
+  // StateDot renders for a RUNNING subagent, and it is not a dot: upstream
+  // renders a 14px animated SVG spinner (`svg[data-state="ongoing"]`, 1.5s
+  // rotation, track plus dash arc) next to the users glyph inside the same
+  // activity slot (measured live on 0.2.2-rc.5 at 390px, 2026-11-21). A 28px
+  // circle holds one glyph, so the spinner takes the slot while it runs and the
+  // users icon steps aside. Both rules anchor on upstream's own `data-state`
+  // marker, so no hash and no locale is involved.
+  const running = /\[data-mobile-nav="lineage"\]\s*>\s*span:has\(> svg\[data-state="ongoing"\]\)\s*>\s*svg\[data-state="ongoing"\]\s*\{([\s\S]*?)\}/.exec(css)
+  assert.ok(running, 'the running spinner rule is missing from layout.css.ts')
+  assert.match(running[1], /display:\s*block\s*!important/)
+  assert.match(running[1], /width:\s*15px\s*!important/)
+  assert.match(running[1], /height:\s*15px\s*!important/)
+  // The users icon is the sibling WITHOUT a data-state marker; it must yield.
+  const idle = /\[data-mobile-nav="lineage"\]\s*>\s*span:has\(> svg\[data-state="ongoing"\]\)\s*>\s*svg:not\(\[data-state\]\)\s*\{([\s\S]*?)\}/.exec(css)
+  assert.ok(idle, 'the rule that yields the slot to the spinner is missing')
+  assert.match(idle[1], /display:\s*none\s*!important/)
+  // A blanket hide on the activity fragment would kill the spinner again, which
+  // is exactly what the first fix did: pinned so it cannot come back.
+  assert.doesNotMatch(css, /_textModeActivity[^{]*\{[^}]*display:\s*none/,
+    'the blanket running-dot hide is back; it hides the spinner and the badge stops showing activity')
+  // Idle keeps the users glyph: no rule may hide it unconditionally.
+  assert.doesNotMatch(css, /\[data-mobile-nav="lineage"\][^{]*\{[^}]*svg\[data-icon[^{]*display:\s*none/,)
 })
 
 test('the compact badge geometry itself is unchanged', () => {
