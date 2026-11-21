@@ -2,17 +2,43 @@ import assert from 'node:assert/strict'
 import { readFileSync } from 'node:fs'
 import test from 'node:test'
 
-const layout = readFileSync(new URL('../src/client/styles/layout.css.ts', import.meta.url), 'utf8')
+import { stripCssComments } from '../scripts/strip-css-comments.mjs'
 
-test('the redundant header More-actions menu stays hidden on mobile', () => {
-  // The header "More actions" (⋯) menu resolves to a single entry on mobile —
-  // "Download session log" — which already exists as the drawer-footer
-  // Session log button (MobileDrawerFooter). Matched by class substring: the
-  // hash changes per build and the aria-label ("More actions") changes per
-  // locale.
+const layout = readFileSync(new URL('../src/client/styles/layout.css.ts', import.meta.url), 'utf8')
+// Comments carry the design record and must never satisfy or fail a selector
+// assertion (docs/maintenance/pitfalls.md).
+const css = stripCssComments(layout)
+
+test('the header More-actions menu stays reachable on mobile', () => {
+  // The old rule hid this menu because it held a single entry, "Download
+  // session log", which the drawer footer already offers. 0.2.2 grew the menu
+  // to four entries and three of them have no other mobile path: "Copy Session
+  // as Markdown", "Open in", "Feedback" (measured live on 0.2.2-rc.5 at 390px,
+  // 2026-11-21). The rule also died on its own: it matched the class fragment
+  // "moreButton" while upstream renamed the trigger to "headerMenuButton", so
+  // the button had quietly come back. Hiding it again would remove three
+  // actions from the phone, so the decision is recorded here instead: no rule
+  // may hide this control, in either generation of the selector.
+  assert.doesNotMatch(
+    css,
+    /\[class\*="moreButton"\][^{]*\{[^}]*display:\s*none/,
+    'the dead More-actions hide rule is back',
+  )
+  assert.doesNotMatch(
+    css,
+    /headerMenuButton[^{]*\{[^}]*display:\s*none/,
+    'the header menu is hidden again; three of its entries are unique on mobile',
+  )
+  // The glyph rules that used to exclude the menu by the dead fragment must
+  // exclude it by the marker upstream sets on it, or the 28px rhythm and the
+  // optical nudge silently restyle a control nobody meant to touch.
   assert.match(
-    layout,
-    /\[data-mobile-nav="frame"\] \[data-phase\] \[data-slot="conversation\.session\.header"\] > header \[class\*="moreButton"\]\s*\{\s*display:\s*none\s*!important;\s*\}/s,
+    css,
+    /\[class\*="headerUtilities"\] button:not\(\[data-context-menu-trigger\]\):not\(\[class\*="chevron"\]\)\s*\{[^}]*height: 28px !important;/s,
+  )
+  assert.match(
+    css,
+    /\[class\*="headerUtilities"\] button:not\(\[data-context-menu-trigger\]\):not\(\[class\*="chevron"\]\) > svg\s*\{[^}]*transform: translate\(1px, -2px\) !important;/s,
   )
 })
 
@@ -133,20 +159,34 @@ test('the header Open-in-Files group stays off mobile', () => {
 })
 
 test('the emptied utilities cluster yields the row to the actions', () => {
-  // Measured live at 402px: with the split group + ⋯ menu both hidden, the
-  // utilities cluster kept an 8px gap slice that stacked with the row gap
-  // and the corner clearance into a 24px hole between the trailing buttons
-  // and the corner toggle (mobile report 2026-09-22). Remove the emptied
-  // cluster from the row outright while its only content is the hidden
-  // split group; the grown title cluster then fills to the reservation and
-  // the buttons land one rhythm from the corner. If upstream ever removes
-  // the split markup — or ships another visible utilities entry — the
-  // guard stops matching and the cluster comes back on its own.
-  assert.match(
-    layout,
-    /\[class\*="headerUtilities"\]:has\(\[class\*="_split"\]\)\s*\{[^}]*display:\s*none\s*!important;/s,
-    'emptied utilities cluster must leave the row entirely',
-  )
+  // Measured live at 402px: with the split group hidden the utilities cluster
+  // kept an 8px gap slice that stacked with the row gap and the corner
+  // clearance into a 24px hole between the trailing buttons and the corner
+  // toggle (mobile report 2026-09-22). A cluster with nothing visible must
+  // leave the row outright; the grown title cluster then fills to the
+  // reservation and the buttons land one rhythm from the corner.
+  //
+  // The trigger lives INSIDE this cluster, so the hide must exclude it: a bare
+  // cluster hide would take the ⋯ menu and its three mobile-only entries with
+  // it, and the class-fragment assertions above would stay green while it did.
+  const cluster = /\[class\*="headerUtilities"\]:has\(\[class\*="_split"\]\)([^{]*)\{([^}]*)\}/.exec(css)
+  assert.ok(cluster, 'the emptied utilities cluster rule is missing')
+  assert.match(cluster[2], /display:\s*none\s*!important;/)
+  assert.match(cluster[1], /:not\(:has\(\[data-context-menu-trigger\]\)\)/,
+    'the cluster hide must never own the More-actions trigger')
+
+  // No rule may hide one of the trigger's ANCESTORS outright either: the
+  // invariant is "the menu stays reachable", not "the two dead fragments are
+  // gone". Rules that hide a DESCENDANT (the Files split group) are fine and are
+  // skipped; a rule that hides the cluster or the title row itself must exclude
+  // the trigger by its marker.
+  for (const rule of css.matchAll(/([^{}]+)\{([^}]*display:\s*none\s*!important[^}]*)\}/g)) {
+    const selector = rule[1]
+    if (!/headerUtilities|_titleRow|_titleCluster/.test(selector)) continue
+    if (/_split|moreButton/.test(selector)) continue
+    assert.match(selector, /data-context-menu-trigger/,
+      `a header ancestor hide does not exclude the More-actions trigger: ${selector.trim()}`)
+  }
 })
 
 test('0.1.7 header row anchors on the titleRow div, not <header>', () => {
@@ -211,8 +251,8 @@ test('0.1.7 header controls share one vertical center line', () => {
   )
   assert.match(
     layout,
-    /\[class\*="headerUtilities"\] button:not\(\[class\*="moreButton"\]\):not\(\[class\*="chevron"\]\)\s*\{[^}]*height: 28px !important;/s,
-    'utilities buttons must match the 28px control rhythm without re-showing the hidden menu/chevron',
+    /\[class\*="headerUtilities"\] button:not\(\[data-context-menu-trigger\]\):not\(\[class\*="chevron"\]\)\s*\{[^}]*height: 28px !important;/s,
+    'utilities buttons must match the 28px control rhythm without restyling the menu trigger/chevron',
   )
 })
 
@@ -245,7 +285,7 @@ test('0.1.7 Files glyph is optically centered in its button', () => {
   // visual mass. Scoped to utilities buttons so no other glyph moves.
   assert.match(
     layout,
-    /\[class\*="headerUtilities"\] button:not\(\[class\*="moreButton"\]\):not\(\[class\*="chevron"\]\) > svg\s*\{[^}]*transform: translate\(1px, -2px\) !important;/s,
+    /\[class\*="headerUtilities"\] button:not\(\[data-context-menu-trigger\]\):not\(\[class\*="chevron"\]\) > svg\s*\{[^}]*transform: translate\(1px, -2px\) !important;/s,
   )
 })
 

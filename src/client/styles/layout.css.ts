@@ -616,12 +616,16 @@ export const LAYOUT_CSS = `/* ---------- mobile-only layout ---------- */
     width: auto !important;
     z-index: 2 !important;
   }
-  /* The ⋯ menu itself is redundant once its slot is reused. Matched by class
-     substring: the hash changes per build and the aria-label ("More actions")
-     changes per locale. */
-  [data-mobile-nav="frame"] [data-phase] [data-slot="conversation.session.header"] > header [class*="moreButton"] {
-    display: none !important;
-  }
+  /* The ⋯ menu stays visible on purpose. It was hidden while it carried a
+     single entry ("Download session log") that the drawer footer already
+     offers; 0.2.2 grew it to four entries and three of them have no other
+     mobile path: Copy Session as Markdown, Open in, Feedback (measured live on
+     0.2.2-rc.5 at 390px, 2026-11-21). The old selector also died on its own
+     when upstream renamed the trigger class from the "moreButton" fragment to
+     "headerMenuButton", so the menu had quietly come back anyway. Do not
+     re-hide it: tests/header-crowding-style.test.ts fails on any hide rule for
+     this control, and probe:header-menu proves it is reachable with its
+     entries intact. */
   /* Reserve the corner toggle's 28px plus its 8px gutter, or the
      absolutely-positioned button lands on the workspace/chevron cluster. */
   [data-mobile-nav="frame"] [data-phase] [data-slot="conversation.session.header"] > header [class*="_titleRow"] {
@@ -1152,8 +1156,9 @@ export const LAYOUT_CSS = `/* ---------- mobile-only layout ---------- */
   [data-mobile-nav="frame"] [data-phase] [data-slot="conversation.session.header"] [class*="headerUtilities"] [class*="_split"] {
     display: none !important;
   }
-  /* Corner toggle + redundant ⋯ menu, re-anchored (see the pre-0.1.7 rules
-     above for the rationale). */
+  /* Corner toggle re-anchored (see the pre-0.1.7 rules above for the
+     rationale). The ⋯ menu is NOT re-anchored here because it is not hidden:
+     see the decision recorded on the pre-0.1.7 twin above. */
   /* Absolute header controls center on the row itself (which is the
      positioning context), not on a fixed top pixel: in-flow 28px controls
      sit at row-top + (rowH - 28) / 2 and any fixed top drifts when the row
@@ -1193,10 +1198,10 @@ export const LAYOUT_CSS = `/* ---------- mobile-only layout ---------- */
   }
   /* Utilities buttons match the 28px control rhythm (upstream Files action
      ships 22px tall and centers 1px off the 28px controls). The :not() guards
-     keep this below the hidden menu/chevron rules in specificity-neutral
-     order: without them this later, more-specific rule re-shows the ⋯ menu
-     its own earlier display:none hides. */
-  [data-mobile-nav="frame"] [data-phase] [data-slot="conversation.session.header"] [class*="headerUtilities"] button:not([class*="moreButton"]):not([class*="chevron"]) {
+     keep the menu trigger and the open-in-app chevron out of it, anchored on
+     the marker upstream sets on the trigger rather than on a class fragment:
+     "moreButton" stopped naming it in 0.2.2. */
+  [data-mobile-nav="frame"] [data-phase] [data-slot="conversation.session.header"] [class*="headerUtilities"] button:not([data-context-menu-trigger]):not([class*="chevron"]) {
     height: 28px !important;
     display: inline-flex !important;
     align-items: center !important;
@@ -1208,12 +1213,11 @@ export const LAYOUT_CSS = `/* ---------- mobile-only layout ---------- */
      right-up so the four ink gaps equalize; tuned live to (1px, -2px)
      after (2px, -2px) read a touch right. Scoped to utilities buttons
      so no other glyph moves. */
-  [data-mobile-nav="frame"] [data-phase] [data-slot="conversation.session.header"] [class*="headerUtilities"] button:not([class*="moreButton"]):not([class*="chevron"]) > svg {
+  [data-mobile-nav="frame"] [data-phase] [data-slot="conversation.session.header"] [class*="headerUtilities"] button:not([data-context-menu-trigger]):not([class*="chevron"]) > svg {
     transform: translate(1px, -2px) !important;
   }
-  [data-mobile-nav="frame"] [data-phase] [data-slot="conversation.session.header"] [class*="moreButton"] {
-    display: none !important;
-  }
+  /* No hide rule for the header ⋯ menu: see the decision recorded on the
+     pre-0.1.7 twin above. */
   [data-mobile-nav="frame"] [data-phase] [data-slot="conversation.session.header"] [class*="_headerLeading"]:not(:has([data-slot="conversation.session.header.leading"] > *)) {
     display: none !important;
   }
@@ -1278,26 +1282,31 @@ export const LAYOUT_CSS = `/* ---------- mobile-only layout ---------- */
   html[data-mobile-nav-selecting] [data-mobile-nav="frame"] [data-phase] [data-slot="conversation.session.header"] {
     pointer-events: none !important;
   }
-  /* Utilities cluster on 0.1.7 held the Files split + ⋯ menu; both now
-     hide on mobile (split group above, menu below), so the cluster
-     collapses to zero width. (Its menuAnchor span carries a "menu"
-     substring — keep the popover clamp above scoped to ul so the anchor
-     never matches.) */
+  /* Utilities cluster on 0.1.7 holds the Files split and the ⋯ menu. The
+     split group hides on mobile (rule above); the menu does not, so this
+     cluster keeps its trigger and normally carries the row's 28px control.
+     (Its menuAnchor span carries a "menu" substring — keep the popover clamp
+     above scoped to ul so the anchor never matches.) */
   [data-mobile-nav="frame"] [data-phase] [data-slot="conversation.session.header"] [class*="headerUtilities"] {
     flex: 0 1 auto !important;
     min-width: 0 !important;
     margin-left: auto !important;
   }
-  /* ...but an emptied cluster must leave the row entirely, not even a
-     zero-width box: its 8px gap slice plus the corner clearance stacked a
-     24px hole between the trailing buttons and the corner toggle (measured
-     live at 402px, mobile report 2026-09-22). display:none also drops the
-     row gap's orphan slice, so the grown cluster fills to the reservation
-     and the buttons land one rhythm from the corner. Guarded on the hidden
-     split group: if upstream ever removes that markup — or ships another
-     visible utilities entry — the guard stops matching and the cluster
-     comes back on its own. */
-  [data-mobile-nav="frame"] [data-phase] [data-slot="conversation.session.header"] [class*="headerUtilities"]:has([class*="_split"]) {
+  /* ...but a cluster holding nothing visible must leave the row entirely, not
+     even a zero-width box: its 8px gap slice plus the corner clearance stacked
+     a 24px hole between the trailing buttons and the corner toggle (measured
+     live at 402px, mobile report 2026-09-22). display:none also drops the row
+     gap's orphan slice, so the grown cluster fills to the reservation and the
+     buttons land one rhythm from the corner.
+     Two guards keep this from swallowing a live control:
+     - it only fires while the hidden Files split group is present, so a host
+       that ships no split never matches;
+     - it can never own the ⋯ menu trigger, which is deliberately visible. The
+       trigger lives INSIDE this cluster, so a bare cluster hide would take the
+       menu's three mobile-only entries (Copy Session as Markdown, Open in,
+       Feedback) with it, and no class-fragment assertion downstream could see
+       that. Excluded by the marker upstream sets on the trigger. */
+  [data-mobile-nav="frame"] [data-phase] [data-slot="conversation.session.header"] [class*="headerUtilities"]:has([class*="_split"]):not(:has([data-context-menu-trigger])) {
     display: none !important;
   }
   /* Trigger roots pin at max-content (jobs 28px circle, lineage 28px badge):
