@@ -546,6 +546,14 @@
       "lazy": true,
       "state": "session with subagents (running or idle)",
       "note": "the \"N subagents\" sentence span. The compact badge hides THIS and keeps the glyph slot, so a collapse written as \"hide every direct span\" takes the users icon with it when upstream wraps it (measured 0.2.2-rc.5: empty circle, users svg 0x0). probe:lineage-chip fails if the glyph stops painting or the sentence starts stretching the badge"
+    },
+    {
+      "id": "session-header-menu-trigger",
+      "kind": "marker",
+      "needle": "[data-slot=\"conversation.session.header\"] button[data-context-menu-trigger]",
+      "owner": "dsh-client-ui-conversation",
+      "lazy": false,
+      "note": "the header More-actions (ellipsis) trigger. This plugin must NOT hide it: 0.2.2 grows it to four entries and three have no other mobile path (Copy Session as Markdown, Open in, Feedback), and the old hide rule died anyway when upstream renamed the class from the moreButton fragment to headerMenuButton. probe:header-menu fails if the control stops painting or its entries stop being reachable"
     }
   ]
 }

@@ -616,12 +616,16 @@ export const LAYOUT_CSS = `/* ---------- mobile-only layout ---------- */
     width: auto !important;
     z-index: 2 !important;
   }
-  /* The ⋯ menu itself is redundant once its slot is reused. Matched by class
-     substring: the hash changes per build and the aria-label ("More actions")
-     changes per locale. */
-  [data-mobile-nav="frame"] [data-phase] [data-slot="conversation.session.header"] > header [class*="moreButton"] {
-    display: none !important;
-  }
+  /* The ⋯ menu stays visible on purpose. It was hidden while it carried a
+     single entry ("Download session log") that the drawer footer already
+     offers; 0.2.2 grew it to four entries and three of them have no other
+     mobile path: Copy Session as Markdown, Open in, Feedback (measured live on
+     0.2.2-rc.5 at 390px, 2026-11-21). The old selector also died on its own
+     when upstream renamed the trigger class from the "moreButton" fragment to
+     "headerMenuButton", so the menu had quietly come back anyway. Do not
+     re-hide it: tests/header-crowding-style.test.ts fails on any hide rule for
+     this control, and probe:header-menu proves it is reachable with its
+     entries intact. */
   /* Reserve the corner toggle's 28px plus its 8px gutter, or the
      absolutely-positioned button lands on the workspace/chevron cluster. */
   [data-mobile-nav="frame"] [data-phase] [data-slot="conversation.session.header"] > header [class*="_titleRow"] {
@@ -1193,10 +1197,10 @@ export const LAYOUT_CSS = `/* ---------- mobile-only layout ---------- */
   }
   /* Utilities buttons match the 28px control rhythm (upstream Files action
      ships 22px tall and centers 1px off the 28px controls). The :not() guards
-     keep this below the hidden menu/chevron rules in specificity-neutral
-     order: without them this later, more-specific rule re-shows the ⋯ menu
-     its own earlier display:none hides. */
-  [data-mobile-nav="frame"] [data-phase] [data-slot="conversation.session.header"] [class*="headerUtilities"] button:not([class*="moreButton"]):not([class*="chevron"]) {
+     keep the menu trigger and the open-in-app chevron out of it, anchored on
+     the marker upstream sets on the trigger rather than on a class fragment:
+     "moreButton" stopped naming it in 0.2.2. */
+  [data-mobile-nav="frame"] [data-phase] [data-slot="conversation.session.header"] [class*="headerUtilities"] button:not([data-context-menu-trigger]):not([class*="chevron"]) {
     height: 28px !important;
     display: inline-flex !important;
     align-items: center !important;
@@ -1208,12 +1212,11 @@ export const LAYOUT_CSS = `/* ---------- mobile-only layout ---------- */
      right-up so the four ink gaps equalize; tuned live to (1px, -2px)
      after (2px, -2px) read a touch right. Scoped to utilities buttons
      so no other glyph moves. */
-  [data-mobile-nav="frame"] [data-phase] [data-slot="conversation.session.header"] [class*="headerUtilities"] button:not([class*="moreButton"]):not([class*="chevron"]) > svg {
+  [data-mobile-nav="frame"] [data-phase] [data-slot="conversation.session.header"] [class*="headerUtilities"] button:not([data-context-menu-trigger]):not([class*="chevron"]) > svg {
     transform: translate(1px, -2px) !important;
   }
-  [data-mobile-nav="frame"] [data-phase] [data-slot="conversation.session.header"] [class*="moreButton"] {
-    display: none !important;
-  }
+  /* No hide rule for the header ⋯ menu: see the decision recorded on the
+     pre-0.1.7 twin above. */
   [data-mobile-nav="frame"] [data-phase] [data-slot="conversation.session.header"] [class*="_headerLeading"]:not(:has([data-slot="conversation.session.header.leading"] > *)) {
     display: none !important;
   }

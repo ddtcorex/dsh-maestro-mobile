@@ -2,17 +2,43 @@ import assert from 'node:assert/strict'
 import { readFileSync } from 'node:fs'
 import test from 'node:test'
 
-const layout = readFileSync(new URL('../src/client/styles/layout.css.ts', import.meta.url), 'utf8')
+import { stripCssComments } from '../scripts/strip-css-comments.mjs'
 
-test('the redundant header More-actions menu stays hidden on mobile', () => {
-  // The header "More actions" (⋯) menu resolves to a single entry on mobile —
-  // "Download session log" — which already exists as the drawer-footer
-  // Session log button (MobileDrawerFooter). Matched by class substring: the
-  // hash changes per build and the aria-label ("More actions") changes per
-  // locale.
+const layout = readFileSync(new URL('../src/client/styles/layout.css.ts', import.meta.url), 'utf8')
+// Comments carry the design record and must never satisfy or fail a selector
+// assertion (docs/maintenance/pitfalls.md).
+const css = stripCssComments(layout)
+
+test('the header More-actions menu stays reachable on mobile', () => {
+  // The old rule hid this menu because it held a single entry, "Download
+  // session log", which the drawer footer already offers. 0.2.2 grew the menu
+  // to four entries and three of them have no other mobile path: "Copy Session
+  // as Markdown", "Open in", "Feedback" (measured live on 0.2.2-rc.5 at 390px,
+  // 2026-11-21). The rule also died on its own: it matched the class fragment
+  // "moreButton" while upstream renamed the trigger to "headerMenuButton", so
+  // the button had quietly come back. Hiding it again would remove three
+  // actions from the phone, so the decision is recorded here instead: no rule
+  // may hide this control, in either generation of the selector.
+  assert.doesNotMatch(
+    css,
+    /\[class\*="moreButton"\][^{]*\{[^}]*display:\s*none/,
+    'the dead More-actions hide rule is back',
+  )
+  assert.doesNotMatch(
+    css,
+    /headerMenuButton[^{]*\{[^}]*display:\s*none/,
+    'the header menu is hidden again; three of its entries are unique on mobile',
+  )
+  // The glyph rules that used to exclude the menu by the dead fragment must
+  // exclude it by the marker upstream sets on it, or the 28px rhythm and the
+  // optical nudge silently restyle a control nobody meant to touch.
   assert.match(
-    layout,
-    /\[data-mobile-nav="frame"\] \[data-phase\] \[data-slot="conversation\.session\.header"\] > header \[class\*="moreButton"\]\s*\{\s*display:\s*none\s*!important;\s*\}/s,
+    css,
+    /\[class\*="headerUtilities"\] button:not\(\[data-context-menu-trigger\]\):not\(\[class\*="chevron"\]\)\s*\{[^}]*height: 28px !important;/s,
+  )
+  assert.match(
+    css,
+    /\[class\*="headerUtilities"\] button:not\(\[data-context-menu-trigger\]\):not\(\[class\*="chevron"\]\) > svg\s*\{[^}]*transform: translate\(1px, -2px\) !important;/s,
   )
 })
 
@@ -211,8 +237,8 @@ test('0.1.7 header controls share one vertical center line', () => {
   )
   assert.match(
     layout,
-    /\[class\*="headerUtilities"\] button:not\(\[class\*="moreButton"\]\):not\(\[class\*="chevron"\]\)\s*\{[^}]*height: 28px !important;/s,
-    'utilities buttons must match the 28px control rhythm without re-showing the hidden menu/chevron',
+    /\[class\*="headerUtilities"\] button:not\(\[data-context-menu-trigger\]\):not\(\[class\*="chevron"\]\)\s*\{[^}]*height: 28px !important;/s,
+    'utilities buttons must match the 28px control rhythm without restyling the menu trigger/chevron',
   )
 })
 
@@ -245,7 +271,7 @@ test('0.1.7 Files glyph is optically centered in its button', () => {
   // visual mass. Scoped to utilities buttons so no other glyph moves.
   assert.match(
     layout,
-    /\[class\*="headerUtilities"\] button:not\(\[class\*="moreButton"\]\):not\(\[class\*="chevron"\]\) > svg\s*\{[^}]*transform: translate\(1px, -2px\) !important;/s,
+    /\[class\*="headerUtilities"\] button:not\(\[data-context-menu-trigger\]\):not\(\[class\*="chevron"\]\) > svg\s*\{[^}]*transform: translate\(1px, -2px\) !important;/s,
   )
 })
 

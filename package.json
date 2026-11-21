@@ -59,7 +59,8 @@
     "probe:effort-panel": "node scripts/probes/effort-panel-probe.mjs",
     "test:core": "node --test tests/reconciler-core.test.ts tests/composer-keyboard-touch.test.ts",
     "prepack": "npm run build",
-    "probe:question-card": "node scripts/probes/question-card-audit-probe.mjs"
+    "probe:question-card": "node scripts/probes/question-card-audit-probe.mjs",
+    "probe:header-menu": "node scripts/probes/header-menu-probe.mjs"
   },
   "dsh": {
     "bundle": {
