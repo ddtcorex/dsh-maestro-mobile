@@ -6,6 +6,49 @@ All notable changes to this project are documented in this file. Format follows
 
 ## [Unreleased]
 
+## [1.13.0] - 2026-11-21
+
+### Added
+
+- The compact subagent-lineage badge shows activity again. While a subagent runs,
+  upstream's animated spinner (`svg[data-state="ongoing"]`, a track circle plus a
+  dashed arc) takes the badge's single glyph slot and the users icon steps aside;
+  when the last subagent settles the spinner leaves the DOM and the icon returns.
+  Both rules key on upstream's own `data-state` marker, never on the class
+  fragment an earlier change hid, which had left the badge with no running cue at
+  all.
+- Gates that assert paint rather than source text: `probe:lineage-chip` now
+  requires exactly one glyph painted inside the trigger at 390px and at 800px
+  with a coarse pointer (the band where upstream hides its own icon outside a
+  460px container), checks the running hand-off, and keeps the ink-contrast row;
+  the new `probe:header-menu` asserts the header menu trigger, its entries and
+  the session title lane.
+
+### Changed
+
+- The header ⋯ menu is deliberately reachable. It was hidden while it carried the
+  single "Download session log" entry that the drawer footer already offers.
+  0.2.2 ships four entries and three have no other mobile path (Copy Session as
+  Markdown, Open in, Feedback), and the old selector had already stopped matching
+  after upstream renamed the trigger class from the `moreButton` fragment to
+  `headerMenuButton`. A test now fails on any rule that hides the control or an
+  ancestor of it.
+- The emptied-utilities-cluster rule can no longer own the ⋯ trigger
+  (`:not(:has([data-context-menu-trigger]))`), so a host that ships the Files
+  split group cannot take the menu with it.
+
+### Fixed
+
+- The compact lineage badge lost its users glyph on 0.2.2: the collapse rule hid
+  every direct span of the trigger, and 0.2.2 had moved the glyph into
+  `span.activitySlot`. It now hides only the sentence, by upstream's
+  `data-subagent-count` marker, and keeps the glyph (measured 15x15 inside the
+  28px circle at 12.11:1 contrast in dark).
+- Two lineage assertions could pass while the regression they name came back: an
+  unreachable blanket-span guard, and a sibling test matching comment prose. Both
+  now run against comment-stripped CSS, and both were A/B checked by
+  re-introducing the fault.
+
 ## [1.12.1] - 2026-11-20
 
 ### Fixed
