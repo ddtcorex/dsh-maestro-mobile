@@ -30,8 +30,11 @@ test('the lineage collapse hides the count sentence, never the glyph slot', () =
   assert.match(selector, /\[data-subagent-count\]/, 'the count sentence is not hidden by its upstream marker')
   assert.match(selector, /span:not\(:has\(> svg\)\)/, 'a glyph-less span (the sentence) is not covered')
   // A blanket `> span` rule is exactly the regression: it hides the activity
-  // slot that carries the users glyph.
-  assert.doesNotMatch(selector, /^\s*span\s*$/, 'a blanket direct-span rule hides the glyph slot too')
+  // slot that carries the users glyph. Assert on the whole stylesheet with a
+  // boundary-aware pattern: the per-rule capture above always starts with the
+  // count marker, so testing THAT string for a bare "span" clause can never fail
+  // and would stay green while the blanket clause came back beside it.
+  assert.doesNotMatch(css, /\[data-mobile-nav="lineage"\]\s*>\s*span\s*[,{]/, 'a blanket direct-span rule hides the glyph slot too')
 })
 
 test('the glyph slot is laid out as the badge content', () => {

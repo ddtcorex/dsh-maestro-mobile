@@ -378,6 +378,41 @@ async function main() {
       fail('lineage-chip.glyph',
         `visible=${glyph.visibleCount} size=${JSON.stringify(glyph.visibleSize)} insideTrigger=${glyph.insideTrigger} glyphs=${JSON.stringify(glyph.painted)}`)
     }
+    // 1b-2. The same hand-off at a coarse width ABOVE upstream's own container
+    // breakpoint. Upstream renders the users icon with the compactIcon class
+    // while a subagent runs, and that class is `display: none` outside
+    // `@container (max-width: 460px)`; the plugin's own block runs to 1023px on
+    // coarse pointers, so a tablet in the 461-1023px band can hide the icon while
+    // the badge still applies. This row proves the slot is never empty in that
+    // band: whatever glyph owns it (icon or spinner), exactly one must paint.
+    await client.send('Emulation.setDeviceMetricsOverride', {
+      width: 800, height: 1000, deviceScaleFactor: 2, mobile: true, hasTouch: true,
+    })
+    await sleep(700)
+    const wide = await client.evaluate(`(() => {
+      const trigger = document.querySelector(${JSON.stringify(CHIP_SELECTOR)});
+      const svgs = [...trigger.querySelectorAll('svg')].map((el) => {
+        const r = el.getBoundingClientRect();
+        const cs = getComputedStyle(el);
+        return {
+          icon: el.getAttribute('data-icon') ?? null,
+          state: el.getAttribute('data-state') ?? null,
+          width: Math.round(r.width), height: Math.round(r.height),
+          shown: r.width > 0 && r.height > 0 && cs.display !== 'none' && cs.visibility !== 'hidden',
+        };
+      });
+      return { svgs, painted: svgs.filter((svg) => svg.shown) };
+    })()`)
+    if (wide.painted.length === 1) {
+      pass('lineage-chip.glyph-wide', `${wide.painted[0].icon ?? `spinner(${wide.painted[0].state})`} painted at 800px coarse`)
+    } else {
+      fail('lineage-chip.glyph-wide', `${wide.painted.length} glyphs painted at 800px coarse: ${JSON.stringify(wide.svgs)}`)
+    }
+    await client.send('Emulation.setDeviceMetricsOverride', {
+      width: 390, height: 844, deviceScaleFactor: 2, mobile: true, hasTouch: true,
+    })
+    await sleep(500)
+
     // 1c. The running hand-off. It needs a subagent that is running at the
     // moment the probe samples, which a probe cannot summon, so this row SKIPs
     // when the chip is idle and names why; the CSS itself is pinned by

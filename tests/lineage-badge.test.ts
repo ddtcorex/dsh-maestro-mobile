@@ -1,9 +1,13 @@
 import assert from 'node:assert/strict'
 import { readFileSync } from 'node:fs'
 import test from 'node:test'
+
+import { stripCssComments } from '../scripts/strip-css-comments.mjs'
 import { lineageCountFromLabel } from '../src/client/effects/lineage-badge.ts'
 
-const layout = readFileSync(new URL('../src/client/styles/layout.css.ts', import.meta.url), 'utf8')
+// Selector assertions run against comment-stripped CSS: prose must never satisfy or
+// fail a rule match (docs/maintenance/pitfalls.md).
+const layout = stripCssComments(readFileSync(new URL('../src/client/styles/layout.css.ts', import.meta.url), 'utf8'))
 const effect = readFileSync(new URL('../src/client/effects/lineage-badge.ts', import.meta.url), 'utf8')
 
 test('the lineage badge count comes from the trigger accessible name', () => {
