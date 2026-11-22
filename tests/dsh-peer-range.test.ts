@@ -30,10 +30,20 @@ const manifest = JSON.parse(readFileSync(resolve(here, '../package.json'), 'utf8
 }
 
 /** The DSH release this checkout is verified against. */
-const HOST_RELEASE_UNDER_TEST = '0.2.2-alpha.2'
+const HOST_RELEASE_UNDER_TEST = '0.2.3-alpha.2'
 
 /** The cordis build the host ships (a runtime peer, not a dsh package). */
-const CORDIS_RELEASE_UNDER_TEST = '4.0.6-alpha.1'
+const CORDIS_RELEASE_UNDER_TEST = '4.2.0-alpha.1'
+
+/**
+ * The host's row gate evaluates peers with `includePrerelease: true`
+ * (`unmetRequirements` in dsh-app-boot), so a prerelease target is admitted by a
+ * range whose comparators name an older tuple. Assert under the SAME semantics as
+ * the gate: default semver reports a false failure on exactly the prerelease the
+ * host is running, because it only admits a prerelease when a comparator names
+ * that identical `[major, minor, patch]` tuple.
+ */
+const GATE_SEMANTICS = { includePrerelease: true } as const
 
 /** The range every `@deepseek-ai/dsh-*` peer must declare. */
 const DSH_PEER_RANGE = '>=0.2.0-rc.2 <0.3.0-0 || >=0.2.2-0 <0.3.0-0'
@@ -58,7 +68,7 @@ test('every dsh peer declares the same range and keeps a 0.3 ceiling', () => {
 test('the range accepts the DSH release this plugin runs on', () => {
   for (const [name, range] of dshPeers()) {
     assert.equal(
-      semver.satisfies(HOST_RELEASE_UNDER_TEST, range),
+      semver.satisfies(HOST_RELEASE_UNDER_TEST, range, GATE_SEMANTICS),
       true,
       `${name}: ${HOST_RELEASE_UNDER_TEST} must satisfy ${range}`,
     )
@@ -81,7 +91,12 @@ test('the cordis range accepts the build the host ships', () => {
     true,
     `cordis ${CORDIS_RELEASE_UNDER_TEST} must satisfy ${range}`,
   )
-  assert.equal(semver.satisfies('4.0.4', range), true, 'the older cordis build stays supported')
+  // `~4.1.0 || ~4.2.0-alpha.1` is every cordis build DSH has bundled across the
+  // runtime this plugin was written for and the one it now runs on, so a rollback
+  // to `current`'s previous prefix keeps the peer satisfied. Claiming an older
+  // cordis line is what let this peer drift three minor builds behind the runtime.
+  assert.equal(semver.satisfies('4.1.0', range), true, 'the previous host build stays supported')
+  assert.equal(semver.satisfies('4.0.4', range), false, 'the pre-4.1 cordis build is not claimed')
 })
 
 test('the installed host version, when the environment names one, is accepted', (t) => {
@@ -91,7 +106,11 @@ test('the installed host version, when the environment names one, is accepted', 
     return
   }
   for (const [name, range] of dshPeers()) {
-    assert.equal(semver.satisfies(fromEnv, range), true, `${name}: ${fromEnv} must satisfy ${range}`)
+    assert.equal(
+      semver.satisfies(fromEnv, range, GATE_SEMANTICS),
+      true,
+      `${name}: ${fromEnv} must satisfy ${range}`,
+    )
   }
 })
 
