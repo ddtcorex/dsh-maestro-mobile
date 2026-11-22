@@ -1,6 +1,5 @@
 import type { Context as ClientContext } from '@deepseek-ai/cordis'
 import { MobileNavToggle } from './components/MobileNavToggle.tsx'
-import { MobileDrawerFooter } from './components/MobileDrawerFooter.tsx'
 import { ShellOverlay } from './components/ShellOverlay.tsx'
 import { MOBILE_CSS } from './styles/index.ts'
 
@@ -36,7 +35,7 @@ declare module '@deepseek-ai/dsh-client-ui-slots' {
 }
 
 /** Required services (cordis fiber inject — the loader passes all module exports as an object plugin). */
-export const inject = ['slots', 'layout', 'locale', 'sessionLogDownload', 'sessions', 'workspaces']
+export const inject = ['slots', 'layout', 'locale', 'sessions', 'workspaces']
 
 /**
  * Mobile-adaptive shell, browser half: injects the mobile stylesheet, then
@@ -285,32 +284,12 @@ export function apply(ctx: ClientContext): void {
   // those edges (the strip is 1186px of tabs in a 356px viewport here, and its
   // scrollbar is hidden).
   installSettingsTabsEdges(ctx)
-
-  // Session log download, relocated from the session header to the drawer
-
-  // footer on mobile (the header capsule is hidden by CSS).
-  //
-  // Footer stacking relies on the list-slot sort by (priority, order):
-  // dsh-remote-web-ui leaves it unset (default 0, its two icon buttons stay
-  // on top) and dsh-usage-stats uses 10. Order 5 keeps the Session log pill
-  // directly under the icon row with the usage/balance badge below it —
-  // instead of a tie at 10 where registration order could wedge the badge
-  // between the icons and the pill.
-  ctx.slots.inject('sidebar.footer.action', () => ctx.slots.register({
-    name: 'sidebar.footer.action',
-    id: 'mobile-nav-session-log',
-    order: 5,
-    locale: NS,
-    inject: () => ({
-      downloadSessionLog: (sessionId: string) => ctx.sessionLogDownload.download(sessionId),
-    }),
-  }, MobileDrawerFooter))
 }
 
 // Type-only augmentation imports: pull the layout / conversation / sidebar /
 // settings SlotMap merges, the renderer slots service, the session/workspace
-// service typings, the session global-standard props (useSessions), and the
-// sessionLogDownload service typing into this program without any runtime import.
+// service typings and the session global-standard props (useSessions) into
+// this program without any runtime import.
 import type {} from '@deepseek-ai/dsh-api-session-controller/client'
 import type {} from '@deepseek-ai/dsh-api-workspace-controller/client'
 import type {} from '@deepseek-ai/dsh-client-ui-layout/client'
@@ -320,4 +299,3 @@ import type {} from '@deepseek-ai/dsh-client-ui-session/client'
 import type {} from '@deepseek-ai/dsh-client-ui-sidebar/client'
 import type {} from '@deepseek-ai/dsh-client-ui-settings/client'
 import type {} from '@deepseek-ai/dsh-client-locale/client'
-import type {} from '@deepseek-ai/dsh-session-log-export/client'

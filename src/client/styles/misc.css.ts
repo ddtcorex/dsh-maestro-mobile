@@ -360,9 +360,7 @@ html[data-mobile-nav-ios] [data-phase] textarea {
 @media (min-width: 1024px), (pointer: fine), (pointer: none) {
   [data-mobile-nav="toggle"],
   [data-mobile-nav="fab"],
-  [data-mobile-nav="backdrop"],
-  [data-mobile-nav="session-log"],
-  [data-mobile-nav="drawer-actions"] {
+  [data-mobile-nav="backdrop"] {
     display: none !important;
   }
 }
