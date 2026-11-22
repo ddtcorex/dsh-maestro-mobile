@@ -3,7 +3,7 @@ import test from 'node:test'
 import {
   createFocusShadow,
   type FocusableLike,
-} from '../src/client/effects/editor-focus-shadow.ts'
+} from '../src/client/core/editor-focus-shadow.ts'
 
 /** A focusable stand-in that counts how often the real focus() runs. */
 class FakeEditor implements FocusableLike {
