@@ -277,6 +277,22 @@ export const LAYOUT_CSS = `/* ---------- mobile-only layout ---------- */
     gap: 8px !important;
     width: 100% !important;
   }
+  /* The card above is sized for the 42px Bento trigger, but that trigger rule
+     ends in :not([aria-modal="true"] *) and the open drawer IS an aria-modal
+     dialog (div[role="dialog"][aria-modal="true"][data-slot="sidebar"]), so the
+     host's plain 32px row is what actually renders inside. The card kept its
+     12px frame and the row kept the host's 4px vertical margin, so a single
+     line sat in 34px of dead space and the footer read 66px tall, taller than
+     every drawer row ("the More button in the sidebar is too tall", mobile
+     report 2026-11-22, measured 390x844).
+     Tighten the frame to the drawer's own 8px rhythm instead: 8 + 32 + 8 plus
+     the card's 1px border is 50px, and the row keeps a 48px-plus target. */
+  [data-mobile-nav="frame"] > [class*="_sidebarCol"] [class*="_footArea"] {
+    padding: 8px !important;
+  }
+  [data-mobile-nav="frame"] > [class*="_sidebarCol"] [class*="_footArea"] [class*="_triggerRow"] {
+    margin-block: 0 !important;
+  }
 
   /* Drag handles are useless on touch and would float over the drawer.
      AppFrame tags its two handles with data-side="sidebar" | "rightbar"
