@@ -1,6 +1,6 @@
 import type { Context as ClientContext } from '@deepseek-ai/cordis'
 import { EDITOR_SELECTOR, editorElement, restingViewportHeight } from '../core/composer-dom.ts'
-import { createFocusShadow } from './editor-focus-shadow.ts'
+import { createFocusShadow } from '../core/editor-focus-shadow.ts'
 import { detectIosWebKit, installMobileEffect } from './phone-chrome.ts'
 
 /**

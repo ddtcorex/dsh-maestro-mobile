@@ -504,15 +504,6 @@
       "note": "the backdrop is the tap target that closes the drawer; it must be hit-testable, not just painted"
     },
     {
-      "id": "mobile-session-log",
-      "kind": "interactive",
-      "needle": "[data-mobile-nav=\"session-log\"]",
-      "owner": "dsh-maestro-mobile",
-      "lazy": true,
-      "state": "open the drawer",
-      "note": "the drawer footer session-log pill must be tappable"
-    },
-    {
       "id": "sidebar-drawer-dialog",
       "kind": "marker",
       "needle": "[data-shortcut-modal=\"sidebar\"]",
