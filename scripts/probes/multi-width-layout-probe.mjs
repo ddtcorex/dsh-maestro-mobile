@@ -8,11 +8,14 @@
 // width alone would otherwise arm it. Splitting these into separate probes
 // would let one tier pass while the boundary between tiers is broken.
 //
-// The header-icon check is an integration guard, not a styling check: the
-// toggle renders its glyph through the host icon resolver
-// (@deepseek-ai/dsh-client-ui-primitives). A renamed or missing export resolves
-// to an empty component and paints nothing, while every marker, media query and
-// stylesheet assertion still passes -- so the probe requires a real svg path.
+// The header-icon check is an integration guard, not a styling check: the glyph
+// comes from the host icon resolver (@deepseek-ai/dsh-client-ui-primitives). A
+// renamed or missing export resolves to an empty component and paints nothing,
+// while every marker, media query and stylesheet assertion still passes -- so
+// the probe requires a glyph that actually boxes. It measures whichever drawer
+// opener is on screen, because the host mounts its own and the plugin hides his
+// while that one exists, and it accepts both icon implementations: an inline
+// <path d> and the SVG sprite <use href="#..."> the host renders from 0.2.3.
 //
 // Env: DSH_PROBE_URL (default http://127.0.0.1:3082/),
 //      DSH_PROBE_SESSION_ID (required), DSH_PROBE_CHROME (default chromium),
@@ -33,6 +36,13 @@ const DEFAULT_URL = 'http://127.0.0.1:3082/'
 const DEFAULT_TIMEOUT_MS = 30_000
 const FRAME_SELECTOR = '[data-mobile-nav="frame"]'
 const TOGGLE_SELECTOR = 'button[data-mobile-nav="toggle"]'
+/**
+ * The host's own drawer opener. DSH 0.2.2-alpha.3 moved it into the drawer
+ * corner's leading seat, and the plugin deliberately hides its own toggle while
+ * this one is mounted ("one drawer opener, not two"), so on a current host this
+ * is the control the user actually taps.
+ */
+const OPENER_SELECTOR = '[data-slot="shell.leading"] button[data-sidebar-opener]'
 const MOBILE_STYLE_SELECTOR = 'style[data-plugin="@ddtcorex/dsh-maestro-mobile"]'
 const CONTROLS = ['[data-mobile-nav="toggle"]', '[data-mobile-nav="fab"]', '[data-mobile-nav="backdrop"]']
 
@@ -128,28 +138,50 @@ async function setProfile(client, { width, height, touch }) {
 }
 
 const MOBILE_SNAPSHOT = `(() => {
-  const toggle = document.querySelector(${JSON.stringify(TOGGLE_SELECTOR)});
-  const svg = toggle === null ? null : toggle.querySelector('svg');
-  const paths = svg === null ? [] : [...svg.querySelectorAll('path')];
-  const filled = paths.filter((path) => (path.getAttribute('d') || '').trim() !== '');
-  const visible = (selector) => {
-    const element = document.querySelector(selector);
+  const visible = (element) => {
     if (element === null) return false;
     const style = getComputedStyle(element);
     const rect = element.getBoundingClientRect();
     return style.display !== 'none' && style.visibility !== 'hidden' && rect.width > 0 && rect.height > 0;
   };
+  /**
+   * Describe one drawer opener and whether its glyph actually paints.
+   * Accepts both icon implementations: an inline <path d> (older host) and the
+   * SVG sprite <use href="#..."> the host renders now. A <use> whose symbol is
+   * missing or unregistered boxes at 0x0, which is the broken-resolver case this
+   * assertion exists to catch.
+   */
+  const describe = (source, element) => {
+    if (element === null) return { source, present: false, visible: false, resolved: false, glyph: 'absent' };
+    const svg = element.querySelector('svg');
+    const paths = svg === null ? [] : [...svg.querySelectorAll('path')].filter((path) => (path.getAttribute('d') || '').trim() !== '');
+    const use = svg === null ? null : svg.querySelector('use');
+    let box = { w: 0, h: 0 };
+    if (use !== null) {
+      try { const raw = use.getBBox(); box = { w: Math.round(raw.width), h: Math.round(raw.height) }; } catch (error) { box = { w: 0, h: 0 }; }
+    }
+    const rect = element.getBoundingClientRect();
+    const shown = visible(element);
+    const glyph = paths.length > 0 ? 'path' : (box.w > 0 && box.h > 0 ? 'sprite' : 'none');
+    return {
+      source, present: true, visible: shown,
+      width: Math.round(rect.width), height: Math.round(rect.height),
+      glyph, glyphBox: box, resolved: shown && glyph !== 'none',
+    };
+  };
+  const candidates = [
+    describe('host-opener', document.querySelector(${JSON.stringify(OPENER_SELECTOR)})),
+    describe('plugin-toggle', document.querySelector(${JSON.stringify(TOGGLE_SELECTOR)})),
+  ];
   return {
     coarse: matchMedia('(pointer: coarse)').matches,
     frame: document.querySelector(${JSON.stringify(FRAME_SELECTOR)}) !== null,
     style: document.querySelector(${JSON.stringify(MOBILE_STYLE_SELECTOR)}) !== null,
     scrollWidth: document.documentElement.scrollWidth,
     innerWidth: window.innerWidth,
-    toggle: toggle !== null,
-    toggleVisible: visible(${JSON.stringify(TOGGLE_SELECTOR)}),
-    svg: svg !== null,
-    filledPaths: filled.length,
-    pathD: filled.length > 0 ? (filled[0].getAttribute('d') || '').slice(0, 24) : null,
+    opener: candidates[0],
+    toggle: candidates[1],
+    control: candidates.find((candidate) => candidate.visible) || null,
   };
 })()`
 
@@ -248,10 +280,15 @@ async function assertMobile(client, scene, timeoutMs) {
     fail(`${prefix}.no-overflow`, `scrollWidth=${state.scrollWidth} > innerWidth=${state.innerWidth}`)
   }
 
-  if (state.toggle && state.svg && state.filledPaths > 0) {
-    pass(`${prefix}.header-icon`, `paths=${state.filledPaths} d="${state.pathD}" visible=${state.toggleVisible}`)
+  // Whichever drawer opener is on screen must paint a resolvable glyph. On a
+  // current host that is the host's own leading-seat opener; the plugin's copy
+  // is intentionally hidden there, so measuring only the plugin's toggle would
+  // report a false failure on every touch tier.
+  const shown = state.control
+  if (shown !== null && shown.resolved) {
+    pass(`${prefix}.header-icon`, `${shown.source} ${shown.width}x${shown.height} glyph=${shown.glyph} box=${shown.glyphBox.w}x${shown.glyphBox.h}`)
   } else {
-    fail(`${prefix}.header-icon`, `toggle=${state.toggle} svg=${state.svg} filledPaths=${state.filledPaths}; ${drive}`)
+    fail(`${prefix}.header-icon`, `no visible opener with a resolved glyph (opener=${JSON.stringify(state.opener)} toggle=${JSON.stringify(state.toggle)}); ${drive}`)
   }
 }
 

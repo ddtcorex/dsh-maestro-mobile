@@ -35,6 +35,3 @@ export function pickIcon(names: readonly string[], table: Record<string, unknown
 
 /** Drawer toggle glyph, at the emphasized (1.3px) weight. */
 export const PANEL_LEFT_ICON_NAMES = ['IconPanelLeftOutlineMedium'] as const
-
-/** Session-log download glyph (drawer footer), same weight. */
-export const DOWNLOAD_ICON_NAMES = ['IconDownloadOutlineMedium'] as const
