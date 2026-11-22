@@ -173,6 +173,35 @@ const MOBILE_SNAPSHOT = `(() => {
     describe('host-opener', document.querySelector(${JSON.stringify(OPENER_SELECTOR)})),
     describe('plugin-toggle', document.querySelector(${JSON.stringify(TOGGLE_SELECTOR)})),
   ];
+  /**
+   * Every visible header glyph must sit on its own button's centre line.
+   *
+   * This guards the class, not one icon: the plugin once carried an optical
+   * nudge (a translate) tuned for the host Files arrow. Upstream moved that
+   * action out of the utilities band, the Session panel toggle moved in, and
+   * the nudge shifted a flat-list glyph whose ink is symmetrical, so the band
+   * read as "the icons are not on one line". A glyph offset here means some
+   * rule is translating or padding a glyph instead of letting the button's
+   * flex centring place it.
+   */
+  const headerGlyphs = () => {
+    const scope = document.querySelector('[data-slot="conversation.session.header"]');
+    if (scope === null) return [];
+    const rows = [];
+    for (const button of scope.querySelectorAll('button')) {
+      if (!visible(button)) continue;
+      const svg = button.querySelector('svg');
+      if (svg === null || !visible(svg)) continue;
+      const br = button.getBoundingClientRect();
+      const sr = svg.getBoundingClientRect();
+      rows.push({
+        label: ((button.getAttribute('aria-label') || button.textContent || '').trim().slice(0, 22)) || button.tagName.toLowerCase(),
+        dy: Math.round(((sr.top + sr.bottom) / 2 - (br.top + br.bottom) / 2) * 10) / 10,
+        dx: Math.round(((sr.left + sr.right) / 2 - (br.left + br.right) / 2) * 10) / 10,
+      });
+    }
+    return rows;
+  };
   return {
     coarse: matchMedia('(pointer: coarse)').matches,
     frame: document.querySelector(${JSON.stringify(FRAME_SELECTOR)}) !== null,
@@ -182,6 +211,7 @@ const MOBILE_SNAPSHOT = `(() => {
     opener: candidates[0],
     toggle: candidates[1],
     control: candidates.find((candidate) => candidate.visible) || null,
+    glyphs: headerGlyphs(),
   };
 })()`
 
@@ -289,6 +319,18 @@ async function assertMobile(client, scene, timeoutMs) {
     pass(`${prefix}.header-icon`, `${shown.source} ${shown.width}x${shown.height} glyph=${shown.glyph} box=${shown.glyphBox.w}x${shown.glyphBox.h}`)
   } else {
     fail(`${prefix}.header-icon`, `no visible opener with a resolved glyph (opener=${JSON.stringify(state.opener)} toggle=${JSON.stringify(state.toggle)}); ${drive}`)
+  }
+
+  // One glyph off the button centre line is what "the icons do not line up"
+  // looks like on a phone, and it is invisible to a box measurement because
+  // the button stays 28px. 0.5px of tolerance covers subpixel rounding.
+  const offCentre = state.glyphs.filter((glyph) => Math.abs(glyph.dy) > 0.5)
+  if (state.glyphs.length === 0) {
+    fail(`${prefix}.header-glyphs-centred`, `no header glyph measured; ${drive}`)
+  } else if (offCentre.length === 0) {
+    pass(`${prefix}.header-glyphs-centred`, `${state.glyphs.length} glyphs on the button centre line`)
+  } else {
+    fail(`${prefix}.header-glyphs-centred`, offCentre.map((glyph) => `${glyph.label} dy=${glyph.dy}`).join('; '))
   }
 }
 

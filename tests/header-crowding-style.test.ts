@@ -29,16 +29,12 @@ test('the header More-actions menu stays reachable on mobile', () => {
     /headerMenuButton[^{]*\{[^}]*display:\s*none/,
     'the header menu is hidden again; three of its entries are unique on mobile',
   )
-  // The glyph rules that used to exclude the menu by the dead fragment must
-  // exclude it by the marker upstream sets on it, or the 28px rhythm and the
-  // optical nudge silently restyle a control nobody meant to touch.
+  // The rhythm rule that used to exclude the menu by the dead fragment must
+  // exclude it by the marker upstream sets on it, or the 28px normalization
+  // silently restyles a control nobody meant to touch.
   assert.match(
     css,
     /\[class\*="headerUtilities"\] button:not\(\[data-context-menu-trigger\]\):not\(\[class\*="chevron"\]\)\s*\{[^}]*height: 28px !important;/s,
-  )
-  assert.match(
-    css,
-    /\[class\*="headerUtilities"\] button:not\(\[data-context-menu-trigger\]\):not\(\[class\*="chevron"\]\) > svg\s*\{[^}]*transform: translate\(1px, -2px\) !important;/s,
   )
 })
 
@@ -277,15 +273,18 @@ test('0.1.7 trailing actions form one tight right group', () => {
   )
 })
 
-test('0.1.7 Files glyph is optically centered in its button', () => {
-  // Geometry lies here: the arrow path is centered in its viewBox and the
-  // svg box is centered in the button, yet the ink masses toward the
-  // arrowhead (top-right) and reads low-left at phone sizes (zoomed CDP
-  // shots, 2026-09-22). A 2px down-left nudge on the svg balances the
-  // visual mass. Scoped to utilities buttons so no other glyph moves.
-  assert.match(
+test('0.1.7 no utilities glyph is nudged off the row centre line', () => {
+  // An optical translate tuned for the host Files arrow used to sit here. It
+  // was keyed on the headerUtilities band, and 0.2.3 moved the Files action out
+  // of that band: the only button left inside it is the Session panel toggle,
+  // whose flat-list ink is already symmetric, so the nudge read as a 2px raise
+  // (measured live 2026-11-22, `probe:multi-width` now asserts every header
+  // glyph sits on its button centre line). Geometry is honest here, so the
+  // rule is gone rather than re-tuned for a glyph nobody tuned it for.
+  assert.doesNotMatch(
     layout,
-    /\[class\*="headerUtilities"\] button:not\(\[data-context-menu-trigger\]\):not\(\[class\*="chevron"\]\) > svg\s*\{[^}]*transform: translate\(1px, -2px\) !important;/s,
+    /\[class\*="headerUtilities"\][^{]*>\s*svg\s*\{[^}]*transform:/s,
+    'a utilities glyph is being translated again',
   )
 })
 

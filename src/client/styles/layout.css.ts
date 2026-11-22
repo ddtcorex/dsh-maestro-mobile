@@ -1206,26 +1206,28 @@ export const LAYOUT_CSS = `/* ---------- mobile-only layout ---------- */
     width: 16px !important;
     height: 16px !important;
   }
-  /* Utilities buttons match the 28px control rhythm (upstream Files action
-     ships 22px tall and centers 1px off the 28px controls). The :not() guards
-     keep the menu trigger and the open-in-app chevron out of it, anchored on
-     the marker upstream sets on the trigger rather than on a class fragment:
-     "moreButton" stopped naming it in 0.2.2. */
+  /* Utilities buttons match the 28px control rhythm. The Files action this was
+     first written for shipped 22px tall and left the band in 0.2.3; the
+     session-panel toggle carries the rhythm today. The :not() guards keep the
+     menu trigger and the open-in-app chevron out of it, anchored on the marker
+     upstream sets on the trigger rather than on a class fragment: "moreButton"
+     stopped naming it in 0.2.2. */
   [data-mobile-nav="frame"] [data-phase] [data-slot="conversation.session.header"] [class*="headerUtilities"] button:not([data-context-menu-trigger]):not([class*="chevron"]) {
     height: 28px !important;
     display: inline-flex !important;
     align-items: center !important;
     justify-content: center !important;
   }
-  /* Optical centering for the Files glyph: the arrow path is centered in
-     its viewBox by the numbers, but the ink bbox sits low-left of the
-     button center at phone sizes (zoomed CDP shots, 2026-09-22). Shift
-     right-up so the four ink gaps equalize; tuned live to (1px, -2px)
-     after (2px, -2px) read a touch right. Scoped to utilities buttons
-     so no other glyph moves. */
-  [data-mobile-nav="frame"] [data-phase] [data-slot="conversation.session.header"] [class*="headerUtilities"] button:not([data-context-menu-trigger]):not([class*="chevron"]) > svg {
-    transform: translate(1px, -2px) !important;
-  }
+  /* No glyph nudge for the utilities band. An optical translate sat here, tuned
+     for the host Files arrow (2026-09-22) and keyed on the headerUtilities class
+     fragment. Upstream moved the Files action out of that band, so its only
+     target became the Session panel toggle, whose flat-list ink is already
+     centred (bbox centre 8.05, 8.0 in a 16x16 viewBox): the nudge surfaced as a
+     2px raise against the glyphs around it (measured live 2026-11-22 at 320,
+     360, 390 and 430px). A nudge is tuned for one icon's ink, so it cannot be
+     scoped by a band; the multi-width probe now asserts every header glyph sits
+     on its button centre line, so a future nudge has to argue with that gate
+     rather than with a comment. */
   /* No hide rule for the header ⋯ menu: see the decision recorded on the
      pre-0.1.7 twin above. */
   [data-mobile-nav="frame"] [data-phase] [data-slot="conversation.session.header"] [class*="_headerLeading"]:not(:has([data-slot="conversation.session.header.leading"] > *)) {
