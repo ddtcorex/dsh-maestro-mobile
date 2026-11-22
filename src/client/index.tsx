@@ -12,14 +12,11 @@ import { installAionuiCompat } from './effects/aionui-compat.ts'
 import { installViewportBridge } from './effects/viewport.ts'
 import { installSidebarSwipe } from './effects/sidebar-swipe.ts'
 import { installOverlayMenuTapGuard } from './effects/overlay-menu-tap-guard.ts'
-import { installHeroPresetMenuFix } from './effects/preset-menu-fix.ts'
 import { installComposerKeyboardTouch } from './effects/composer-keyboard-touch.ts'
 import { installComposerClearance } from './effects/composer-clearance.ts'
 import { installComposerKeyboardLift } from './effects/composer-keyboard-lift.ts'
 import { installComposerPlusToggle } from './effects/composer-plus-toggle.ts'
 import { installComposerFocusRelease } from './effects/composer-focus-release.ts'
-import { installModelMenuKeyboardGuard } from './effects/model-menu-keyboard-guard.ts'
-import { installSessionFocusGuard } from './effects/session-focus-guard.ts'
 import { installQuestionFullscreen } from './effects/question-fullscreen.ts'
 import { installSessionMenuDelete } from './effects/session-menu.ts'
 import { installSettingsTabsEdges } from './effects/settings-tabs-edges.ts'
@@ -195,12 +192,6 @@ export function apply(ctx: ClientContext): void {
 
   installAionuiCompat(ctx)
 
-  // New-session hero preset list on mobile: long lists previously clipped the
-  // top presets above the viewport due to the host Menu's inverted clamp
-  // (100vh-measured height vs innerHeight). Post-correct fixed portal menus
-  // on narrow viewports and cap height to dvh.
-  installHeroPresetMenuFix(ctx)
-
   // Composer toolbar soft-keyboard guard: upstream keepFocus forces focus on
   // the contenteditable for every toolbar mousedown, which pops the soft
   // keyboard on each phone tap of Commands / Stop / Send.
@@ -229,22 +220,10 @@ export function apply(ctx: ClientContext): void {
   // bounced the composer row.
   installComposerFocusRelease(ctx)
 
-  // Opening or switching to a session must not raise the soft keyboard: the
-  // host's InputBar focuses the Lexical editor from an effect keyed on
-  // sessionId, so every switch hands a WebView a DOM focus and the IME eats
-  // half the screen before the history can be read.
-  installSessionFocusGuard(ctx)
-
   // Ask-card manual fullscreen + answer scroll-back (upstream v3.2.2 port):
   // the host card cap shrinks with the keyboard while the answer field is the
   // last block of the scrollable body.
   installQuestionFullscreen(ctx)
-
-  // Model / reasoning-level menu must not raise the soft keyboard by itself:
-  // the host drills into the model pane and focuses its search field from a
-  // passive effect. Prototype shadow armed on capture-phase pointerdown; a
-  // real tap on the field still focuses natively.
-  installModelMenuKeyboardGuard(ctx)
 
   // Session deletion on touch-primary devices (every width): injects a delete
   // item into the host's per-session row menu and drives a confirmation-first
