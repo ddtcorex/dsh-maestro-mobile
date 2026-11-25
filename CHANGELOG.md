@@ -6,6 +6,14 @@ All notable changes to this project are documented in this file. Format follows
 
 ## [Unreleased]
 
+## [1.13.1] - 2026-11-26
+
+### Changed
+
+- The plugin card icon is a transparent 36x36 glyph in the same treatment as the other installed plugins, instead of a 256x256 blue tile that collapsed to a filled square at row size.
+- The plugin card title is sentence case (`Maestro mobile`), as the DSH display checklist asks.
+- The package description reads with a colon instead of an em dash.
+
 ## [1.13.0] - 2026-11-21
 
 ### Added
