@@ -1,7 +1,7 @@
 {
   "name": "@ddtcorex/dsh-maestro-mobile",
   "private": false,
-  "version": "1.13.0",
+  "version": "1.13.1",
   "description": "Portrait and mobile adaptation for the DeepSeek Harness Web UI: overlay drawer, full-width conversation, sheet-based dialogs, safe-area handling",
   "icon": "assets/icon.svg",
   "license": "MIT",
