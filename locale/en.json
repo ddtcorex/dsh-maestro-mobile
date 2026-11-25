@@ -1,6 +1,6 @@
 {
   "meta": {
-    "title": "Maestro Mobile",
+    "title": "Maestro mobile",
     "description": "Mobile adaptation for the DSH web UI: overlay drawer, full-width conversation, sheet dialogs, safe-area handling, and a composer built for phones. A complete no-op on a mouse-driven window."
   }
 }
